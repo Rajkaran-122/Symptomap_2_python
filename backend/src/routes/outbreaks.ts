@@ -36,7 +36,7 @@ router.get('/', validate(getOutbreaksSchema), async (req, res, next) => {
   try {
     const filters = req.query;
     const outbreaks = await outbreakService.getOutbreaks(filters);
-    
+
     // Log the query for audit
     await auditService.logAuditEvent({
       action: 'outbreaks_query',
@@ -64,7 +64,7 @@ router.post('/', validate(createOutbreakSchema), async (req, res, next) => {
   try {
     const outbreakData = req.body;
     const outbreak = await outbreakService.createOutbreak(outbreakData);
-    
+
     // Log the creation for audit
     await auditService.logAuditEvent({
       action: 'outbreak_created',
@@ -89,7 +89,7 @@ router.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
     const outbreak = await outbreakService.getOutbreakById(id);
-    
+
     if (!outbreak) {
       return res.status(404).json({
         error: 'Not Found',
@@ -108,9 +108,9 @@ router.put('/:id', validate(updateOutbreakSchema), async (req, res, next) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
-    
+
     const outbreak = await outbreakService.updateOutbreak(id, updateData);
-    
+
     if (!outbreak) {
       return res.status(404).json({
         error: 'Not Found',
@@ -142,7 +142,7 @@ router.delete('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
     const deleted = await outbreakService.deleteOutbreak(id);
-    
+
     if (!deleted) {
       return res.status(404).json({
         error: 'Not Found',
@@ -194,7 +194,7 @@ router.get('/nearby/:lat/:lng', async (req, res, next) => {
   try {
     const { lat, lng } = req.params;
     const { radius_km = 10, days_back = 7 } = req.query;
-    
+
     const nearbyOutbreaks = await outbreakService.findNearbyOutbreaks({
       latitude: parseFloat(lat),
       longitude: parseFloat(lng),

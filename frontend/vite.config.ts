@@ -30,7 +30,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom'],
-          mapbox: ['mapbox-gl'],
+          maplibre: ['maplibre-gl'],
           charts: ['recharts'],
         },
       },

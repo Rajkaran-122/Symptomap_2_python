@@ -1,10 +1,13 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "commonjs",
-    "lib": ["ES2022"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": [
+      "ES2022"
+    ],
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": "./",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -19,26 +22,35 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
-    "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "baseUrl": "./src",
     "paths": {
-      "@/*": ["./*"],
-      "@/types": ["./types"],
-      "@/services/*": ["./services/*"],
-      "@/middleware/*": ["./middleware/*"],
-      "@/routes/*": ["./routes/*"]
+      "@/*": [
+        "./*"
+      ],
+      "@/types": [
+        "./types"
+      ],
+      "@/services/*": [
+        "./services/*"
+      ],
+      "@/middleware/*": [
+        "./middleware/*"
+      ],
+      "@/routes/*": [
+        "./routes/*"
+      ]
     }
   },
   "include": [
-    "src/**/*"
+    "src/**/*",
+    "tests/**/*",
+    "vitest.config.ts"
   ],
   "exclude": [
     "node_modules",
-    "dist",
-    "**/*.test.ts",
-    "**/*.spec.ts"
+    "dist"
   ]
 }

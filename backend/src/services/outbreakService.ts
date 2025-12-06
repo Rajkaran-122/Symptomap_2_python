@@ -31,7 +31,12 @@ export interface NearbyOutbreak {
 export class OutbreakService {
   private pool = getPool();
 
+  constructor() {
+    console.log('DEBUG: OutbreakService instantiated');
+  }
+
   async getOutbreaks(filters: OutbreakFilters): Promise<OutbreakCluster[]> {
+    console.log('DEBUG: getOutbreaks called');
     const {
       lat_min,
       lat_max,
@@ -54,7 +59,7 @@ export class OutbreakService {
         symptoms,
         location_name,
         data_source,
-        created_at as lastUpdated
+        created_at
       FROM outbreak_reports
       WHERE created_at >= NOW() - INTERVAL '${days} days'
     `;
@@ -63,8 +68,8 @@ export class OutbreakService {
     let paramIndex = 1;
 
     // Add geographic bounds filter
-    if (lat_min !== undefined && lat_max !== undefined && 
-        lng_min !== undefined && lng_max !== undefined) {
+    if (lat_min !== undefined && lat_max !== undefined &&
+      lng_min !== undefined && lng_max !== undefined) {
       query += ` AND latitude BETWEEN $${paramIndex} AND $${paramIndex + 1}`;
       query += ` AND longitude BETWEEN $${paramIndex + 2} AND $${paramIndex + 3}`;
       queryParams.push(lat_min, lat_max, lng_min, lng_max);
@@ -88,7 +93,7 @@ export class OutbreakService {
     query += ` ORDER BY created_at DESC LIMIT 1000`;
 
     const result = await this.pool.query(query, queryParams);
-    
+
     return result.rows.map(row => ({
       id: row.id,
       latitude: parseFloat(row.latitude),
@@ -97,7 +102,7 @@ export class OutbreakService {
       severityLevel: row.severity_level,
       diseaseType: row.disease_type,
       confidence: parseFloat(row.confidence),
-      lastUpdated: row.lastupdated.toISOString(),
+      lastUpdated: row.created_at.toISOString(),
       symptoms: row.symptoms || [],
       locationName: row.location_name,
     }));
@@ -110,7 +115,7 @@ export class OutbreakService {
         severity_level, confidence, symptoms, location_name, data_source
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      RETURNING id, created_at as lastUpdated
+      RETURNING id, created_at
     `;
 
     const values = [
@@ -126,12 +131,12 @@ export class OutbreakService {
     ];
 
     const result = await this.pool.query(query, values);
-    const { id, lastupdated } = result.rows[0];
+    const { id, created_at } = result.rows[0];
 
     return {
       id,
       ...data,
-      lastUpdated: lastupdated.toISOString(),
+      lastUpdated: created_at.toISOString(),
     };
   }
 
@@ -140,13 +145,13 @@ export class OutbreakService {
       SELECT 
         id, disease_type, latitude, longitude, case_count,
         severity_level, confidence, symptoms, location_name,
-        created_at as lastUpdated
+        created_at
       FROM outbreak_reports
       WHERE id = $1
     `;
 
     const result = await this.pool.query(query, [id]);
-    
+
     if (result.rows.length === 0) {
       return null;
     }
@@ -160,7 +165,7 @@ export class OutbreakService {
       severityLevel: row.severity_level,
       diseaseType: row.disease_type,
       confidence: parseFloat(row.confidence),
-      lastUpdated: row.lastupdated.toISOString(),
+      lastUpdated: row.created_at.toISOString(),
       symptoms: row.symptoms || [],
       locationName: row.location_name,
     };
@@ -190,11 +195,11 @@ export class OutbreakService {
       UPDATE outbreak_reports 
       SET ${fields.join(', ')}, updated_at = NOW()
       WHERE id = $${paramIndex}
-      RETURNING id, created_at as lastUpdated
+      RETURNING id, created_at
     `;
 
     const result = await this.pool.query(query, values);
-    
+
     if (result.rows.length === 0) {
       return null;
     }
@@ -210,7 +215,7 @@ export class OutbreakService {
 
   async getOutbreakStats(options: { disease_type?: string; days_back: number }): Promise<OutbreakStats> {
     const { disease_type, days_back } = options;
-    
+
     let query = `
       SELECT 
         SUM(case_count) as total_cases,
@@ -270,7 +275,7 @@ export class OutbreakService {
     `;
 
     const result = await this.pool.query(query, [longitude, latitude, radius_km]);
-    
+
     return result.rows.map(row => ({
       id: row.id,
       disease_type: row.disease_type,

@@ -1,0 +1,181 @@
+{
+    "region": "Mumbai Metropolitan Area",
+    "description": "Realistic hospital outbreak data showing Viral Fever spread across Mumbai hospitals",
+    "hospitals": [
+        {
+            "name": "Lilavati Hospital, Bandra",
+            "latitude": 19.0596,
+            "longitude": 72.8295,
+            "outbreak": {
+                "disease_type": "Viral Fever",
+                "case_count": 67,
+                "severity_level": 4,
+                "symptoms": [
+                    "high fever",
+                    "body ache",
+                    "headache",
+                    "fatigue"
+                ],
+                "location_name": "Lilavati Hospital, Bandra"
+            }
+        },
+        {
+            "name": "Hinduja Hospital, Mahim",
+            "latitude": 19.0330,
+            "longitude": 72.8397,
+            "outbreak": {
+                "disease_type": "Viral Fever",
+                "case_count": 52,
+                "severity_level": 3,
+                "symptoms": [
+                    "fever",
+                    "cough",
+                    "headache"
+                ],
+                "location_name": "Hinduja Hospital, Mahim"
+            }
+        },
+        {
+            "name": "KEM Hospital, Parel",
+            "latitude": 18.9894,
+            "longitude": 72.8439,
+            "outbreak": {
+                "disease_type": "Viral Fever",
+                "case_count": 89,
+                "severity_level": 4,
+                "symptoms": [
+                    "high fever",
+                    "body ache",
+                    "nausea",
+                    "headache"
+                ],
+                "location_name": "KEM Hospital, Parel"
+            }
+        },
+        {
+            "name": "Tata Memorial Hospital, Parel",
+            "latitude": 18.9968,
+            "longitude": 72.8390,
+            "outbreak": {
+                "disease_type": "Dengue",
+                "case_count": 34,
+                "severity_level": 3,
+                "symptoms": [
+                    "high fever",
+                    "joint pain",
+                    "rash"
+                ],
+                "location_name": "Tata Memorial Hospital, Parel"
+            }
+        },
+        {
+            "name": "Breach Candy Hospital, Breach Candy",
+            "latitude": 18.9670,
+            "longitude": 72.8040,
+            "outbreak": {
+                "disease_type": "Influenza",
+                "case_count": 41,
+                "severity_level": 2,
+                "symptoms": [
+                    "fever",
+                    "cough",
+                    "sore throat"
+                ],
+                "location_name": "Breach Candy Hospital"
+            }
+        },
+        {
+            "name": "Kokilaben Dhirubhai Ambani Hospital, Andheri",
+            "latitude": 19.1334,
+            "longitude": 72.8267,
+            "outbreak": {
+                "disease_type": "Viral Fever",
+                "case_count": 45,
+                "severity_level": 3,
+                "symptoms": [
+                    "fever",
+                    "body ache",
+                    "fatigue"
+                ],
+                "location_name": "Kokilaben Hospital, Andheri"
+            }
+        },
+        {
+            "name": "Nanavati Hospital, Vile Parle",
+            "latitude": 19.1076,
+            "longitude": 72.8405,
+            "outbreak": {
+                "disease_type": "Viral Fever",
+                "case_count": 58,
+                "severity_level": 3,
+                "symptoms": [
+                    "fever",
+                    "headache",
+                    "weakness"
+                ],
+                "location_name": "Nanavati Hospital, Vile Parle"
+            }
+        },
+        {
+            "name": "Fortis Hospital, Mulund",
+            "latitude": 19.1722,
+            "longitude": 72.9563,
+            "outbreak": {
+                "disease_type": "COVID-19",
+                "case_count": 23,
+                "severity_level": 2,
+                "symptoms": [
+                    "fever",
+                    "dry cough",
+                    "fatigue"
+                ],
+                "location_name": "Fortis Hospital, Mulund"
+            }
+        },
+        {
+            "name": "Wockhardt Hospital, Mira Road",
+            "latitude": 19.2812,
+            "longitude": 72.8579,
+            "outbreak": {
+                "disease_type": "Viral Fever",
+                "case_count": 31,
+                "severity_level": 2,
+                "symptoms": [
+                    "fever",
+                    "body ache"
+                ],
+                "location_name": "Wockhardt Hospital, Mira Road"
+            }
+        },
+        {
+            "name": "Apollo Hospital, Navi Mumbai",
+            "latitude": 19.0330,
+            "longitude": 73.0297,
+            "outbreak": {
+                "disease_type": "Viral Fever",
+                "case_count": 38,
+                "severity_level": 3,
+                "symptoms": [
+                    "fever",
+                    "headache",
+                    "body ache"
+                ],
+                "location_name": "Apollo Hospital, Navi Mumbai"
+            }
+        }
+    ],
+    "prediction_bounds": {
+        "description": "Geographic bounds for Mumbai Metropolitan Region",
+        "bounds_north": 19.35,
+        "bounds_south": 18.85,
+        "bounds_east": 73.10,
+        "bounds_west": 72.75
+    },
+    "expected_spread_zones": [
+        "Thane - High Risk (close to Mulund outbreak)",
+        "Borivali - Medium Risk (north of Andheri)",
+        "Powai - High Risk (between Andheri and Mulund)",
+        "Kurla - High Risk (central location near multiple outbreaks)",
+        "Chembur - Medium Risk (east of Parel)"
+    ]
+}

@@ -1,11 +1,9 @@
 import React, { useEffect, useRef, useMemo, useCallback } from 'react';
-import mapboxgl from 'mapbox-gl';
+import maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import { OutbreakCluster, GeographicBounds, SEVERITY_COLORS } from '@/types';
 import { useMapStore } from '@/store/useMapStore';
 import { websocketService } from '@/services/websocket';
-
-// Set Mapbox access token
-mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || '';
 
 interface OutbreakMapProps {
   className?: string;
@@ -13,9 +11,9 @@ interface OutbreakMapProps {
 
 export const OutbreakMap: React.FC<OutbreakMapProps> = ({ className = '' }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<mapboxgl.Map | null>(null);
-  const markers = useRef<Map<string, mapboxgl.Marker>>(new Map());
-  
+  const map = useRef<maplibregl.Map | null>(null);
+  const markers = useRef<Map<string, maplibregl.Marker>>(new Map());
+
   const {
     outbreaks,
     selectedCluster,
@@ -31,40 +29,69 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ className = '' }) => {
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
 
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
-      center: [0, 20], // Center on world map
-      zoom: 2,
-      maxZoom: 18,
-      minZoom: 1,
-    });
-
-    // Add navigation controls
-    map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
-
-    // Add geolocate control
-    map.current.addControl(
-      new mapboxgl.GeolocateControl({
-        positionOptions: {
-          enableHighAccuracy: true,
+    try {
+      map.current = new maplibregl.Map({
+        container: mapContainer.current,
+        style: {
+          version: 8,
+          sources: {
+            'osm': {
+              type: 'raster',
+              tiles: [
+                'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png'
+              ],
+              tileSize: 256,
+              attribution: '&copy; OpenStreetMap Contributors',
+              maxzoom: 19
+            }
+          },
+          layers: [
+            {
+              id: 'osm',
+              type: 'raster',
+              source: 'osm',
+              minzoom: 0,
+              maxzoom: 19
+            }
+          ]
         },
-        trackUserLocation: true,
-        showUserHeading: true,
-      }),
-      'top-right'
-    );
+        center: [0, 20], // Center on world map
+        zoom: 2,
+        maxZoom: 18,
+        minZoom: 1,
+      });
 
-    // Handle map load
-    map.current.on('load', () => {
-      setLoading(false);
-    });
+      // Add navigation controls
+      map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
 
-    // Handle map errors
-    map.current.on('error', (e) => {
-      console.error('Map error:', e);
-      setError('Failed to load map');
-    });
+      // Add geolocate control
+      map.current.addControl(
+        new maplibregl.GeolocateControl({
+          positionOptions: {
+            enableHighAccuracy: true,
+          },
+          trackUserLocation: true,
+        }),
+        'top-right'
+      );
+
+      // Handle map load
+      map.current.on('load', () => {
+        setLoading(false);
+      });
+
+      // Handle map errors
+      map.current.on('error', (e) => {
+        console.error('Map error:', e);
+        setError('Failed to load map');
+      });
+
+    } catch (err) {
+      console.error('Error initializing map:', err);
+      setError('Failed to initialize map');
+    }
 
     return () => {
       if (map.current) {
@@ -81,18 +108,18 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ className = '' }) => {
       if (filters.diseaseTypes.length > 0 && !filters.diseaseTypes.includes(outbreak.diseaseType)) {
         return false;
       }
-      
+
       // Filter by severity level
       if (filters.severityLevels.length > 0 && !filters.severityLevels.includes(outbreak.severityLevel)) {
         return false;
       }
-      
+
       // Filter by time window
       const outbreakDate = new Date(outbreak.lastUpdated);
       if (outbreakDate < timeWindow.start || outbreakDate > timeWindow.end) {
         return false;
       }
-      
+
       return true;
     });
   }, [outbreaks, filters, timeWindow]);
@@ -124,14 +151,14 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ className = '' }) => {
     }
 
     // Create marker
-    const marker = new mapboxgl.Marker(el)
+    const marker = new maplibregl.Marker(el)
       .setLngLat([outbreak.longitude, outbreak.latitude])
       .addTo(map.current!);
 
     // Add click handler
     el.addEventListener('click', () => {
       selectCluster(outbreak);
-      
+
       // Fly to marker
       map.current?.flyTo({
         center: [outbreak.longitude, outbreak.latitude],
@@ -183,7 +210,7 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ className = '' }) => {
         east: bounds.getEast(),
         west: bounds.getWest(),
       };
-      
+
       websocketService.subscribeToMap(geographicBounds);
     };
 
@@ -217,7 +244,7 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ className = '' }) => {
   // Performance monitoring
   useEffect(() => {
     const startTime = performance.now();
-    
+
     return () => {
       const renderTime = performance.now() - startTime;
       if (renderTime > 50) { // Performance target: 50ms
@@ -229,7 +256,7 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ className = '' }) => {
   return (
     <div className={`relative w-full h-full ${className}`}>
       <div ref={mapContainer} className="w-full h-full rounded-lg" />
-      
+
       {/* Map overlay with outbreak count */}
       <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg p-3 shadow-lg">
         <div className="text-sm font-medium text-gray-700">
@@ -249,7 +276,7 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ className = '' }) => {
         <div className="space-y-1">
           {Object.entries(SEVERITY_COLORS).map(([level, color]) => (
             <div key={level} className="flex items-center space-x-2">
-              <div 
+              <div
                 className="w-3 h-3 rounded-full border border-white shadow-sm"
                 style={{ backgroundColor: color }}
               />

@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SymptoMap - Mumbai Outbreak Predictions</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        .status {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+        }
+        .status-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 15px;
+            min-width: 200px;
+            text-align: center;
+            margin: 10px;
+        }
+        .status-card h3 { font-size: 2em; margin-bottom: 5px; }
+        .status-card p { opacity: 0.9; }
+        .alert-box {
+            background: #fff3cd;
+            border-left: 5px solid #ffc107;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 10px;
+        }
+        .alert-box h2 { color: #856404; margin-bottom: 10px; }
+        .alert-box p { color: #856404; line-height: 1.6; }
+        .risk-areas {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .risk-card {
+            border: 2px solid #ddd;
+            border-radius: 15px;
+            padding: 20px;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .risk-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .risk-card.high { border-color: #dc3545; background: #fff5f5; }
+        .risk-card.medium { border-color: #ffc107; background: #fffbf0; }
+        .risk-card.low { border-color: #28a745; background: #f0fff4; }
+        .risk-card h3 { margin-bottom: 15px; color: #333; }
+        .risk-score {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .high .risk-score { color: #dc3545; }
+        .medium .risk-score { color: #ffc107; }
+        .low .risk-score { color: #28a745; }
+        .detail { margin: 8px 0; color: #666; }
+        .detail strong { color: #333; }
+        .heatmap-info {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 15px;
+            margin-top: 30px;
+        }
+        .heatmap-info h2 { margin-bottom: 20px; color: #667eea; }
+        .grid-stats {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+        }
+        .grid-stat {
+            text-align: center;
+            padding: 15px;
+            margin: 10px;
+        }
+        .grid-stat .number { font-size: 2em; font-weight: bold; color: #667eea; }
+        .grid-stat .label { color: #666; margin-top: 5px; }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 30px;
+            font-size: 1.1em;
+            cursor: pointer;
+            display: block;
+            margin: 30px auto;
+            transition: transform 0.3s;
+        }
+        button:hover { transform: scale(1.05); }
+        .loading { text-align: center; padding: 40px; color: #667eea; font-size: 1.2em; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗺️ SymptoMap Disease Spread Prediction</h1>
+        <p class="subtitle">Mumbai Metropolitan Area - Real-time Geographic Analysis</p>
+        
+        <div id="content">
+            <div class="loading">Loading predictions...</div>
+        </div>
+        
+        <button onclick="location.reload()">🔄 Refresh Predictions</button>
+    </div>
+
+    <script>
+        async function loadPredictions() {
+            const content = document.getElementById('content');
+            
+            try {
+                // Load from the cached prediction results
+                const response = await fetch('prediction-results.txt');
+                const data = await response.json();
+                
+                // Count risk areas
+                const highRisk = data.high_risk_areas || [];
+                const mediumRisk = data.medium_risk_areas || [];
+                const lowRisk = data.low_risk_areas || [];
+                const gridPoints = data.risk_grid || [];
+                
+                let html = `
+                    <div class="status">
+                        <div class="status-card">
+                            <h3>${highRisk.length}</h3>
+                            <p>High Risk Areas</p>
+                        </div>
+                        <div class="status-card">
+                            <h3>${mediumRisk.length}</h3>
+                            <p>Medium Risk Areas</p>
+                        </div>
+                        <div class="status-card">
+                            <h3>${lowRisk.length}</h3>
+                            <p>Low Risk Areas</p>
+                        </div>
+                        <div class="status-card">
+                            <h3>${gridPoints.length}</h3>
+                            <p>Grid Points Analyzed</p>
+                        </div>
+                    </div>
+                    
+                    <div class="alert-box">
+                        <h2>⚠️ ALERT: Disease Spread Detected</h2>
+                        <p><strong>Viral Fever outbreak detected in Mumbai.</strong> Multiple hospitals reporting increased cases. High risk of geographic spread to adjacent areas within 48-72 hours.</p>
+                        <p><strong>Recommendation:</strong> Enhanced surveillance in medium-risk zones. Prepare additional healthcare capacity.</p>
+                    </div>
+                    
+                    <h2 style="margin-bottom: 20px; color: #dc3545;">🔴 Top Medium-Risk Areas</h2>
+                    <div class="risk-areas">
+                `;
+                
+                // Show top 6 medium-risk areas
+                mediumRisk.slice(0, 6).forEach(area => {
+                    html += `
+                        <div class="risk-card medium">
+                            <h3>📍 ${area.name}</h3>
+                            <div class="risk-score">${area.risk_score}/10</div>
+                            <div class="detail"><strong>Location:</strong> ${area.lat.toFixed(4)}°N, ${area.lng.toFixed(4)}°E</div>
+                            <div class="detail"><strong>Spread Probability:</strong> ${(area.probability * 100).toFixed(0)}%</div>
+                            <div class="detail"><strong>Estimated Cases:</strong> ${area.estimated_cases}</div>
+                            <div class="detail"><strong>Days Until Spread:</strong> ${area.days_until_spread} days</div>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                    </div>
+                    
+                    <div class="heatmap-info">
+                        <h2>🗺️ Heat Map Analysis</h2>
+                        <div class="grid-stats">
+                            <div class="grid-stat">
+                                <div class="number">${gridPoints.filter(p => p.risk >= 9).length}</div>
+                                <div class="label">Critical Risk Points</div>
+                            </div>
+                            <div class="grid-stat">
+                                <div class="number">${gridPoints.filter(p => p.risk >= 7 && p.risk < 9).length}</div>
+                                <div class="label">High Risk Points</div>
+                            </div>
+                            <div class="grid-stat">
+                                <div class="number">${gridPoints.filter(p => p.risk >= 5 && p.risk < 7).length}</div>
+                                <div class="label">Medium Risk Points</div>
+                            </div>
+                            <div class="grid-stat">
+                                <div class="number">${gridPoints.length}</div>
+                                <div class="label">Total Points Analyzed</div>
+                            </div>
+                        </div>
+                        <p style="margin-top: 20px; text-align: center; color: #666;">
+                            Coverage: ${Math.round((73.10 - 72.75) * 111 * (19.35 - 18.85) * 111)} km² | Grid Resolution: ~5km cells
+                        </p>
+                    </div>
+                `;
+                
+                content.innerHTML = html;
+                
+            } catch (error) {
+                content.innerHTML = `
+                    <div class="alert-box" style="background: #f8d7da; border-color: #dc3545;">
+                        <h2>❌ Error Loading Predictions</h2>
+                        <p>Could not load prediction results. Make sure prediction-results.txt exists.</p>
+                        <p style="margin-top: 10px;"><strong>Error:</strong> ${error.message}</p>
+                    </div>
+                    <p style="text-align: center; color: #666; margin-top: 20px;">
+                        Run <code>run-mumbai-demo.bat</code> to generate predictions.
+                    </p>
+                `;
+            }
+        }
+        
+        // Load predictions on page load
+        loadPredictions();
+    </script>
+</body>
+</html>

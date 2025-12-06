@@ -4,6 +4,8 @@ import { predictionRoutes } from './predictions.js';
 import { healthRoutes } from './health.js';
 import { metricsRoutes } from './metrics.js';
 
+import { spreadRoutes } from './spread.js';
+
 export const setupRoutes = (app: Express): void => {
   // API version prefix
   const apiPrefix = '/api/v1';
@@ -11,6 +13,7 @@ export const setupRoutes = (app: Express): void => {
   // Mount route modules
   app.use(`${apiPrefix}/outbreaks`, outbreakRoutes);
   app.use(`${apiPrefix}/predictions`, predictionRoutes);
+  app.use(`${apiPrefix}/spread`, spreadRoutes);
   app.use(`${apiPrefix}/health`, healthRoutes);
   app.use(`${apiPrefix}/metrics`, metricsRoutes);
 

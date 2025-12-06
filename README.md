@@ -51,7 +51,7 @@ A comprehensive real-time disease surveillance and outbreak prediction platform 
 **Frontend**
 - React 18 + TypeScript + Vite
 - Zustand (state management)
-- Mapbox GL JS (mapping)
+- MapLibre GL JS (OpenStreetMap)
 - Recharts (visualizations)
 - Tailwind CSS (styling)
 - Socket.io (real-time)

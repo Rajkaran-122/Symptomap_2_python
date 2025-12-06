@@ -1,0 +1,17 @@
+{
+    "outbreaks": [
+        {
+            "lat": 28.6139,
+            "lng": 77.2090,
+            "cases": 50,
+            "disease": "Viral Fever",
+            "severity": 3
+        }
+    ],
+    "bounds": {
+        "north": 29.0,
+        "south": 28.0,
+        "east": 78.0,
+        "west": 76.5
+    }
+}

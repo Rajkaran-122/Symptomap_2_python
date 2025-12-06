@@ -64,12 +64,14 @@
   }
 }
 
-/* Mapbox overrides */
-.mapboxgl-popup-content {
+/* Mapbox/MapLibre overrides */
+.mapboxgl-popup-content,
+.maplibregl-popup-content {
   @apply rounded-lg shadow-lg border-0;
 }
 
-.mapboxgl-popup-tip {
+.mapboxgl-popup-tip,
+.maplibregl-popup-tip {
   @apply border-t-white;
 }
 
