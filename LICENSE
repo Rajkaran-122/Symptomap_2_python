@@ -1,6 +1,6 @@
-MIT License
+# MIT License
 
-Copyright (c) 2025 SymptoMap
+Copyright (c) 2025 SymptoMap Project
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19,3 +19,51 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+## Third-Party Licenses
+
+This software uses open source packages with the following licenses:
+
+### Backend Dependencies
+- **FastAPI** - MIT License
+- **Uvicorn** - BSD License
+- **PyJWT** - MIT License
+- **Pydantic** - MIT License
+- **SQLite** - Public Domain
+
+### Frontend Dependencies
+- **React** - MIT License
+- **TypeScript** - Apache 2.0 License
+- **Vite** - MIT License
+- **Tailwind CSS** - MIT License
+- **MapLibre GL JS** - BSD 3-Clause License
+- **shadcn/ui** - MIT License
+
+### Map Data
+- **OpenStreetMap** - ODbL License
+  - © OpenStreetMap contributors
+  - Data available under Open Database License
+  - https://www.openstreetmap.org/copyright
+
+---
+
+## Attribution
+
+When using this software, please provide attribution to:
+- SymptoMap Project
+- All third-party libraries and their respective authors
+- OpenStreetMap contributors for map data
+
+---
+
+## Disclaimer
+
+THIS SOFTWARE IS PROVIDED FOR PUBLIC HEALTH MONITORING PURPOSES. 
+USERS ARE RESPONSIBLE FOR COMPLIANCE WITH LOCAL DATA PROTECTION 
+AND HEALTHCARE REGULATIONS (HIPAA, GDPR, ETC.).
+
+---
+
+*Last Updated: December 30, 2025*

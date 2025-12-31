@@ -1,9 +1,0 @@
-@echo off
-echo Setting up Python environment...
-python -m venv ml-service\venv
-call ml-service\venv\Scripts\activate
-echo Installing dependencies...
-pip install -r ml-service\requirements.txt
-echo Starting ML Service...
-cd ml-service
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload

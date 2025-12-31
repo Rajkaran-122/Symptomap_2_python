@@ -1,0 +1,6 @@
+disease_type,patient_count,severity,latitude,longitude,location_name,city,state,description,date_reported
+Dengue,45,moderate,26.9124,75.7873,SMS Hospital,Jaipur,Rajasthan,Seasonal dengue outbreak during monsoon season,2025-01-15
+Malaria,23,moderate,28.7041,77.1025,AIIMS Delhi,Delhi,Delhi,Vector-borne disease cases increasing in surrounding areas,2025-01-16
+COVID-19,67,severe,19.0760,72.8777,KEM Hospital,Mumbai,Maharashtra,New COVID-19 variant detected with increasing cases,2025-01-17
+Influenza,56,mild,12.9716,77.5946,Bangalore Medical College,Bangalore,Karnataka,Seasonal flu outbreak affecting respiratory patients,2025-01-18
+Typhoid,28,moderate,13.0827,80.2707,Apollo Hospital,Chennai,Tamil Nadu,Waterborne disease outbreak due to contaminated water supply,2025-01-19

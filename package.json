@@ -49,8 +49,10 @@
     "postinstall": "npm run setup"
   },
   "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "@types/node": "^25.0.3",
     "concurrently": "^8.2.2",
-    "@playwright/test": "^1.40.0"
+    "tailwindcss": "^4.1.18"
   },
   "engines": {
     "node": ">=18.0.0",

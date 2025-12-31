@@ -1,329 +1,457 @@
-# SymptoMap MVP Deployment Guide
+# Production Deployment Guide
 
-## 🚀 Quick Start
+This guide covers deploying SymptoMap to production environments including cloud platforms, VPS servers, and Kubernetes clusters.
 
-### Prerequisites
-- Docker & Docker Compose
-- Node.js 18+
-- PostgreSQL 15+ with PostGIS
-- Redis 7+
-- Mapbox API key
+## Table of Contents
+- [Server Requirements](#server-requirements)
+- [Docker Deployment](#docker-deployment)
+- [Cloud Platforms](#cloud-platforms)
+- [Database Setup](#database-setup)
+- [SSL/TLS Configuration](#ssltls-configuration)
+- [Monitoring](#monitoring)
+- [Backup & Recovery](#backup--recovery)
 
-### 1. Development Setup
+## Server Requirements
 
+### Minimum Requirements
+- **CPU**: 2 cores
+- **RAM**: 4GB
+- **Disk**: 20GB SSD
+- **OS**: Ubuntu 22.04 LTS (recommended) or any Linux with Docker support
+
+### Recommended for Production
+- **CPU**: 4+ cores
+- **RAM**: 8GB+
+- **Disk**: 50GB+ SSD
+- **Network**: 100 Mbps+
+
+### Software Prerequisites
 ```bash
-# Clone and setup
-git clone https://github.com/Rajkaran-122/Symptomap.git
-cd Symptomap
-npm run setup
+# Update system
+sudo apt update && sudo apt upgrade -y
 
-# Configure environment
-cp env.example .env
-# Edit .env with your API keys
+# Install Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
 
-# Start development environment
-./scripts/setup-dev.sh
+# Install Docker Compose
+sudo apt install docker-compose-plugin
+
+# Verify installation
+docker --version
+docker compose version
 ```
 
-### 2. Production Deployment
+## Docker Deployment
+
+### 1. Initial Setup
 
 ```bash
-# Build production images
-docker-compose -f docker-compose.prod.yml build
+# Clone repository
+git clone https://github.com/yourusername/symptomap.git
+cd symptomap
 
-# Deploy with environment variables
-POSTGRES_PASSWORD=your-secure-password \
-JWT_SECRET=your-jwt-secret \
-MAPBOX_ACCESS_TOKEN=your-mapbox-token \
-docker-compose -f docker-compose.prod.yml up -d
+# Create production environment file
+cp .env.example .env
 ```
 
-### 3. Kubernetes Deployment
+### 2. Configure Environment Variables
 
-```bash
-# Apply Kubernetes manifests
-kubectl apply -f kubernetes/
+Edit `.env` with production settings:
 
-# Check deployment status
-kubectl get pods -n symptomap
+```env
+# Database - Use strong passwords!
+POSTGRES_PASSWORD=$(openssl rand -base64 32)
 
-# Access services
-kubectl port-forward svc/symptomap-frontend 3000:80
-kubectl port-forward svc/symptomap-backend 8787:8787
+# Security - Generate random secrets
+JWT_SECRET=$(openssl rand -base64 32)
+JWT_REFRESH_SECRET=$(openssl rand -base64 32)
+
+# Production URLs
+CORS_ORIGINS=https://symptomap.yourdomain.com
+VITE_API_URL=https://api.symptomap.yourdomain.com/api/v1
+
+# Disable debug
+DEBUG=false
+VITE_ENVIRONMENT=production
 ```
 
-## 📊 Monitoring
-
-### Access Points
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:8787
-- **API Docs**: http://localhost:8787/api/v1/docs
-- **Prometheus**: http://localhost:9090
-- **Grafana**: http://localhost:3001 (admin/admin)
-
-### Key Metrics
-- API response times <200ms P95
-- Map rendering <50ms initial load
-- WebSocket latency <100ms
-- Concurrent users: 1000+
-- Data points: 100K+ with smooth interaction
-
-## 🔧 Configuration
-
-### Environment Variables
+### 3. Build and Start Services
 
 ```bash
-# Database
-DATABASE_URL=postgresql://user:pass@localhost:5432/symptomap
-REDIS_URL=redis://localhost:6379
+# Build images
+docker compose build
 
-# API Configuration
-NODE_ENV=production
-PORT=8787
-CORS_ORIGIN=https://symptomap.com
+# Start in detached mode
+docker compose up -d
 
-# External Services
-MAPBOX_ACCESS_TOKEN=your-mapbox-token
-OPENAI_API_KEY=your-openai-key
+# Check status
+docker compose ps
 
-# Security
-JWT_SECRET=your-jwt-secret
-JWT_REFRESH_SECRET=your-refresh-secret
+# View logs
+docker compose logs -f
 ```
 
-### Performance Tuning
+### 4. Verify Deployment
 
 ```bash
-# Database optimization
-POSTGRES_SHARED_BUFFERS=256MB
-POSTGRES_EFFECTIVE_CACHE_SIZE=1GB
-POSTGRES_WORK_MEM=4MB
+# Test backend
+curl http://localhost:8000/health
 
-# Redis optimization
-REDIS_MAXMEMORY=512mb
-REDIS_MAXMEMORY_POLICY=allkeys-lru
+# Test frontend
+curl http://localhost:3000/health
 
-# Node.js optimization
-NODE_OPTIONS="--max-old-space-size=512"
+# Check database
+docker compose exec postgres pg_isready
 ```
 
-## 🛠️ Maintenance
+## Cloud Platforms
 
-### Database Maintenance
+### AWS EC2
+
+1. **Launch Instance**
+   - AMI: Ubuntu 22.04 LTS
+   - Instance Type: t3.medium (minimum)
+   - Security Group: Open ports 80, 443, 22
+
+2. **Setup**
+```bash
+# SSH into instance
+ssh -i your-key.pem ubuntu@your-instance-ip
+
+# Install Docker (see above)
+# Clone and deploy (see Docker Deployment)
+
+# Configure security group
+# Allow: 80 (HTTP), 443 (HTTPS), 22 (SSH)
+# Restrict PostgreSQL (5432) to localhost only
+```
+
+3. **Use RDS for Database** (Recommended)
+```env
+DATABASE_URL=postgresql://user:pass@your-rds-endpoint:5432/symptomap
+```
+
+### Google Cloud Platform
 
 ```bash
+# Create VM instance
+gcloud compute instances create symptomap-server \
+  --image-family=ubuntu-2204-lts \
+  --image-project=ubuntu-os-cloud \
+  --machine-type=e2-medium \
+  --boot-disk-size=50GB
+
+# SSH and deploy
+gcloud compute ssh symptomap-server
+```
+
+### DigitalOcean
+
+1. Create Droplet: Ubuntu 22.04, 4GB RAM
+2. SSH and follow Docker deployment steps
+3. Use managed PostgreSQL database (recommended)
+
+## Database Setup
+
+### Production PostgreSQL Configuration
+
+Create `docker-compose.prod.yml` override:
+
+```yaml
+services:
+  postgres:
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    environment:
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8"
+      POSTGRES_HOST_AUTH_METHOD: md5
+    command: postgres -c max_connections=200 -c shared_buffers=512MB
+```
+
+### Database Migrations
+
+```bash
+# Access backend container
+docker compose exec backend bash
+
 # Run migrations
-npm run db:migrate
+alembic upgrade head
 
-# Seed sample data
-npm run db:seed
+# Verify
+alembic current
+```
 
-# Reset database
-npm run db:reset
+### Initial Data Seeding
 
-# Backup database
-pg_dump symptomap > backup.sql
+```bash
+# Run seed script
+docker compose exec backend python seed_data.py
+```
+
+## SSL/TLS Configuration
+
+### Using Let's Encrypt (Recommended)
+
+1. **Install Certbot**
+
+```bash
+sudo apt install certbot python3-certbot-nginx
+```
+
+2. **Create Nginx Configuration**
+
+Create `nginx-prod.conf`:
+
+```nginx
+server {
+    listen 80;
+    server_name symptomap.yourdomain.com;
+    
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+    
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name symptomap.yourdomain.com;
+    
+    ssl_certificate /etc/letsencrypt/live/symptomap.yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/symptomap.yourdomain.com/privkey.pem;
+    
+    # Security headers
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    
+    location / {
+        proxy_pass http://frontend:80;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+    
+    location /api/ {
+        proxy_pass http://backend:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+3. **Obtain Certificate**
+
+```bash
+sudo certbot --nginx -d symptomap.yourdomain.com
+```
+
+4. **Auto-renewal**
+
+```bash
+# Test renewal
+sudo certbot renew --dry-run
+
+# Renewal runs automatically via systemd timer
+sudo systemctl status certbot.timer
+```
+
+## Monitoring
+
+### Enable Prometheus & Grafana
+
+Uncomment monitoring services in `docker-compose.yml`:
+
+```yaml
+services:
+  prometheus:
+    # ... (uncomment)
+  
+  grafana:
+    # ... (uncomment)
+```
+
+### Access Monitoring
+
+- **Prometheus**: http://your-server:9090
+- **Grafana**: http://your-server:3001
+  - Default login: admin / admin (change immediately!)
+
+### Custom Metrics
+
+Backend exposes metrics at `/metrics`:
+
+```bash
+curl http://localhost:8000/metrics
+```
+
+### Log Aggregation
+
+Using Docker Compose logging:
+
+```yaml
+services:
+  backend:
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+```
+
+View logs:
+
+```bash
+docker compose logs -f backend --tail=100
+```
+
+## Backup & Recovery
+
+### Database Backups
+
+#### Automated Daily Backups
+
+Create `backup.sh`:
+
+```bash
+#!/bin/bash
+BACKUP_DIR="/backups"
+DATE=$(date +%Y%m%d_%H%M%S)
+FILENAME="symptomap_backup_$DATE.sql"
+
+docker compose exec -T postgres pg_dump -U symptomap symptomap > "$BACKUP_DIR/$FILENAME"
+
+# Compress
+gzip "$BACKUP_DIR/$FILENAME"
+
+# Keep only last 7 days
+find $BACKUP_DIR -name "*.sql.gz" -mtime +7 -delete
+
+echo "Backup completed: $FILENAME.gz"
+```
+
+#### Schedule with Cron
+
+```bash
+# Edit crontab
+crontab -e
+
+# Add daily backup at 2 AM
+0 2 * * * /path/to/backup.sh >> /var/log/backup.log 2>&1
+```
+
+### Restore from Backup
+
+```bash
+# Stop backend
+docker compose stop backend
 
 # Restore database
-psql symptomap < backup.sql
+gunzip < backup_file.sql.gz | docker compose exec -T postgres psql -U symptomap symptomap
+
+# Restart services
+docker compose up -d
 ```
 
-### Monitoring Maintenance
+### Volume Backups
 
 ```bash
-# View logs
-docker-compose logs -f
-
-# Check system metrics
-curl http://localhost:8787/metrics
-
-# View Grafana dashboards
-open http://localhost:3001
-
-# Check Prometheus targets
-open http://localhost:9090/targets
+# Backup volumes
+docker run --rm \
+  -v symptomap_postgres_data:/data \
+  -v $(pwd)/backups:/backup \
+  ubuntu tar czf /backup/postgres_volume_backup.tar.gz /data
 ```
 
-### Scaling
+## Performance Tuning
+
+### Backend Scaling
 
 ```bash
-# Scale backend services
-docker-compose up -d --scale backend=3
+# Scale backend workers
+docker compose up -d --scale backend=3
 
-# Scale frontend services
-docker-compose up -d --scale frontend=2
-
-# Kubernetes scaling
-kubectl scale deployment symptomap-backend --replicas=5
-kubectl scale deployment symptomap-frontend --replicas=3
+# Use load balancer (nginx)
 ```
-
-## 🔒 Security
-
-### SSL/TLS Configuration
-
-```bash
-# Generate SSL certificates
-openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes
-
-# Update nginx configuration
-cp nginx.prod.conf nginx.conf
-# Edit nginx.conf with SSL settings
-```
-
-### Security Headers
-
-```bash
-# Verify security headers
-curl -I https://symptomap.com
-
-# Expected headers:
-# X-Frame-Options: SAMEORIGIN
-# X-Content-Type-Options: nosniff
-# X-XSS-Protection: 1; mode=block
-# Referrer-Policy: strict-origin-when-cross-origin
-```
-
-## 🚨 Troubleshooting
-
-### Common Issues
-
-1. **Database Connection Failed**
-   ```bash
-   # Check PostgreSQL status
-   docker-compose ps postgres
-   
-   # Check logs
-   docker-compose logs postgres
-   
-   # Restart database
-   docker-compose restart postgres
-   ```
-
-2. **Redis Connection Failed**
-   ```bash
-   # Check Redis status
-   docker-compose ps redis
-   
-   # Check logs
-   docker-compose logs redis
-   
-   # Restart Redis
-   docker-compose restart redis
-   ```
-
-3. **Map Not Loading**
-   ```bash
-   # Check Mapbox token
-   echo $MAPBOX_ACCESS_TOKEN
-   
-   # Verify token in browser console
-   # Check network requests for 401 errors
-   ```
-
-4. **WebSocket Connection Failed**
-   ```bash
-   # Check WebSocket endpoint
-   curl -I http://localhost:8787/socket.io/
-   
-   # Check firewall settings
-   # Verify CORS configuration
-   ```
-
-### Performance Issues
-
-1. **Slow API Responses**
-   ```bash
-   # Check database performance
-   docker-compose exec postgres psql -U symptomap -d symptomap -c "SELECT * FROM pg_stat_activity;"
-   
-   # Check Redis performance
-   docker-compose exec redis redis-cli info stats
-   
-   # Monitor API metrics
-   curl http://localhost:8787/metrics
-   ```
-
-2. **High Memory Usage**
-   ```bash
-   # Check container memory usage
-   docker stats
-   
-   # Check Node.js memory usage
-   docker-compose exec backend node -e "console.log(process.memoryUsage())"
-   
-   # Restart services
-   docker-compose restart backend frontend
-   ```
-
-## 📈 Performance Optimization
 
 ### Database Optimization
 
 ```sql
--- Create indexes for common queries
-CREATE INDEX CONCURRENTLY idx_outbreak_reports_location ON outbreak_reports 
-USING GIST (ST_Point(longitude, latitude));
+-- Create indexes for frequent queries
+CREATE INDEX idx_outbreaks_date ON outbreaks(date_reported);
+CREATE INDEX idx_outbreaks_location ON outbreaks(hospital_id);
 
-CREATE INDEX CONCURRENTLY idx_outbreak_reports_disease_severity ON outbreak_reports 
-(disease_type, severity_level, created_at DESC);
-
--- Analyze tables for better query planning
-ANALYZE outbreak_reports;
+-- Analyze tables
+ANALYZE outbreaks;
+ANALYZE alerts;
 ```
 
-### Application Optimization
+### Caching with Redis
+
+Uncomment Redis service in `docker-compose.yml` and configure:
+
+```python
+# Backend caching
+REDIS_URL=redis://redis:6379
+```
+
+## Security Checklist
+
+- [ ] Change all default passwords
+- [ ] Use strong JWT secrets (32+ characters)
+- [ ] Enable HTTPS/SSL
+- [ ] Configure firewall (ufw/firewalld)
+- [ ] Restrict database access
+- [ ] Enable rate limiting
+- [ ] Set up fail2ban
+- [ ] Regular security updates
+- [ ] Enable audit logging
+- [ ] Use secrets management (Vault, AWS Secrets Manager)
+
+## Troubleshooting
+
+### Container won't start
 
 ```bash
-# Enable Node.js clustering
-NODE_CLUSTER_MODE=true
+# Check logs
+docker compose logs backend
 
-# Optimize Vite build
-VITE_BUILD_OPTIMIZE=true
-
-# Enable Redis clustering
-REDIS_CLUSTER_MODE=true
+# Rebuild
+docker compose build --no-cache backend
+docker compose up -d
 ```
 
-## 🔄 Backup & Recovery
-
-### Automated Backups
+### Database connection issues
 
 ```bash
-# Create backup script
-cat > backup.sh << 'EOF'
-#!/bin/bash
-DATE=$(date +%Y%m%d_%H%M%S)
-pg_dump symptomap > "backup_${DATE}.sql"
-aws s3 cp "backup_${DATE}.sql" s3://symptomap-backups/
-rm "backup_${DATE}.sql"
-EOF
+# Check database status
+docker compose exec postgres pg_isready
 
-chmod +x backup.sh
-
-# Schedule with cron
-echo "0 2 * * * /path/to/backup.sh" | crontab -
+# Check connection from backend
+docker compose exec backend python -c "from app.core.database import engine; print(engine)"
 ```
 
-### Disaster Recovery
+### High memory usage
 
 ```bash
-# Restore from backup
-psql symptomap < backup_20240101_020000.sql
+# Check container stats
+docker stats
 
-# Restore Redis data
-redis-cli --rdb dump.rdb
-
-# Restart services
-docker-compose restart
+# Limit container memory
+docker compose up -d --scale backend=1
 ```
 
-## 📞 Support
+## Support
 
-- **Documentation**: [README.md](README.md)
-- **Issues**: [GitHub Issues](https://github.com/Rajkaran-122/Symptomap/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/Rajkaran-122/Symptomap/discussions)
+For issues and questions:
+- GitHub Issues: https://github.com/yourusername/symptomap/issues
+- Documentation: https://docs.symptomap.com
+- Email: support@symptomap.com
 
 ---
 
-**SymptoMap MVP - Built for public health professionals worldwide** 🏥
+**Last Updated**: 2025-12-29
