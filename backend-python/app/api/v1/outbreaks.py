@@ -59,65 +59,97 @@ async def create_outbreak(
     
     hospital = None
     
-    # CASE 1: Manual Entry (Admin/PHO providing hospital details directly)
-    if outbreak_data.hospital_name and outbreak_data.location:
-        # Check if hospital exists by name (simple check)
-        result = await db.execute(
-            select(Hospital).where(Hospital.name == outbreak_data.hospital_name)
-        )
-        hospital = result.scalar_one_or_none()
-        
-        if not hospital:
-            # Create new hospital on the fly
-            from geoalchemy2.elements import WKTElement
+    try:
+        # CASE 1: Manual Entry (Admin/PHO providing hospital details directly)
+        if outbreak_data.hospital_name and outbreak_data.location:
+            # Check if hospital exists by name (simple check)
+            result = await db.execute(
+                select(Hospital).where(Hospital.name == outbreak_data.hospital_name)
+            )
+            hospital = result.scalar_one_or_none()
+            
             lat = float(outbreak_data.location.get("lat", 0))
             lng = float(outbreak_data.location.get("lng", 0))
+            city = outbreak_data.location.get("city", "Unknown")
+            state = outbreak_data.location.get("state", "Unknown")
             
-            hospital = Hospital(
-                name=outbreak_data.hospital_name,
-                address="Manual Entry",
-                location=WKTElement(f"POINT({lng} {lat})", srid=4326),
-                city="Unknown",
-                hospital_type="Manual Entry"
+            if not hospital:
+                # Create new hospital on the fly - use lat/lng columns directly
+                try:
+                    from geoalchemy2.elements import WKTElement
+                    location_geom = WKTElement(f"POINT({lng} {lat})", srid=4326)
+                except Exception:
+                    location_geom = None  # Fall back if Geography not supported
+                
+                hospital = Hospital(
+                    name=outbreak_data.hospital_name,
+                    address="Manual Entry",
+                    latitude=lat,
+                    longitude=lng,
+                    location=location_geom,
+                    city=city,
+                    state=state,
+                    hospital_type="Manual Entry"
+                )
+                db.add(hospital)
+                await db.commit()
+                await db.refresh(hospital)
+        
+        if not hospital:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Hospital not found. Please provide hospital_name and location for manual entry."
             )
-            db.add(hospital)
-            await db.commit()
-            await db.refresh(hospital)
-    
-    if not hospital:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Hospital not found. Please provide hospital_name and location for manual entry."
+        
+        # Get location for outbreak
+        lat = outbreak_data.location.get("lat", 0) if outbreak_data.location else (hospital.latitude or 0)
+        lng = outbreak_data.location.get("lng", 0) if outbreak_data.location else (hospital.longitude or 0)
+        
+        try:
+            from geoalchemy2.elements import WKTElement
+            outbreak_location = WKTElement(f"POINT({lng} {lat})", srid=4326)
+        except Exception:
+            outbreak_location = None
+        
+        # Create outbreak
+        outbreak = Outbreak(
+            hospital_id=hospital.id,
+            reported_by=None,  # Allow null for testing
+            disease_type=outbreak_data.disease_type,
+            patient_count=outbreak_data.patient_count,
+            date_started=outbreak_data.date_started,
+            severity=outbreak_data.severity,
+            age_distribution=outbreak_data.age_distribution,
+            gender_distribution=outbreak_data.gender_distribution,
+            symptoms=outbreak_data.symptoms,
+            notes=outbreak_data.notes,
+            latitude=lat,
+            longitude=lng,
+            location=outbreak_location,
+            verified=True  # Auto-verify for testing
         )
-    
-    # Create outbreak (without reported_by for testing)
-    outbreak = Outbreak(
-        hospital_id=hospital.id,
-        reported_by=None,  # Allow null for testing
-        disease_type=outbreak_data.disease_type,
-        patient_count=outbreak_data.patient_count,
-        date_started=outbreak_data.date_started,
-        severity=outbreak_data.severity,
-        age_distribution=outbreak_data.age_distribution,
-        gender_distribution=outbreak_data.gender_distribution,
-        symptoms=outbreak_data.symptoms,
-        notes=outbreak_data.notes,
-        location=hospital.location,
-        verified=True  # Auto-verify for testing
-    )
-    
-    db.add(outbreak)
-    await db.commit()
-    await db.refresh(outbreak)
-    
-    return {
-        "id": str(outbreak.id),
-        "hospital_name": hospital.name,
-        "disease_type": outbreak.disease_type,
-        "patient_count": outbreak.patient_count,
-        "severity": outbreak.severity,
-        "message": "Outbreak reported successfully."
-    }
+        
+        db.add(outbreak)
+        await db.commit()
+        await db.refresh(outbreak)
+        
+        return {
+            "id": str(outbreak.id),
+            "hospital_name": hospital.name,
+            "disease_type": outbreak.disease_type,
+            "patient_count": outbreak.patient_count,
+            "severity": outbreak.severity,
+            "message": "Outbreak reported successfully."
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error creating outbreak: {str(e)}"
+        )
 
 
 @router.get("/", response_model=List[dict])
