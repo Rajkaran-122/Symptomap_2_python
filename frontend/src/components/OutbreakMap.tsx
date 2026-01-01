@@ -117,164 +117,150 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
   }, []);
 
 
+  // Helper function to get color based on severity (3 zones only)
+  const getZoneColor = (severity: string) => {
+    switch (severity?.toLowerCase()) {
+      case 'severe':
+      case 'critical':
+      case 'high':
+        return { bg: '#DC2626', border: '#991B1B', text: 'Severe', opacity: 0.4 }; // Red
+      case 'moderate':
+      case 'medium':
+        return { bg: '#EAB308', border: '#CA8A04', text: 'Moderate', opacity: 0.35 }; // Yellow
+      case 'mild':
+      case 'low':
+      case 'minimal':
+      default:
+        return { bg: '#22C55E', border: '#16A34A', text: 'Mild', opacity: 0.3 }; // Green
+    }
+  };
 
   // Update map layers when outbreaks change
   useEffect(() => {
     if (!map.current || !mapLoaded) return;
 
-    // Remove legacy markers if any exist in the ref
-    if (markersRef.current.length > 0) {
-      markersRef.current.forEach(marker => marker.remove());
-      markersRef.current = [];
-    }
+    // Clear existing markers
+    markersRef.current.forEach(marker => marker.remove());
+    markersRef.current = [];
 
-    const sourceId = 'outbreaks-source';
-    const zoneLayerId = 'outbreaks-zones';
-    const centerLayerId = 'outbreaks-centers';
+    outbreaks.forEach(outbreak => {
+      // Handle multiple coordinate formats from different API sources
+      const lat = outbreak.location?.latitude ||
+        outbreak.location?.lat ||
+        outbreak.hospital?.location?.lat ||
+        outbreak.latitude;
+      const lng = outbreak.location?.longitude ||
+        outbreak.location?.lng ||
+        outbreak.hospital?.location?.lng ||
+        outbreak.longitude;
 
-    // 1. Setup Data Source and Layers (only once)
-    if (!map.current.getSource(sourceId)) {
-      map.current.addSource(sourceId, {
-        type: 'geojson',
-        data: {
-          type: 'FeatureCollection',
-          features: []
-        }
+      // Skip if no valid coordinates
+      if (!lat || !lng || lat === 0 || lng === 0) {
+        return;
+      }
+
+      // Create marker element
+      const el = document.createElement('div');
+      el.className = 'outbreak-marker';
+
+      // Get zone color based on severity (3 zones: Red, Yellow, Green)
+      const severity = outbreak.severity || 'moderate';
+      const cases = outbreak.cases || outbreak.patient_count || 1;
+      const zoneInfo = getZoneColor(severity);
+
+      // Large zone size for visibility - based on cases
+      const baseSize = 80;
+      const sizeMultiplier = cases >= 100 ? 1.5 : cases >= 50 ? 1.3 : cases >= 20 ? 1.15 : 1;
+      const zoneSize = Math.floor(baseSize * sizeMultiplier);
+
+      // Clean design: Large semi-transparent circle + small solid center dot
+      el.innerHTML = `
+        <svg width="${zoneSize}" height="${zoneSize}" viewBox="0 0 100 100" style="overflow: visible;">
+          <!-- Large semi-transparent zone circle -->
+          <circle cx="50" cy="50" r="48" 
+                  fill="${zoneInfo.bg}" 
+                  fill-opacity="0.35"
+                  stroke="${zoneInfo.border}" 
+                  stroke-width="2"
+                  stroke-opacity="0.7"
+          />
+          <!-- Small solid center dot -->
+          <circle cx="50" cy="50" r="8" 
+                  fill="${zoneInfo.bg}" 
+                  stroke="white" 
+                  stroke-width="2.5"
+                  fill-opacity="1"
+          />
+        </svg>
+      `;
+
+      el.style.cursor = 'pointer';
+      el.style.transition = 'transform 0.2s ease';
+      el.title = `${outbreak.location?.name || outbreak.hospital?.name || 'Location'} - ${outbreak.disease || outbreak.disease_type} (${zoneInfo.text})`;
+
+      // Hover effect
+      el.addEventListener('mouseenter', () => {
+        el.style.transform = 'scale(1.2)';
       });
 
-      // Layer 1: Large semi-transparent Risk Zones (Circles)
-      map.current.addLayer({
-        id: zoneLayerId,
-        type: 'circle',
-        source: sourceId,
-        paint: {
-          // Radius based on cases: 10->50px, 500->100px
-          'circle-radius': [
-            'interpolate', ['linear'], ['get', 'cases'],
-            1, 40,
-            50, 60,
-            100, 80,
-            500, 120
-          ],
-          // Color based on severity property
-          'circle-color': ['get', 'color'],
-          'circle-opacity': 0.35,
-          'circle-stroke-width': 1,
-          'circle-stroke-color': ['get', 'strokeColor'],
-          'circle-stroke-opacity': 0.6
-        }
+      el.addEventListener('mouseleave', () => {
+        el.style.transform = 'scale(1)';
       });
 
-      // Layer 2: Center Dots (Solid indicators)
-      map.current.addLayer({
-        id: centerLayerId,
-        type: 'circle',
-        source: sourceId,
-        paint: {
-          'circle-radius': 6,
-          'circle-color': ['get', 'color'],
-          'circle-opacity': 1,
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#FFFFFF'
-        }
-      });
+      // Add click handler to open slide-in panel
+      const disease = outbreak.disease || outbreak.disease_type || 'Unknown';
+      const locationName = outbreak.location?.name || outbreak.location?.city || outbreak.hospital?.name || 'Unknown Location';
+      const city = outbreak.location?.city || '';
+      const state = outbreak.location?.state || '';
+      const reportedDate = outbreak.reported_date || outbreak.date_reported || outbreak.date_started || new Date().toISOString();
 
-      // Click Interaction
-      map.current.on('click', zoneLayerId, (e) => {
-        if (!e.features || e.features.length === 0) return;
-        const feature = e.features[0];
-        const props = feature.properties;
+      // Store outbreak info for panel
+      const outbreakInfo = {
+        ...outbreak,
+        disease,
+        locationName,
+        city,
+        state,
+        reportedDate,
+        cases,
+        riskLevel: zoneInfo.text,
+        riskColor: zoneInfo.bg,
+        lat,
+        lng
+      };
 
-        // Construct simplified outbreak info for panel
-        const outbreakInfo = {
-          ...props,
-          // MapLibre flattens properties, use them directly
-          riskLevel: props.severity === 'Critical' ? 'Severe' : props.severity,
-          riskColor: props.color,
-          lat: (feature.geometry as any).coordinates[1],
-          lng: (feature.geometry as any).coordinates[0]
-        };
-
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
         setSelectedOutbreak(outbreakInfo);
         setIsPanelOpen(true);
       });
 
-      // Cursor pointer on hover
-      map.current.on('mouseenter', zoneLayerId, () => {
-        if (map.current) map.current.getCanvas().style.cursor = 'pointer';
-      });
-      map.current.on('mouseleave', zoneLayerId, () => {
-        if (map.current) map.current.getCanvas().style.cursor = '';
-      });
-    }
+      // Create and add marker
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat([lng, lat])
+        .addTo(map.current!);
 
-    // 2. Process Data into GeoJSON features
-    const features = outbreaks.map(outbreak => {
-      // Coordinate handling
-      const lat = outbreak.location?.latitude || outbreak.location?.lat || outbreak.latitude || outbreak.hospital?.location?.lat;
-      const lng = outbreak.location?.longitude || outbreak.location?.lng || outbreak.longitude || outbreak.hospital?.location?.lng;
-
-      if (!lat || !lng) return null;
-
-      // Determine Colors (Red, Yellow, Green)
-      const severity = outbreak.severity || 'moderate';
-      let color = '#EAB308'; // Yellow/Moderate default
-      let strokeColor = '#CA8A04';
-
-      const s = severity.toLowerCase();
-      if (s === 'severe' || s === 'critical' || s === 'high') {
-        color = '#DC2626'; // Red
-        strokeColor = '#991B1B';
-      } else if (s === 'mild' || s === 'low' || s === 'minimal') {
-        color = '#22C55E'; // Green
-        strokeColor = '#16A34A';
-      }
-
-      return {
-        type: 'Feature',
-        geometry: {
-          type: 'Point',
-          coordinates: [parseFloat(lng), parseFloat(lat)]
-        },
-        properties: {
-          id: outbreak.id,
-          disease: outbreak.disease || outbreak.disease_type || 'Unknown Disease',
-          cases: parseInt(outbreak.cases || outbreak.patient_count || 1),
-          severity: severity,
-          locationName: outbreak.location?.name || outbreak.location_name || '',
-          city: outbreak.location?.city || outbreak.city || '',
-          state: outbreak.location?.state || outbreak.state || '',
-          reportedDate: outbreak.reported_date || outbreak.date_reported || new Date().toISOString(),
-          color: color,
-          strokeColor: strokeColor,
-          verified: outbreak.verified ? 1 : 0
+      el.addEventListener('click', () => {
+        if (onOutbreakClick) {
+          onOutbreakClick(outbreak);
         }
-      };
-    }).filter(f => f !== null);
-
-    // 3. Update the Source Data
-    const source = map.current.getSource(sourceId) as maplibregl.GeoJSONSource;
-    if (source) {
-      source.setData({
-        type: 'FeatureCollection',
-        features: features as any
       });
-      console.log(`✅ map: Loaded ${features.length} zones into layer`);
-    }
 
-    // 4. Fit Map Bounds
-    if (features.length > 0) {
+      markersRef.current.push(marker);
+    });
+
+    console.log(`✅ Map: Added ${outbreaks.length} outbreak markers`);
+
+    // Auto-zoom map to show all outbreaks
+    if (outbreaks.length > 0 && map.current) {
       const bounds = new maplibregl.LngLatBounds();
-      features.forEach(f => {
-        const coords = (f.geometry as any).coordinates;
-        bounds.extend(coords);
+      outbreaks.forEach(outbreak => {
+        const lat = outbreak.location?.latitude || outbreak.latitude;
+        const lng = outbreak.location?.longitude || outbreak.longitude;
+        if (lat && lng) bounds.extend([lng, lat]);
       });
-      map.current.fitBounds(bounds, {
-        padding: 80,
-        maxZoom: 12 // Don't zoom in too close
-      });
+      map.current.fitBounds(bounds, { padding: 80, maxZoom: 10 });
     }
-
   }, [outbreaks, mapLoaded, onOutbreakClick]);
 
   // Calculate distance between two points (Haversine formula)
@@ -405,15 +391,15 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
         <div className="text-xs font-bold text-gray-800 mb-2">🎯 Risk Zones</div>
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-red-500 to-red-600 shadow-md"></div>
+            <div className="w-5 h-5 rounded-full bg-red-600 shadow-md"></div>
             <span className="text-xs text-gray-700 font-medium">Severe</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 shadow-md"></div>
+            <div className="w-5 h-5 rounded-full bg-yellow-500 shadow-md"></div>
             <span className="text-xs text-gray-700 font-medium">Moderate</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-green-400 to-green-500 shadow-md"></div>
+            <div className="w-5 h-5 rounded-full bg-green-500 shadow-md"></div>
             <span className="text-xs text-gray-700 font-medium">Mild</span>
           </div>
         </div>
