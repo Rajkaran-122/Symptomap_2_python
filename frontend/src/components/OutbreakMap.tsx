@@ -159,7 +159,7 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
         return;
       }
 
-      // Create marker element with simple, clean circle
+      // Create marker element
       const el = document.createElement('div');
       el.className = 'outbreak-marker';
 
@@ -168,33 +168,28 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
       const cases = outbreak.cases || outbreak.patient_count || 1;
       const zoneInfo = getZoneColor(severity);
 
-      // Zone size based on cases - larger outbreak = larger zone
-      const baseSize = 50;
-      const sizeMultiplier = cases >= 100 ? 1.8 : cases >= 50 ? 1.5 : cases >= 20 ? 1.3 : 1;
+      // Large zone size for visibility - based on cases
+      const baseSize = 80;
+      const sizeMultiplier = cases >= 100 ? 1.5 : cases >= 50 ? 1.3 : cases >= 20 ? 1.15 : 1;
       const zoneSize = Math.floor(baseSize * sizeMultiplier);
 
-      // Simple gradient circle - 3 colors only (Red, Yellow, Green)
+      // Clean design: Large semi-transparent circle + small solid center dot
       el.innerHTML = `
         <svg width="${zoneSize}" height="${zoneSize}" viewBox="0 0 100 100" style="overflow: visible;">
-          <defs>
-            <radialGradient id="zone_${outbreak.id || Math.random()}" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" style="stop-color:${zoneInfo.bg};stop-opacity:0.7"/>
-              <stop offset="50%" style="stop-color:${zoneInfo.bg};stop-opacity:0.4"/>
-              <stop offset="100%" style="stop-color:${zoneInfo.bg};stop-opacity:0.1"/>
-            </radialGradient>
-          </defs>
-          <!-- Zone circle -->
-          <circle cx="50" cy="50" r="45" 
-                  fill="url(#zone_${outbreak.id || Math.random()})" 
+          <!-- Large semi-transparent zone circle -->
+          <circle cx="50" cy="50" r="48" 
+                  fill="${zoneInfo.bg}" 
+                  fill-opacity="0.35"
                   stroke="${zoneInfo.border}" 
                   stroke-width="2"
-                  stroke-opacity="0.5"
+                  stroke-opacity="0.7"
           />
-          <!-- Center dot -->
-          <circle cx="50" cy="50" r="6" 
+          <!-- Small solid center dot -->
+          <circle cx="50" cy="50" r="8" 
                   fill="${zoneInfo.bg}" 
                   stroke="white" 
-                  stroke-width="2"
+                  stroke-width="2.5"
+                  fill-opacity="1"
           />
         </svg>
       `;
