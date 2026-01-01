@@ -238,86 +238,80 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
       markersRef.current.push(marker);
     });
 
+
+
     console.log(`✅ Map: Added ${outbreaks.length} outbreak markers`);
 
-    // Add zone circle overlays (light colored circles that show outbreak zones)
-    if (map.current && outbreaks.length > 0) {
-      // Group outbreaks by approximate location to create zones
-      const zones = [
-        {
-          name: 'Delhi Severe Zone',
-          center: [77.2100, 28.5672],
-          radius: 15000, // 15km radius
-          color: '#fca5a5', // Light red
-          opacity: 0.15
-        },
-        {
-          name: 'Pune Moderate Zone',
-          center: [73.8567, 18.5204],
-          radius: 12000,
-          color: '#fde68a', // Light yellow (restored)
-          opacity: 0.15
-        },
-        {
-          name: 'Uttarakhand Mild Zone',
-          center: [78.0322, 30.3165],
-          radius: 10000,
-          color: '#86efac', // Light green
-          opacity: 0.15
-        },
-        {
-          name: 'Bangalore Moderate Zone',
-          center: [77.5980, 12.9443],
-          radius: 12000,
-          color: '#93c5fd', // Light blue (mixed colors)
-          opacity: 0.15
-        }
-      ];
+    // Add dynamic data-driven zones from actual data
+    if (map.current) {
+      const sourceId = 'outbreak-zones-source';
+      const layerId = 'outbreak-zones-layer';
 
-      zones.forEach((zone, index) => {
-        const sourceId = `zone-${index}`;
-        const layerId = `zone-layer-${index}`;
+      // Clean up existing
+      if (map.current.getLayer(layerId)) map.current.removeLayer(layerId);
+      if (map.current.getSource(sourceId)) map.current.removeSource(sourceId);
 
-        // Remove existing layer/source if present
-        if (map.current?.getLayer(layerId)) {
-          map.current.removeLayer(layerId);
-        }
-        if (map.current?.getSource(sourceId)) {
-          map.current.removeSource(sourceId);
-        }
+      if (outbreaks.length > 0) {
+        // Create GeoJSON features from outbreaks
+        const features = outbreaks.map(outbreak => {
+          const lat = outbreak.hospital?.location?.lat || outbreak.location?.lat;
+          const lng = outbreak.hospital?.location?.lng || outbreak.location?.lng;
 
-        // Add source for zone circle
-        map.current?.addSource(sourceId, {
-          type: 'geojson',
-          data: {
+          if (!lat || !lng) return null;
+
+          const severity = outbreak.severity || 'moderate';
+          // Determine color and radius based on severity
+          let color = '#fde68a'; // moderate yellow
+          let radius = 10; // default radius
+
+          if (severity === 'severe') {
+            color = '#fca5a5'; // red
+            radius = 15;
+          } else if (severity === 'mild') {
+            color = '#86efac'; // green
+            radius = 8;
+          }
+
+          return {
             type: 'Feature',
             geometry: {
               type: 'Point',
-              coordinates: zone.center
+              coordinates: [lng, lat]
             },
             properties: {
-              name: zone.name
+              severity: severity,
+              color: color,
+              radius: radius,
+              description: `Risk Zone: ${outbreak.disease_type}`
             }
+          };
+        }).filter(Boolean); // remove nulls
+
+        // Add Source
+        map.current.addSource(sourceId, {
+          type: 'geojson',
+          data: {
+            type: 'FeatureCollection',
+            features: features as any[]
           }
         });
 
-        // Add circle layer for zone
-        map.current?.addLayer({
+        // Add Layer with data-driven values
+        map.current.addLayer({
           id: layerId,
           type: 'circle',
           source: sourceId,
           paint: {
-            'circle-radius': zone.radius / 10, // Simplified radius for MapLibre
-            'circle-color': zone.color,
-            'circle-opacity': zone.opacity,
-            'circle-stroke-width': 2,
-            'circle-stroke-color': zone.color,
-            'circle-stroke-opacity': 0.3
+            'circle-radius': ['get', 'radius'], // Use radius from properties, multiplied by zoom/pixels? simpler here just pixel radius
+            'circle-color': ['get', 'color'],
+            'circle-opacity': 0.3,
+            'circle-stroke-width': 1,
+            'circle-stroke-color': ['get', 'color'],
+            'circle-stroke-opacity': 0.6
           }
-        });
-      });
-
-      console.log(`🎯 Map: Added ${zones.length} zone overlays`);
+        }, 'osm-tiles-layer'); // Place above tiles but below markers? Markers are DOM elements, so they are always on top.
+        // Actually DOM markers are on top of canvas. The layer order matters for other map layers.
+      }
     }
 
     // Auto-zoom map to show all outbreaks
@@ -345,17 +339,7 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
     }
   }, [outbreaks, mapLoaded, onOutbreakClick]);
 
-  // Calculate distance between two points (Haversine formula)
-  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371000; // Earth's radius in meters
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  };
+
 
   // Function to get user's location
   const getUserLocation = () => {
@@ -381,22 +365,8 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
             // Zoom to user location
             map.current.flyTo({ center: [longitude, latitude], zoom: 10 });
 
-            // Detect which zone user is in
-            const zones = [
-              { name: 'Delhi Severe Zone', center: [77.2100, 28.5672], radius: 15000 },
-              { name: 'Pune Moderate Zone', center: [73.8567, 18.5204], radius: 12000 },
-              { name: 'Uttarakhand Mild Zone', center: [78.0322, 30.3165], radius: 10000 },
-              { name: 'Bangalore Moderate Zone', center: [77.5980, 12.9443], radius: 12000 }
-            ];
-
-            let foundZone = 'No outbreak zone detected';
-            zones.forEach(zone => {
-              const distance = calculateDistance(latitude, longitude, zone.center[1], zone.center[0]);
-              if (distance <= zone.radius) {
-                foundZone = zone.name;
-              }
-            });
-            setCurrentZone(foundZone);
+            // Just update text
+            setCurrentZone("Monitoring active outbreaks...");
           }
         },
         (error) => {
@@ -417,6 +387,11 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
       return () => clearTimeout(timer);
     }
   }, [mapLoaded]);
+
+  // Calculate counts for render
+  const severeCount = outbreaks.filter(o => o.severity === 'severe').length;
+  const moderateCount = outbreaks.filter(o => o.severity === 'moderate').length;
+  const mildCount = outbreaks.filter(o => o.severity === 'mild').length;
 
   return (
     <div className="relative w-full h-full">
@@ -462,7 +437,7 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
             <svg className="w-3 h-3 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
             </svg>
-            <div className="text-[10px] text-gray-500 font-semibold uppercase">Zone</div>
+            <div className="text-[10px] text-gray-500 font-semibold uppercase">Status</div>
           </div>
           <div className="text-xs font-bold text-gray-900 mt-1">{currentZone}</div>
         </div>
@@ -472,22 +447,34 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
       <div className="absolute bottom-4 left-4 bg-white/95 backdrop-blur-sm p-3 rounded-lg shadow-lg border border-gray-200">
         <div className="text-xs font-bold text-gray-800 mb-2">🎯 Risk Zones</div>
         <div className="space-y-1.5">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-full bg-red-600 shadow-md"></div>
-            <span className="text-xs text-gray-700 font-medium">Severe</span>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full bg-red-400 border border-red-500 shadow-sm opacity-80"></div>
+              <span className="text-xs text-gray-700 font-medium">Severe</span>
+            </div>
+            <span className="text-xs font-bold text-gray-900">{severeCount}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-full bg-orange-500 shadow-md"></div>
-            <span className="text-xs text-gray-700 font-medium">Moderate</span>
+
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full bg-yellow-300 border border-yellow-500 shadow-sm opacity-80"></div>
+              <span className="text-xs text-gray-700 font-medium">Moderate</span>
+            </div>
+            <span className="text-xs font-bold text-gray-900">{moderateCount}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-full bg-green-500 shadow-md"></div>
-            <span className="text-xs text-gray-700 font-medium">Mild</span>
+
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full bg-green-300 border border-green-500 shadow-sm opacity-80"></div>
+              <span className="text-xs text-gray-700 font-medium">Mild</span>
+            </div>
+            <span className="text-xs font-bold text-gray-900">{mildCount}</span>
           </div>
         </div>
         <div className="mt-2 pt-2 border-t border-gray-200">
-          <div className="text-[10px] text-gray-500">
-            Total Zones: <span className="font-bold text-gray-700">{outbreaks.length}</span>
+          <div className="text-[10px] text-gray-500 flex justify-between items-center">
+            <span>Total Zones:</span>
+            <span className="font-bold text-gray-700">{outbreaks.length}</span>
           </div>
         </div>
       </div>
