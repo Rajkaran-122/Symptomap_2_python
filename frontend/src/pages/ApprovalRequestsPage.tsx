@@ -341,6 +341,13 @@ const ApprovalRequestsPage = () => {
                                             {(request.status === 'pending' || !request.status) && (
                                                 <div className="flex gap-2">
                                                     <button
+                                                        onClick={() => setSelectedRequest(request)}
+                                                        className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                                                    >
+                                                        <Eye className="w-3 h-3" />
+                                                        View
+                                                    </button>
+                                                    <button
                                                         onClick={() => handleApprove(request.id)}
                                                         disabled={actionLoading === request.id}
                                                         className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 text-sm"

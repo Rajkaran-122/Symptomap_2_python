@@ -7,6 +7,7 @@ import { OutbreakMap } from '@/components/OutbreakMap';
 import { FilterPanel } from '@/components/FilterPanel';
 import ActivityFeed from '@/components/ActivityFeed';
 import WeekComparison from '@/components/WeekComparison';
+import HeatmapLegend from '@/components/HeatmapLegend';
 import { Activity, Clock, Users, Zap, TrendingUp, Shield, AlertCircle, FileText, MapPin, Target } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { ToastContainer } from '@/components/Toast';
@@ -187,9 +188,13 @@ const DashboardPage = () => {
                 </div>
 
                 {/* ROW 2: Full Width Map */}
-                <div className="bg-white rounded-3xl shadow-md border border-gray-100 overflow-hidden">
+                <div className="bg-white rounded-3xl shadow-md border border-gray-100 overflow-hidden relative">
                     <div className="h-[500px] bg-gray-50">
                         <OutbreakMap />
+                    </div>
+                    {/* HeatmapLegend Overlay */}
+                    <div className="absolute bottom-4 right-4 z-10">
+                        <HeatmapLegend />
                     </div>
                 </div>
 
