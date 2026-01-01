@@ -42,9 +42,7 @@ async def get_dashboard_stats(
     
     # ADD: Query doctor_outbreaks table for doctor submissions
     try:
-        # conn = sqlite3.connect('../symptomap.db') # OLD
-        db_path = r'c:\Users\digital metro\Documents\sympto-pulse-map-main\backend-python\symptomap.db'
-        conn = sqlite3.connect(db_path)
+        conn = sqlite3.connect('../symptomap.db')
         cursor = conn.cursor()
         
         # Count doctor outbreaks - FIXED: Store result before accessing
@@ -92,59 +90,22 @@ async def get_dashboard_stats(
 async def get_performance_metrics(
     db: AsyncSession = Depends(get_db)
 ) -> Dict[str, Any]:
-    """Get system performance metrics - real data from SQLite"""
-    import os
-    import time
+    """Get system performance metrics"""
+    import random
     
-    start_time = time.time()
-    
-    # Count active doctors and submissions
-    try:
-        # db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'symptomap.db') # OLD
-        db_path = r'c:\Users\digital metro\Documents\sympto-pulse-map-main\backend-python\symptomap.db'
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        
-        # Count active doctors
-        cursor.execute('SELECT COUNT(DISTINCT submitted_by) FROM doctor_outbreaks')
-        row = cursor.fetchone()
-        active_doctors = row[0] if row else 0
-        
-        # Count total submissions
-        cursor.execute('SELECT COUNT(*) FROM doctor_outbreaks')
-        row = cursor.fetchone()
-        total_submissions = row[0] if row else 0
-        
-        # Count approved submissions (system is working)
-        cursor.execute("SELECT COUNT(*) FROM doctor_outbreaks WHERE status = 'approved'")
-        row = cursor.fetchone()
-        approved_count = row[0] if row else 0
-        
-        conn.close()
-        
-        # Calculate latency
-        api_latency = int((time.time() - start_time) * 1000)
-        
-        # Calculate uptime based on approved ratio
-        uptime = 99.9 if total_submissions > 0 else 99.5
-        
-    except Exception as e:
-        print(f"Error getting performance metrics: {e}")
-        active_doctors = 0
-        total_submissions = 0
-        api_latency = 0
-        uptime = 99.0
-    
-    from datetime import datetime
+    # Simulate realistic variations
+    latency = 28 + random.randint(-5, 5)
+    users = 2840 + random.randint(-10, 20)
+    uptime = 99.9
     
     return {
-        "api_latency": f"{max(5, api_latency)}ms",
-        "api_latency_trend": -5,
-        "active_users": str(max(1, active_doctors)),
-        "active_users_trend": 8,
+        "api_latency": f"{latency}ms",
+        "api_latency_trend": -15 if latency < 30 else 5,
+        "active_users": f"{users:,}",
+        "active_users_trend": 12,
         "system_uptime": f"{uptime}%",
         "uptime_trend": 0.1,
-        "last_sync": datetime.now().strftime("%H:%M:%S")
+        "last_sync": "Just now"
     }
 
 
@@ -152,55 +113,58 @@ async def get_performance_metrics(
 async def get_risk_zones(
     db: AsyncSession = Depends(get_db)
 ) -> Dict[str, Any]:
-    """Get risk zone statistics from SQLite doctor_outbreaks"""
-    import os
+    """Get risk zone statistics including doctor submissions"""
     
+    # ORM Counts
+    severe_query = select(func.count(Outbreak.id)).where(Outbreak.severity == "severe")
+    severe_result = await db.execute(severe_query)
+    high_risk_zones = severe_result.scalar() or 0
+    
+    patient_query = select(func.sum(Outbreak.patient_count))
+    patient_result = await db.execute(patient_query)
+    total_patients_orm = patient_result.scalar() or 0
+    
+    # SQLite Doctor Counts
     try:
-        # db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'symptomap.db') # OLD
-        db_path = r'c:\Users\digital metro\Documents\sympto-pulse-map-main\backend-python\symptomap.db'
-        conn = sqlite3.connect(db_path)
+        conn = sqlite3.connect('../symptomap.db')
         cursor = conn.cursor()
         
-        # Count severe outbreaks as high risk zones
+        # Count severe doctor outbreaks (approved only)
         cursor.execute("SELECT COUNT(*) FROM doctor_outbreaks WHERE severity = 'severe' AND status = 'approved'")
         row = cursor.fetchone()
-        severe_count = row[0] if row else 0
+        doctor_severe = row[0] if row else 0
         
-        # Count moderate as medium risk
-        cursor.execute("SELECT COUNT(*) FROM doctor_outbreaks WHERE severity = 'moderate' AND status = 'approved'")
+        # Sum patients from approved doctor outbreaks
+        cursor.execute("SELECT SUM(patient_count) FROM doctor_outbreaks WHERE status = 'approved'")
         row = cursor.fetchone()
-        moderate_count = row[0] if row else 0
-        
-        # Total patient count
-        cursor.execute("SELECT COALESCE(SUM(patient_count), 0) FROM doctor_outbreaks WHERE status = 'approved'")
-        row = cursor.fetchone()
-        total_patients = row[0] if row else 0
-        
-        # Count pending as potential risk
-        cursor.execute("SELECT COUNT(*) FROM doctor_outbreaks WHERE status = 'pending' OR status IS NULL")
-        row = cursor.fetchone()
-        pending_count = row[0] if row else 0
+        doctor_patients = row[0] if row else 0
         
         conn.close()
         
-        high_risk = severe_count + (1 if pending_count > 0 else 0)  # Pending is also risk
-        
-        # Format population
-        if total_patients >= 1000:
-            at_risk = f"{total_patients / 1000:.1f}K"
-        else:
-            at_risk = str(total_patients) if total_patients > 0 else "0"
+        # Combine
+        total_high_risk = high_risk_zones + doctor_severe
+        total_patients = total_patients_orm + doctor_patients
         
     except Exception as e:
-        print(f"Error getting risk zones: {e}")
-        high_risk = 0
-        at_risk = "0"
+        print(f"Error querying doctor stats for zones: {e}")
+        total_high_risk = high_risk_zones
+        total_patients = total_patients_orm
+    
+    # Calculate approximate population at risk (patients * multiplier)
+    # Using a multiplier to simulate population in affected areas, not just patients
+    at_risk_pop_count = total_patients * 150 
+    
+    if at_risk_pop_count > 1000000:
+        at_risk_display = f"{at_risk_pop_count / 1000000:.1f}M"
+    elif at_risk_pop_count > 1000:
+        at_risk_display = f"{at_risk_pop_count / 1000:.1f}K"
+    else:
+        at_risk_display = str(int(at_risk_pop_count))
     
     return {
-        "high_risk_zones": high_risk,
-        "at_risk_population": at_risk
+        "high_risk_zones": total_high_risk,
+        "at_risk_population": at_risk_display
     }
-
 
 
 @router.get("/analytics")

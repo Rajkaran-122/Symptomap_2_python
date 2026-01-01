@@ -15,8 +15,7 @@ router = APIRouter(prefix="/outbreaks", tags=["Public Outbreaks"])
 def get_db_connection():
     """Get SQLite database connection"""
     # Use correct path relative to app location
-    # db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'symptomap.db') # OLD
-    db_path = r'c:\Users\digital metro\Documents\sympto-pulse-map-main\backend-python\symptomap.db'
+    db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'symptomap.db')
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     return conn

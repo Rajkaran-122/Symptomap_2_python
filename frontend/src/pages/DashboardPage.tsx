@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRealTimeStats } from '@/hooks/useRealTimeStats';
 import { useToast } from '@/hooks/useToast';
 import { useWebSocket } from '@/hooks/useWebSocket';
@@ -7,7 +7,6 @@ import { OutbreakMap } from '@/components/OutbreakMap';
 import { FilterPanel } from '@/components/FilterPanel';
 import ActivityFeed from '@/components/ActivityFeed';
 import WeekComparison from '@/components/WeekComparison';
-import HeatmapLegend from '@/components/HeatmapLegend';
 import { Activity, Clock, Users, Zap, TrendingUp, Shield, AlertCircle, FileText, MapPin, Target } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { ToastContainer } from '@/components/Toast';
@@ -25,68 +24,27 @@ const seirData = [
 ];
 
 const DashboardPage = () => {
-    // Use real-time stats hook instead of manual polling
-    const { stats: dashboardStats, isConnected } = useRealTimeStats();
+    // Use real-time stats hook for all dashboard data
+    const { stats: dashboardStats, performance, riskZones: riskData, isConnected } = useRealTimeStats();
     const { toasts, addToast, removeToast } = useToast();
     const { lastMessage } = useWebSocket(WS_URL);
 
-    // Real performance metrics state
-    const [performanceMetrics, setPerformanceMetrics] = useState({
-        api_latency: 'Loading...',
+    // Use fetched performance data or fallback to defaults
+    const performanceMetrics = performance || {
+        api_latency: '0ms',
         api_latency_trend: 0,
         active_users: '0',
         active_users_trend: 0,
         system_uptime: '0%',
         uptime_trend: 0,
         last_sync: 'N/A'
-    });
+    };
 
-    // Real risk zones state
-    const [riskZones, setRiskZones] = useState({
+    // Use fetched risk data or fallback to defaults
+    const riskZones = riskData || {
         high_risk_zones: 0,
         at_risk_population: '0'
-    });
-
-    // Fetch real metrics on mount and periodically
-    useEffect(() => {
-        const fetchMetrics = async () => {
-            try {
-                // Fetch performance metrics
-                const perfResponse = await fetch(`${API_BASE_URL}/stats/performance`);
-                if (perfResponse.ok) {
-                    const perfData = await perfResponse.json();
-                    setPerformanceMetrics(perfData);
-                }
-
-                // Fetch risk zones
-                const riskResponse = await fetch(`${API_BASE_URL}/stats/zones`);
-                if (riskResponse.ok) {
-                    const riskData = await riskResponse.json();
-                    setRiskZones(riskData);
-                }
-            } catch (error) {
-                console.error('Failed to fetch metrics, using mock data:', error);
-                // Fallback to mock data for visibility
-                setPerformanceMetrics({
-                    api_latency: '45ms',
-                    api_latency_trend: -5,
-                    active_users: '12',
-                    active_users_trend: 8,
-                    system_uptime: '99.9%',
-                    uptime_trend: 0.1,
-                    last_sync: new Date().toLocaleTimeString()
-                });
-                setRiskZones({
-                    high_risk_zones: 3,
-                    at_risk_population: '1.2M'
-                });
-            }
-        };
-
-        fetchMetrics();
-        const interval = setInterval(fetchMetrics, 30000); // Refresh every 30s
-        return () => clearInterval(interval);
-    }, [lastMessage]); // Refetch when new data arrives
+    };
 
     // Show toast notification when new outbreak arrives
     useEffect(() => {
@@ -104,7 +62,6 @@ const DashboardPage = () => {
             );
         }
     }, [lastMessage, addToast]);
-
     // WebSocket and data loading removed - OutbreakMap component handles its own data fetching
 
     return (
@@ -202,13 +159,9 @@ const DashboardPage = () => {
                 </div>
 
                 {/* ROW 2: Full Width Map */}
-                <div className="bg-white rounded-3xl shadow-md border border-gray-100 overflow-hidden relative">
+                <div className="bg-white rounded-3xl shadow-md border border-gray-100 overflow-hidden">
                     <div className="h-[500px] bg-gray-50">
                         <OutbreakMap />
-                    </div>
-                    {/* HeatmapLegend Overlay */}
-                    <div className="absolute bottom-4 right-4 z-10">
-                        <HeatmapLegend />
                     </div>
                 </div>
 
@@ -312,17 +265,19 @@ const DashboardPage = () => {
                                 onClick={async () => {
                                     try {
                                         const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8000/api/v1';
-                                        const response = await fetch(`${API_URL}/reports/comprehensive?days=30`);
-                                        const data = await response.json();
+                                        const response = await fetch(`${API_URL}/reports/download/summary`);
 
-                                        // Download as JSON
-                                        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                                        const url = URL.createObjectURL(blob);
+                                        if (!response.ok) throw new Error('Network response was not ok');
+
+                                        const blob = await response.blob();
+                                        const url = window.URL.createObjectURL(blob);
                                         const a = document.createElement('a');
+                                        a.style.display = 'none';
                                         a.href = url;
-                                        a.download = `outbreak_report_${new Date().toISOString().split('T')[0]}.json`;
+                                        a.download = `symptomap_report_${new Date().toISOString().split('T')[0]}.txt`;
+                                        document.body.appendChild(a);
                                         a.click();
-                                        URL.revokeObjectURL(url);
+                                        window.URL.revokeObjectURL(url);
                                     } catch (error) {
                                         console.error('Failed to generate report:', error);
                                         alert('Failed to generate report. Please try again.');
