@@ -3,12 +3,12 @@ Doctor Station Authentication
 Simple password-based authentication for healthcare professionals
 """
 
+import os
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 import jwt
-import hashlib
 from typing import Optional
 
 router = APIRouter(prefix="/doctor", tags=["Doctor Auth"])
@@ -16,13 +16,13 @@ router = APIRouter(prefix="/doctor", tags=["Doctor Auth"])
 # Security
 security = HTTPBearer()
 
-# Configuration
-SECRET_KEY = "symptomap-doctor-secret-key-2025"  # In production, use env variable
+# Configuration from environment variables (BRD compliant)
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", "symptomap-doctor-secret-key-2025")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24
 
-# Simple password (in production, use database with hashed passwords)
-DOCTOR_PASSWORD = "Doctor@SymptoMap2025"
+# Doctor password from environment (BRD: default "Doctor@SymptoMap2025")
+DOCTOR_PASSWORD = os.getenv("DOCTOR_PASSWORD", "Doctor@SymptoMap2025")
 
 
 class LoginRequest(BaseModel):
