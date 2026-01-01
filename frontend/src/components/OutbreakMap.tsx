@@ -23,7 +23,7 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
   const [mapLoaded, setMapLoaded] = useState(false);
   const [outbreaks, setOutbreaks] = useState<any[]>([]);
   const markersRef = useRef<maplibregl.Marker[]>([]);
-  const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null);
+  const [_userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null);
   const [currentZone, setCurrentZone] = useState<string>('');
 
   // Real-time WebSocket connection
