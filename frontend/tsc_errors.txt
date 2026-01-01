@@ -1,0 +1,20 @@
+src/App.tsx(2,1): error TS6133: 'React' is declared but its value is never read.
+src/components/Chatbot.tsx(8,34): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+src/components/DiseaseTrendChart.tsx(2,22): error TS6133: 'Calendar' is declared but its value is never read.
+src/components/DiseaseTrendChart.tsx(3,10): error TS6133: 'LineChart' is declared but its value is never read.
+src/components/DiseaseTrendChart.tsx(3,21): error TS6133: 'Line' is declared but its value is never read.
+src/components/layout/Header.tsx(2,8): error TS6133: 'React' is declared but its value is never read.
+src/pages/AlertsDashboard.tsx(8,34): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+src/pages/ApprovalRequestsPage.tsx(5,41): error TS6133: 'Eye' is declared but its value is never read.
+src/pages/ChatbotPage.tsx(2,8): error TS6133: 'React' is declared but its value is never read.
+src/pages/ChatbotPage.tsx(86,38): error TS2322: Type '{ mode: string; }' is not assignable to type 'IntrinsicAttributes & ChatbotProps'.
+  Property 'mode' does not exist on type 'IntrinsicAttributes & ChatbotProps'.
+src/pages/PredictionDashboard.tsx(7,10): error TS6133: 'LineChart' is declared but its value is never read.
+src/pages/PredictionDashboard.tsx(7,21): error TS6133: 'Line' is declared but its value is never read.
+src/pages/PredictionDashboard.tsx(8,93): error TS6133: 'Download' is declared but its value is never read.
+src/pages/ReportsPage.tsx(7,40): error TS6133: 'TrendingUp' is declared but its value is never read.
+src/pages/ReportsPage.tsx(7,91): error TS6133: 'PieChart' is declared but its value is never read.
+src/pages/ReportsPage.tsx(87,11): error TS6133: 'downloadCSV' is declared but its value is never read.
+src/services/api.ts(3,29): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+src/services/websocket.ts(9,8): error TS6133: 'event' is declared but its value is never read.
+src/services/websocket.ts(9,23): error TS6133: 'callback' is declared but its value is never read.

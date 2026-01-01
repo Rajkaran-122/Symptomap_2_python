@@ -1,4 +1,4 @@
-import { X, MapPin, Calendar, Users, AlertTriangle, CheckCircle, XCircle, Clock, Stethoscope } from 'lucide-react';
+import { X, MapPin, Users, AlertTriangle, CheckCircle, XCircle, Clock, Stethoscope } from 'lucide-react';
 
 interface OutbreakData {
     id: number;

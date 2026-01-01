@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Chatbot from '@/components/Chatbot';
 
 const ChatbotPage = () => {
@@ -81,9 +80,9 @@ const ChatbotPage = () => {
                             </div>
                         </div>
                     ) : (
-                        <div className="flex-1 h-full flex flex-col">
+                        <div className="flex-1 bg-white rounded-xl shadow-xl overflow-hidden h-[600px]">
                             {/* Pass mode prop to Chatbot if we want to change behavior */}
-                            <Chatbot mode="medical_pro" />
+                            <Chatbot />
                         </div>
                     )}
                 </div>

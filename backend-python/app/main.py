@@ -58,6 +58,10 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 # Include API router
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
+@app.get("/test-reload")
+def test_reload():
+    return {"status": "reloaded"}
+
 # Include WebSocket router
 app.include_router(websocket_router, prefix=settings.API_V1_PREFIX)
 

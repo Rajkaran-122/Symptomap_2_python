@@ -6,7 +6,7 @@ export const websocketService = {
   disconnect: () => {
     console.log('Disconnecting WebSocket');
   },
-  on: (event: string, callback: Function) => {
+  on: (_event: string, _callback: Function) => {
     // Placeholder
   }
 };

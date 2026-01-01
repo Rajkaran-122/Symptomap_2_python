@@ -23,7 +23,7 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
   const [mapLoaded, setMapLoaded] = useState(false);
   const [outbreaks, setOutbreaks] = useState<any[]>([]);
   const markersRef = useRef<maplibregl.Marker[]>([]);
-  const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null);
+  // const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null);
   const [currentZone, setCurrentZone] = useState<string>('');
 
   // Real-time WebSocket connection
@@ -131,109 +131,141 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
     markersRef.current.forEach(marker => marker.remove());
     markersRef.current = [];
 
+    // Aggregate outbreaks by city/region
+    const cityZones: { [key: string]: any } = {};
+
     outbreaks.forEach(outbreak => {
-      const lat = outbreak.hospital?.location?.lat || outbreak.location?.lat;
-      const lng = outbreak.hospital?.location?.lng || outbreak.location?.lng;
+      const loc = outbreak.hospital?.location || outbreak.location || {};
+      const lat = loc.lat || loc.latitude;
+      const lng = loc.lng || loc.longitude;
+      const city = loc.city || outbreak.city || outbreak.location_name || 'Unknown Zone';
 
       if (!lat || !lng) return;
 
-      const severityInfo = getSeverityColor(outbreak.severity);
+      if (!cityZones[city]) {
+        cityZones[city] = {
+          city: city,
+          state: loc.state || outbreak.state,
+          lat: lat, // Use first outbreak loc as center (simple arg rep)
+          lng: lng,
+          totalCases: 0,
+          severityScore: 0, // for calc max severity
+          hospitals: [],
+          diseases: new Set()
+        };
+      }
 
-      // Create marker element with simple, clean circle
-      const el = document.createElement('div');
-      el.className = 'outbreak-marker';
+      // Add data
+      const patientCount = outbreak.patient_count || outbreak.cases || 0;
+      cityZones[city].totalCases += patientCount;
+      cityZones[city].hospitals.push({
+        name: outbreak.hospital?.name || outbreak.location_name || 'Unknown Hospital',
+        cases: patientCount,
+        disease: outbreak.disease_type || outbreak.disease,
+        severity: outbreak.severity,
+        date: outbreak.date_started || outbreak.reported_date
+      });
+      cityZones[city].diseases.add(outbreak.disease_type || outbreak.disease);
 
-      // Professional light colors - NO YELLOW, using blue for moderate
+      // Severity scoring: severe=3, moderate=2, mild=1
+      let score = 1;
+      if (outbreak.severity === 'severe') score = 3;
+      else if (outbreak.severity === 'moderate') score = 2;
+
+      // Keep max severity
+      if (score > cityZones[city].severityScore) {
+        cityZones[city].severityScore = score;
+        cityZones[city].maxSeverity = outbreak.severity;
+      }
+    });
+
+    const aggregatedZones = Object.values(cityZones);
+
+    console.log(`✅ Map: Aggregated ${outbreaks.length} reports into ${aggregatedZones.length} zones per area.`);
+
+    aggregatedZones.forEach(zone => {
+      const { lat, lng, totalCases, maxSeverity, city, hospitals, diseases } = zone;
+
+      const severity = maxSeverity || 'moderate';
+      const severityInfo = getSeverityColor(severity);
+      const diseaseList = Array.from(diseases as Set<string>).join(", ");
+
+      // Professional light colors
       const severityColors = {
-        severe: {
-          fill: '#fca5a5',      // Light coral red
-          stroke: '#ef4444',    // Red border
-          shadow: 'rgba(239, 68, 68, 0.4)'
-        },
-        moderate: {
-          fill: '#fde68a',      // Light yellow (restored)
-          stroke: '#f59e0b',    // Amber border
-          shadow: 'rgba(245, 158, 11, 0.4)'
-        },
-        mild: {
-          fill: '#86efac',      // Light green
-          stroke: '#22c55e',    // Green border
-          shadow: 'rgba(34, 197, 94, 0.4)'
-        }
+        severe: { fill: '#fca5a5', stroke: '#ef4444', shadow: 'rgba(239, 68, 68, 0.4)' },
+        moderate: { fill: '#fde68a', stroke: '#f59e0b', shadow: 'rgba(245, 158, 11, 0.4)' },
+        mild: { fill: '#86efac', stroke: '#22c55e', shadow: 'rgba(34, 197, 94, 0.4)' }
       };
 
-      const severity = outbreak.severity || 'moderate';
       const colors = severityColors[severity as keyof typeof severityColors] || severityColors.moderate;
 
+      // Create marker element
+      const el = document.createElement('div');
+      el.className = 'outbreak-marker';
       el.innerHTML = `
         <svg width="40" height="40" viewBox="0 0 40 40" style="filter: drop-shadow(0 2px 6px ${colors.shadow});">
-          <!-- Single perfect circle - NO patient count text -->
           <circle cx="20" cy="20" r="16" 
                   fill="${colors.fill}" 
                   stroke="${colors.stroke}" 
                   stroke-width="3"
                   opacity="0.9"/>
+          <!-- Optional: Number badge for # of hospitals if > 1 -->
+          ${hospitals.length > 1 ? `<circle cx="30" cy="10" r="8" fill="white" stroke="#666" stroke-width="1"/><text x="30" y="14" text-anchor="middle" font-size="10" font-weight="bold" fill="#333">${hospitals.length}</text>` : ''}
         </svg>
       `;
 
       el.style.cursor = 'pointer';
       el.style.transition = 'transform 0.2s ease';
-      el.title = `${outbreak.hospital?.name || 'Unknown'} - ${outbreak.disease_type} (${severity.toUpperCase()})`;
+      el.title = `${city} Zone - ${totalCases} Total Cases`;
 
-      // Hover effect
-      el.addEventListener('mouseenter', () => {
-        el.style.transform = 'scale(1.2)';
-      });
+      // Hover
+      el.addEventListener('mouseenter', () => el.style.transform = 'scale(1.2)');
+      el.addEventListener('mouseleave', () => el.style.transform = 'scale(1)');
 
-      el.addEventListener('mouseleave', () => {
-        el.style.transform = 'scale(1)';
-      });
-
-      // Add click handler for popup
-      el.addEventListener('click', () => {
-        alert(`🏥 ${outbreak.hospital?.name || 'Unknown Hospital'}
-        
-🦠 Disease: ${outbreak.disease_type}
-👥 Patients: ${outbreak.patient_count}
-⚠️ Severity: ${severity.toUpperCase()}
-📅 Started: ${new Date(outbreak.date_started).toLocaleDateString()}`);
-      });
-
-      // Create popup HTML
-      const popupHTML = `
-        <div class="p-3 min-w-[200px]">
-          <div class="flex items-center gap-2 mb-2">
-            <div class="w-3 h-3 rounded-full" style="background-color: ${severityInfo.bg};"></div>
-            <h3 class="font-bold text-gray-900">${outbreak.disease_type || 'Unknown Disease'}</h3>
+      // Popup HTML with aggregated list
+      let hospitalListHTML = hospitals.map((h: any) => `
+        <div class="border-b border-gray-100 py-2 last:border-0">
+          <div class="flex justify-between items-start">
+            <span class="font-medium text-gray-800 text-xs">${h.name}</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded-full ${h.severity === 'severe' ? 'bg-red-100 text-red-700' : h.severity === 'moderate' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}">${h.severity}</span>
           </div>
-          <div class="space-y-1 text-sm text-gray-600">
-            <p><strong>Hospital:</strong> ${outbreak.hospital?.name || 'N/A'}</p>
-            <p><strong>Patients:</strong> ${outbreak.patient_count || 0}</p>
-            <p><strong>Severity:</strong> <span class="font-semibold" style="color: ${severityInfo.bg}">${severityInfo.text}</span></p>
-            <p><strong>Reported:</strong> ${new Date(outbreak.date_reported || outbreak.date_started).toLocaleDateString()}</p>
-            ${outbreak.verified ? '<p class="text-green-600 font-semibold">✓ Verified</p>' : '<p class="text-orange-600">⚠ Pending Verification</p>'}
+          <div class="flex justify-between text-[10px] text-gray-500 mt-0.5">
+            <span>${h.disease}</span>
+            <span class="font-bold">${h.cases} cases</span>
           </div>
         </div>
-        `;
+      `).join('');
 
-      // Create popup
-      const popup = new maplibregl.Popup({
-        offset: 25,
-        closeButton: true,
-        closeOnClick: false
-      }).setHTML(popupHTML);
+      const popupHTML = `
+        <div class="p-0 min-w-[240px] max-h-[300px] overflow-y-auto custom-scrollbar">
+          <div class="sticky top-0 bg-white border-b border-gray-200 p-3 z-10 pb-2">
+            <div class="flex items-center gap-2 mb-1">
+              <div class="w-3 h-3 rounded-full" style="background-color: ${severityInfo.bg};"></div>
+              <h3 class="font-bold text-gray-900 text-base">${city} Zone</h3>
+            </div>
+            <p class="text-xs text-gray-500">Combining reports from <span class="font-bold">${hospitals.length} hospitals</span></p>
+            <div class="flex gap-2 mt-2">
+               <div class="text-xs bg-gray-50 px-2 py-1 rounded border border-gray-200">
+                 👥 <span class="font-bold">${totalCases}</span> Cases
+               </div>
+               <div class="text-xs bg-gray-50 px-2 py-1 rounded border border-gray-200">
+                 🦠 ${diseaseList.split(',')[0]} ${diseaseList.includes(',') ? '...' : ''}
+               </div>
+            </div>
+          </div>
+          <div class="p-3 bg-gray-50/50">
+            <h4 class="text-[10px] uppercase font-bold text-gray-400 mb-1">Detailed Reports</h4>
+            ${hospitalListHTML}
+          </div>
+        </div>
+      `;
 
-      // Create and add marker
+      const popup = new maplibregl.Popup({ offset: 25, closeButton: true, maxWidth: '300px' }).setHTML(popupHTML);
+
       const marker = new maplibregl.Marker({ element: el })
         .setLngLat([lng, lat])
         .setPopup(popup)
         .addTo(map.current!);
-
-      el.addEventListener('click', () => {
-        if (onOutbreakClick) {
-          onOutbreakClick(outbreak);
-        }
-      });
 
       markersRef.current.push(marker);
     });
@@ -248,27 +280,26 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
       const layerId = 'outbreak-zones-layer';
 
       // Clean up existing
+      if (map.current.getLayer(`${layerId}-core`)) map.current.removeLayer(`${layerId}-core`);
       if (map.current.getLayer(layerId)) map.current.removeLayer(layerId);
       if (map.current.getSource(sourceId)) map.current.removeSource(sourceId);
 
       if (outbreaks.length > 0) {
-        // Create GeoJSON features from outbreaks
-        const features = outbreaks.map(outbreak => {
-          const lat = outbreak.hospital?.location?.lat || outbreak.location?.lat;
-          const lng = outbreak.hospital?.location?.lng || outbreak.location?.lng;
+        // Create GeoJSON features from AGGREGATED ZONES
+        const features = aggregatedZones.map(zone => {
+          // Mapping aggregated data to feature
+          const { lat, lng, totalCases, maxSeverity, city } = zone;
 
           if (!lat || !lng) return null;
 
-          const severity = outbreak.severity || 'moderate';
-          // Determine color and radius based on severity
-          let color = '#fde68a'; // moderate yellow
-          let radius = 10; // default radius
+          let color = '#fde68a';
+          let radius = 10;
 
-          if (severity === 'severe') {
-            color = '#fca5a5'; // red
+          if (maxSeverity === 'severe') {
+            color = '#fca5a5';
             radius = 15;
-          } else if (severity === 'mild') {
-            color = '#86efac'; // green
+          } else if (maxSeverity === 'mild') {
+            color = '#86efac';
             radius = 8;
           }
 
@@ -279,15 +310,16 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
               coordinates: [lng, lat]
             },
             properties: {
-              severity: severity,
+              severity: maxSeverity,
               color: color,
               radius: radius,
-              description: `Risk Zone: ${outbreak.disease_type}`
+              count: totalCases,
+              description: `Risk Zone: ${city}`
             }
           };
-        }).filter(Boolean); // remove nulls
+        }).filter(Boolean);
 
-        // Add Source
+        // Add a source for the risk zones
         map.current.addSource(sourceId, {
           type: 'geojson',
           data: {
@@ -296,21 +328,63 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
           }
         });
 
-        // Add Layer with data-driven values
+        // Add "Pro" Heatmap/risk zone layer using interpolate for smooth gradients
         map.current.addLayer({
           id: layerId,
           type: 'circle',
           source: sourceId,
           paint: {
-            'circle-radius': ['get', 'radius'], // Use radius from properties, multiplied by zoom/pixels? simpler here just pixel radius
-            'circle-color': ['get', 'color'],
-            'circle-opacity': 0.3,
+            // Dynamic radius based on zoom AND count (cases)
+            // At zoom 5: 1 case=20px, 100 cases=50px
+            // At zoom 10: 1 case=40px, 100 cases=100px
+            // Dynamic radius based on patient count (aggregated)
+            // Scale: 10px (small) -> 60px (large)
+            'circle-radius': [
+              'interpolate',
+              ['linear'],
+              ['sqrt', ['get', 'count']],
+              0, 10,
+              100, 60
+            ],
+            // Heatmap gradient color based on severity
+            'circle-color': [
+              'match',
+              ['get', 'severity'],
+              'severe', '#ef4444',   // Red-500
+              'moderate', '#f59e0b', // Amber-500
+              'mild', '#3b82f6',     // Blue-500
+              '#cccccc'
+            ],
+            // Opacity for "glow" effect
+            'circle-opacity': 0.5,
+            // Blur to make it look like a heatmap/cloud
+            'circle-blur': 0.4,
             'circle-stroke-width': 1,
-            'circle-stroke-color': ['get', 'color'],
-            'circle-stroke-opacity': 0.6
+            'circle-stroke-color': '#ffffff',
+            'circle-stroke-opacity': 0.3
           }
-        }, 'osm-tiles-layer'); // Place above tiles but below markers? Markers are DOM elements, so they are always on top.
-        // Actually DOM markers are on top of canvas. The layer order matters for other map layers.
+        });
+
+        // Add a "Core" layer for precise center points
+        map.current.addLayer({
+          id: `${layerId}-core`,
+          type: 'circle',
+          source: sourceId,
+          paint: {
+            'circle-radius': 4,
+            'circle-color': '#ffffff',
+            'circle-opacity': 0.9,
+            'circle-stroke-width': 2,
+            'circle-stroke-color': [
+              'match',
+              ['get', 'severity'],
+              'severe', '#ef4444',
+              'moderate', '#f59e0b',
+              'mild', '#3b82f6',
+              '#999'
+            ]
+          }
+        });  // Actually DOM markers are on top of canvas. The layer order matters for other map layers.
       }
     }
 
@@ -319,8 +393,10 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
       const bounds = new maplibregl.LngLatBounds();
 
       outbreaks.forEach(outbreak => {
-        const lat = outbreak.hospital?.location?.lat || outbreak.location?.lat;
-        const lng = outbreak.hospital?.location?.lng || outbreak.location?.lng;
+        const loc = outbreak.hospital?.location || outbreak.location || {};
+        const lat = loc.lat || loc.latitude;
+        const lng = loc.lng || loc.longitude;
+
         if (lat && lng) {
           bounds.extend([lng, lat]);
         }
@@ -346,8 +422,9 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
+          // const { latitude, longitude } = position.coords;
+          // setUserLocation({ lat: latitude, lng: longitude });
           const { latitude, longitude } = position.coords;
-          setUserLocation({ lat: latitude, lng: longitude });
 
           // Add user location marker
           if (map.current) {

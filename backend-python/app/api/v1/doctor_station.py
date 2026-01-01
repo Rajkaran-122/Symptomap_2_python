@@ -93,8 +93,8 @@ async def submit_outbreak(
         cursor.execute('''
             INSERT INTO doctor_outbreaks 
             (disease_type, patient_count, severity, latitude, longitude,
-             location_name, city, state, description, date_reported, submitted_by, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             location_name, city, state, description, date_reported, submitted_by, created_at, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             outbreak.disease_type,
             outbreak.patient_count,
@@ -107,7 +107,8 @@ async def submit_outbreak(
             outbreak.description,
             date_reported,
             payload.get("sub", "doctor"),
-            datetime.now(timezone.utc).isoformat()
+            datetime.now(timezone.utc).isoformat(),
+            'pending'  # New submissions require admin approval
         ))
         
         outbreak_id = cursor.lastrowid

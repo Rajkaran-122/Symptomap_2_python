@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     CheckCircle, XCircle, Clock, AlertTriangle,
-    RefreshCw, MapPin, Users, Activity, Eye
+    RefreshCw, MapPin, Users, Activity
 } from 'lucide-react';
 import ApprovalDetailModal from '../components/ApprovalDetailModal';
 

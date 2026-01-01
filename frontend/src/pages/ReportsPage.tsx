@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { FileText, Download, Calendar, TrendingUp, Users, MapPin, AlertCircle, BarChart3, PieChart, Sparkles, Clock, Share2 } from 'lucide-react';
+import { FileText, Download, Calendar, Users, MapPin, AlertCircle, BarChart3, Sparkles, Clock, Share2 } from 'lucide-react';
 import { useWebSocket } from '../hooks/useWebSocket';
 import EmailNotification from '../components/EmailNotification';
 
@@ -84,13 +84,7 @@ export const ReportsPage: React.FC = () => {
         URL.revokeObjectURL(url);
     };
 
-    const downloadCSV = async () => {
-        try {
-            window.open(`${API_BASE_URL}/export/csv/outbreaks`, '_blank');
-        } catch (error) {
-            console.error('Failed to download CSV:', error);
-        }
-    };
+
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 p-6">

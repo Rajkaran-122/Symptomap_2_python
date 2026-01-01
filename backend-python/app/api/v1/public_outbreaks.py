@@ -8,6 +8,7 @@ from typing import List, Dict
 import sqlite3
 import os
 from datetime import datetime, timezone
+from fastapi.responses import JSONResponse
 
 router = APIRouter(prefix="/outbreaks", tags=["Public Outbreaks"])
 
@@ -24,127 +25,108 @@ def get_db_connection():
 @router.get("/all")
 async def get_all_outbreaks():
     """
-    Get all outbreaks from both APPROVED doctor submissions and regular database
-    
-    Returns combined list of outbreaks for dashboard display
-    Only includes doctor submissions that have been approved by admin
+    Get all outbreaks from both APPROVED doctor submissions and regular outbreaks
     """
-    
-    outbreaks = []
-    alerts = []
-    
     try:
-        conn = get_db_connection()
+        # DB Path calculation
+        # Go up: v1 -> api -> app -> backend-python -> symptomap.db
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+        db_path = os.path.join(base_dir, 'symptomap.db')
+        
+        if not os.path.exists(db_path):
+            # Fallback for different environments
+            db_path = os.path.join(os.getcwd(), 'backend-python', 'symptomap.db')
+            if not os.path.exists(db_path):
+                # Another fallback
+                db_path = os.path.join(os.getcwd(), 'symptomap.db')
+
+        outbreaks = []
+        alerts = []
+        
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
-        # Get APPROVED doctor submissions only
+        # 1. Fetch Approved Outbreaks
         try:
             cursor.execute('''
-                SELECT 
-                    id,
-                    disease_type,
-                    patient_count,
-                    severity,
-                    latitude,
-                    longitude,
-                    location_name,
-                    city,
-                    state,
-                    description,
-                    date_reported,
-                    created_at,
-                    status
+                SELECT id, disease_type, patient_count, severity, latitude, longitude,
+                       location_name, city, state, description, date_reported, created_at, status
                 FROM doctor_outbreaks
                 WHERE status = 'approved'
                 ORDER BY created_at DESC
             ''')
-            
             rows = cursor.fetchall()
             for row in rows:
-                try:
-                    outbreak_data = {
-                        "id": f"doc_{row['id']}",
-                        "disease": str(row['disease_type']),
-                        "cases": int(row['patient_count']),
-                        "severity": str(row['severity']),
-                        "location": {
-                            "name": str(row['location_name']) if row['location_name'] else "",
-                            "city": str(row['city']) if row['city'] else "",
-                            "state": str(row['state']) if row['state'] else "",
-                            "latitude": float(row['latitude']) if row['latitude'] else 0.0,
-                            "longitude": float(row['longitude']) if row['longitude'] else 0.0
-                        },
-                        "description": str(row['description']) if row['description'] else "",
-                        "reported_date": str(row['date_reported']) if row['date_reported'] else str(row['created_at']),
-                        "source": "Doctor Submission (Approved)",
-                        "status": "approved",
-                        "verified": True
-                    }
-                    outbreaks.append(outbreak_data)
-                except Exception as row_error:
-                    print(f"Error processing outbreak row: {row_error}")
-                    continue
-                    
+                outbreaks.append({
+                    "id": f"doc_{row['id']}",
+                    "disease": str(row['disease_type']),
+                    "cases": int(row['patient_count']),
+                    "severity": str(row['severity']),
+                    "location": {
+                        "name": str(row['location_name']) if row['location_name'] else "",
+                        "city": str(row['city']) if row['city'] else "",
+                        "state": str(row['state']) if row['state'] else "",
+                        "latitude": float(row['latitude']) if row['latitude'] else 0.0,
+                        "longitude": float(row['longitude']) if row['longitude'] else 0.0
+                    },
+                    "description": str(row['description']) if row['description'] else "",
+                    "reported_date": str(row['date_reported']) if row['date_reported'] else str(row['created_at']),
+                    "source": "Doctor Submission (Approved)",
+                    "status": "approved",
+                    "verified": True
+                })
         except Exception as e:
-            print(f"Error fetching approved doctor outbreaks: {e}")
-        
-        # Get active doctor alerts
+            print(f"Error fetching outbreaks: {e}")
+            # Continue to alerts
+            
+        # 2. Fetch Active Alerts
         try:
             cursor.execute('''
-                SELECT 
-                    id,
-                    alert_type,
-                    title,
-                    message,
-                    latitude,
-                    longitude,
-                    affected_area,
-                    expiry_date,
-                    created_at,
-                    status
+                SELECT id, alert_type, title, message, latitude, longitude,
+                       affected_area, expiry_date, created_at, status
                 FROM doctor_alerts
                 WHERE status = 'active'
-                ORDER BY created_at DESC
             ''')
-            
             rows = cursor.fetchall()
             for row in rows:
-                try:
-                    alert_data = {
-                        "id": f"alert_{row['id']}",
-                        "type": str(row['alert_type']),
-                        "title": str(row['title']),
-                        "message": str(row['message']),
-                        "location": {
-                            "latitude": float(row['latitude']) if row['latitude'] else 0.0,
-                            "longitude": float(row['longitude']) if row['longitude'] else 0.0,
-                            "area": str(row['affected_area']) if row['affected_area'] else ""
-                        },
-                        "expiry": str(row['expiry_date']) if row['expiry_date'] else "",
-                        "created": str(row['created_at']) if row['created_at'] else "",
-                        "status": str(row['status'])
-                    }
-                    alerts.append(alert_data)
-                except Exception as row_error:
-                    print(f"Error processing alert row: {row_error}")
-                    continue
-                    
+                alerts.append({
+                    "id": f"alert_{row['id']}",
+                    "type": str(row['alert_type']),
+                    "title": str(row['title']),
+                    "message": str(row['message']),
+                    "location": {
+                        "latitude": float(row['latitude']) if row['latitude'] else 0.0,
+                        "longitude": float(row['longitude']) if row['longitude'] else 0.0,
+                        "area": str(row['affected_area']) if row['affected_area'] else ""
+                    },
+                    "expiry": str(row['expiry_date']) if row['expiry_date'] else "",
+                    "created": str(row['created_at']) if row['created_at'] else "",
+                    "status": str(row['status'])
+                })
         except Exception as e:
-            print(f"Error fetching doctor alerts: {e}")
-        
+            print(f"Error fetching alerts: {e}")
+
         conn.close()
         
+        return JSONResponse(content={
+            "outbreaks": outbreaks,
+            "alerts": alerts,
+            "total_outbreaks": len(outbreaks),
+            "total_alerts": len(alerts),
+            "last_updated": datetime.now(timezone.utc).isoformat()
+        })
+
     except Exception as e:
-        print(f"Database connection error: {e}")
-    
-    # Always return a valid response
-    return {
-        "outbreaks": outbreaks,
-        "alerts": alerts,
-        "total_outbreaks": len(outbreaks),
-        "total_alerts": len(alerts),
-        "last_updated": datetime.now(timezone.utc).isoformat()
-    }
+        import traceback
+        return JSONResponse(
+            status_code=200, # Return 200 so frontend handles it gently? No, debugging.
+            content={
+                "error": str(e),
+                "traceback": traceback.format_exc(),
+                "db_path_attempted": db_path if 'db_path' in locals() else "unknown"
+            }
+        )
 
 
 @router.get("/pending-count")
@@ -160,4 +142,3 @@ async def get_pending_count():
         return {"pending_count": count}
     except:
         return {"pending_count": 0}
-

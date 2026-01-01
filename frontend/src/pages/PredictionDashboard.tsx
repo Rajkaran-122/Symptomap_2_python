@@ -4,8 +4,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { TrendingUp, AlertTriangle, Activity, Calendar, Users, Hospital, Target, BarChart3, Download } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { TrendingUp, AlertTriangle, Activity, Calendar, Users, Hospital, Target, BarChart3 } from 'lucide-react';
 
 interface PredictionData {
     generated_at: string;

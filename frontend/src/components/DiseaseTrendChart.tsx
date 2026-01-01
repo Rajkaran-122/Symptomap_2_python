@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { TrendingUp, Calendar } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
+import { TrendingUp } from 'lucide-react';
+import { XAxis, YAxis, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 
 interface TrendDataPoint {
     date: string;
@@ -94,8 +94,8 @@ const DiseaseTrendChart = ({ className = '' }: DiseaseTrendChartProps) => {
                             key={p}
                             onClick={() => setPeriod(p)}
                             className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${period === p
-                                    ? 'bg-white text-gray-800 shadow-sm'
-                                    : 'text-gray-500 hover:text-gray-700'
+                                ? 'bg-white text-gray-800 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700'
                                 }`}
                         >
                             {p}
