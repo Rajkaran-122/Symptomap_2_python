@@ -1,5 +1,5 @@
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRealTimeStats } from '@/hooks/useRealTimeStats';
 import { useToast } from '@/hooks/useToast';
 import { useWebSocket } from '@/hooks/useWebSocket';
@@ -29,20 +29,49 @@ const DashboardPage = () => {
     const { toasts, addToast, removeToast } = useToast();
     const { lastMessage } = useWebSocket(WS_URL);
 
-    const performanceMetrics = {
-        api_latency: '0ms',
+    // Real performance metrics state
+    const [performanceMetrics, setPerformanceMetrics] = useState({
+        api_latency: 'Loading...',
         api_latency_trend: 0,
         active_users: '0',
         active_users_trend: 0,
         system_uptime: '0%',
         uptime_trend: 0,
         last_sync: 'N/A'
-    };
+    });
 
-    const riskZones = {
+    // Real risk zones state
+    const [riskZones, setRiskZones] = useState({
         high_risk_zones: 0,
         at_risk_population: '0'
-    };
+    });
+
+    // Fetch real metrics on mount and periodically
+    useEffect(() => {
+        const fetchMetrics = async () => {
+            try {
+                // Fetch performance metrics
+                const perfResponse = await fetch(`${API_BASE_URL}/stats/performance`);
+                if (perfResponse.ok) {
+                    const perfData = await perfResponse.json();
+                    setPerformanceMetrics(perfData);
+                }
+
+                // Fetch risk zones
+                const riskResponse = await fetch(`${API_BASE_URL}/stats/zones`);
+                if (riskResponse.ok) {
+                    const riskData = await riskResponse.json();
+                    setRiskZones(riskData);
+                }
+            } catch (error) {
+                console.error('Failed to fetch metrics:', error);
+            }
+        };
+
+        fetchMetrics();
+        const interval = setInterval(fetchMetrics, 30000); // Refresh every 30s
+        return () => clearInterval(interval);
+    }, [lastMessage]); // Refetch when new data arrives
 
     // Show toast notification when new outbreak arrives
     useEffect(() => {
