@@ -8,9 +8,9 @@ interface HeatmapLegendProps {
 const HeatmapLegend = ({ className = '', orientation = 'vertical' }: HeatmapLegendProps) => {
     const legendItems = [
         { label: 'Critical', cases: '500+', color: '#DC2626', bgColor: 'from-red-600 to-red-500' },
-        { label: 'High', cases: '200-499', color: '#F59E0B', bgColor: 'from-amber-500 to-orange-500' },
-        { label: 'Moderate', cases: '50-199', color: '#3B82F6', bgColor: 'from-blue-500 to-indigo-500' },
-        { label: 'Low', cases: '10-49', color: '#10B981', bgColor: 'from-emerald-500 to-green-500' },
+        { label: 'High', cases: '200-499', color: '#EA580C', bgColor: 'from-orange-600 to-orange-500' },
+        { label: 'Moderate', cases: '50-199', color: '#EAB308', bgColor: 'from-yellow-500 to-amber-500' },
+        { label: 'Low', cases: '10-49', color: '#22C55E', bgColor: 'from-green-500 to-emerald-500' },
         { label: 'Minimal', cases: '1-9', color: '#6B7280', bgColor: 'from-gray-500 to-gray-400' },
     ];
 

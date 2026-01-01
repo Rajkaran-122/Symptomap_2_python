@@ -113,13 +113,28 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
     };
   }, []);
 
-  // Helper function to get color based on severity
+  // Helper function to get color based on case count (Risk Levels)
+  const getRiskColor = (cases: number) => {
+    if (cases >= 500) {
+      return { bg: '#DC2626', border: '#991B1B', text: 'Critical', glow: 'rgba(220, 38, 38, 0.4)' }; // Red
+    } else if (cases >= 200) {
+      return { bg: '#EA580C', border: '#C2410C', text: 'High', glow: 'rgba(234, 88, 12, 0.4)' }; // Orange
+    } else if (cases >= 50) {
+      return { bg: '#EAB308', border: '#CA8A04', text: 'Moderate', glow: 'rgba(234, 179, 8, 0.4)' }; // Yellow
+    } else if (cases >= 10) {
+      return { bg: '#22C55E', border: '#16A34A', text: 'Low', glow: 'rgba(34, 197, 94, 0.4)' }; // Green
+    } else {
+      return { bg: '#6B7280', border: '#4B5563', text: 'Minimal', glow: 'rgba(107, 114, 128, 0.3)' }; // Gray
+    }
+  };
+
+  // Fallback severity-based color
   const getSeverityColor = (severity: string) => {
     switch (severity?.toLowerCase()) {
-      case 'severe': return { bg: '#DC2626', border: '#991B1B', text: 'Severe' }; // Red
-      case 'moderate': return { bg: '#F59E0B', border: '#D97706', text: 'Moderate' }; // Orange
-      case 'mild': return { bg: '#10B981', border: '#059669', text: 'Mild' }; // Green
-      default: return { bg: '#6B7280', border: '#4B5563', text: 'Unknown' }; // Gray
+      case 'severe': return { bg: '#DC2626', border: '#991B1B', text: 'Severe', glow: 'rgba(220, 38, 38, 0.4)' };
+      case 'moderate': return { bg: '#F59E0B', border: '#D97706', text: 'Moderate', glow: 'rgba(245, 158, 11, 0.4)' };
+      case 'mild': return { bg: '#10B981', border: '#059669', text: 'Mild', glow: 'rgba(16, 185, 129, 0.4)' };
+      default: return { bg: '#6B7280', border: '#4B5563', text: 'Unknown', glow: 'rgba(107, 114, 128, 0.3)' };
     }
   };
 
@@ -143,42 +158,33 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
       const el = document.createElement('div');
       el.className = 'outbreak-marker';
 
-      // Professional light colors - NO YELLOW, using blue for moderate
-      const severityColors = {
-        severe: {
-          fill: '#fca5a5',      // Light coral red
-          stroke: '#ef4444',    // Red border
-          shadow: 'rgba(239, 68, 68, 0.4)'
-        },
-        moderate: {
-          fill: '#fde68a',      // Light yellow (restored)
-          stroke: '#f59e0b',    // Amber border
-          shadow: 'rgba(245, 158, 11, 0.4)'
-        },
-        mild: {
-          fill: '#86efac',      // Light green
-          stroke: '#22c55e',    // Green border
-          shadow: 'rgba(34, 197, 94, 0.4)'
-        }
-      };
+      // Get colors based on case count (risk levels)
+      const cases = outbreak.cases || outbreak.patient_count || 1;
+      const riskInfo = getRiskColor(cases);
 
-      const severity = outbreak.severity || 'moderate';
-      const colors = severityColors[severity as keyof typeof severityColors] || severityColors.moderate;
+      // Calculate marker size based on cases (larger = more cases)
+      const baseSize = 40;
+      const sizeMultiplier = cases >= 500 ? 1.5 : cases >= 200 ? 1.3 : cases >= 50 ? 1.15 : 1;
+      const markerSize = Math.floor(baseSize * sizeMultiplier);
 
       el.innerHTML = `
-        <svg width="40" height="40" viewBox="0 0 40 40" style="filter: drop-shadow(0 2px 6px ${colors.shadow});">
-          <!-- Single perfect circle - NO patient count text -->
-          <circle cx="20" cy="20" r="16" 
-                  fill="${colors.fill}" 
-                  stroke="${colors.stroke}" 
+        <svg width="${markerSize}" height="${markerSize}" viewBox="0 0 40 40" style="filter: drop-shadow(0 3px 8px ${riskInfo.glow});">
+          <!-- Outer glow ring for critical/high -->
+          ${cases >= 200 ? `<circle cx="20" cy="20" r="18" fill="none" stroke="${riskInfo.bg}" stroke-width="2" opacity="0.3"/>` : ''}
+          <!-- Main circle -->
+          <circle cx="20" cy="20" r="15" 
+                  fill="${riskInfo.bg}" 
+                  stroke="${riskInfo.border}" 
                   stroke-width="3"
-                  opacity="0.9"/>
+                  opacity="0.95"/>
+          <!-- Case count text for larger outbreaks -->
+          ${cases >= 10 ? `<text x="20" y="24" text-anchor="middle" fill="white" font-size="10" font-weight="bold">${cases >= 1000 ? Math.floor(cases / 1000) + 'K' : cases}</text>` : ''}
         </svg>
       `;
 
       el.style.cursor = 'pointer';
       el.style.transition = 'transform 0.2s ease';
-      el.title = `${outbreak.hospital?.name || 'Unknown'} - ${outbreak.disease_type} (${severity.toUpperCase()})`;
+      el.title = `${outbreak.hospital?.name || 'Unknown'} - ${outbreak.disease_type || outbreak.disease} (${riskInfo.text} - ${cases} cases)`;
 
       // Hover effect
       el.addEventListener('mouseenter', () => {
@@ -195,7 +201,7 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
         
 🦠 Disease: ${outbreak.disease_type}
 👥 Patients: ${outbreak.patient_count}
-⚠️ Severity: ${severity.toUpperCase()}
+⚠️ Risk Level: ${riskInfo.text} (${cases} cases)
 📅 Started: ${new Date(outbreak.date_started).toLocaleDateString()}`);
       });
 
