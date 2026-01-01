@@ -116,18 +116,21 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
     };
   }, []);
 
-  // Helper function to get color based on case count (Risk Levels)
-  const getRiskColor = (cases: number) => {
-    if (cases >= 500) {
-      return { bg: '#DC2626', border: '#991B1B', text: 'Critical', glow: 'rgba(220, 38, 38, 0.4)' }; // Red
-    } else if (cases >= 200) {
-      return { bg: '#EA580C', border: '#C2410C', text: 'High', glow: 'rgba(234, 88, 12, 0.4)' }; // Orange
-    } else if (cases >= 50) {
-      return { bg: '#EAB308', border: '#CA8A04', text: 'Moderate', glow: 'rgba(234, 179, 8, 0.4)' }; // Yellow
-    } else if (cases >= 10) {
-      return { bg: '#22C55E', border: '#16A34A', text: 'Low', glow: 'rgba(34, 197, 94, 0.4)' }; // Green
-    } else {
-      return { bg: '#6B7280', border: '#4B5563', text: 'Minimal', glow: 'rgba(107, 114, 128, 0.3)' }; // Gray
+  // Helper function to get color based on severity (3 zones only)
+  const getZoneColor = (severity: string) => {
+    switch (severity?.toLowerCase()) {
+      case 'severe':
+      case 'critical':
+      case 'high':
+        return { bg: '#DC2626', border: '#991B1B', text: 'Severe', opacity: 0.4 }; // Red
+      case 'moderate':
+      case 'medium':
+        return { bg: '#EAB308', border: '#CA8A04', text: 'Moderate', opacity: 0.35 }; // Yellow
+      case 'mild':
+      case 'low':
+      case 'minimal':
+      default:
+        return { bg: '#22C55E', border: '#16A34A', text: 'Mild', opacity: 0.3 }; // Green
     }
   };
 
@@ -160,56 +163,45 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
       const el = document.createElement('div');
       el.className = 'outbreak-marker';
 
-      // Get colors based on case count (risk levels)
+      // Get zone color based on severity (3 zones: Red, Yellow, Green)
+      const severity = outbreak.severity || 'moderate';
       const cases = outbreak.cases || outbreak.patient_count || 1;
-      const riskInfo = getRiskColor(cases);
+      const zoneInfo = getZoneColor(severity);
 
-      // Calculate zone radius based on cases (larger outbreak = larger zone)
-      const baseRadius = 60;
-      const radiusMultiplier = cases >= 500 ? 2.0 : cases >= 200 ? 1.6 : cases >= 50 ? 1.3 : cases >= 10 ? 1.1 : 1;
-      const zoneSize = Math.floor(baseRadius * radiusMultiplier);
+      // Zone size based on cases - larger outbreak = larger zone
+      const baseSize = 50;
+      const sizeMultiplier = cases >= 100 ? 1.8 : cases >= 50 ? 1.5 : cases >= 20 ? 1.3 : 1;
+      const zoneSize = Math.floor(baseSize * sizeMultiplier);
 
-      // Create gradient circle zone - professional look with radial gradient
+      // Simple gradient circle - 3 colors only (Red, Yellow, Green)
       el.innerHTML = `
         <svg width="${zoneSize}" height="${zoneSize}" viewBox="0 0 100 100" style="overflow: visible;">
           <defs>
-            <!-- Radial gradient: dark center fading to transparent edges -->
-            <radialGradient id="zoneGradient_${outbreak.id || Math.random()}" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-              <stop offset="0%" style="stop-color:${riskInfo.bg};stop-opacity:0.8"/>
-              <stop offset="40%" style="stop-color:${riskInfo.bg};stop-opacity:0.5"/>
-              <stop offset="70%" style="stop-color:${riskInfo.bg};stop-opacity:0.25"/>
-              <stop offset="100%" style="stop-color:${riskInfo.bg};stop-opacity:0.05"/>
+            <radialGradient id="zone_${outbreak.id || Math.random()}" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" style="stop-color:${zoneInfo.bg};stop-opacity:0.7"/>
+              <stop offset="50%" style="stop-color:${zoneInfo.bg};stop-opacity:0.4"/>
+              <stop offset="100%" style="stop-color:${zoneInfo.bg};stop-opacity:0.1"/>
             </radialGradient>
-            <!-- Glow filter for emphasis -->
-            <filter id="zoneGlow_${outbreak.id || Math.random()}" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-              <feMerge>
-                <feMergeNode in="coloredBlur"/>
-                <feMergeNode in="SourceGraphic"/>
-              </feMerge>
-            </filter>
           </defs>
-          <!-- Zone circle with gradient -->
-          <circle cx="50" cy="50" r="48" 
-                  fill="url(#zoneGradient_${outbreak.id || Math.random()})" 
-                  stroke="${riskInfo.border}" 
+          <!-- Zone circle -->
+          <circle cx="50" cy="50" r="45" 
+                  fill="url(#zone_${outbreak.id || Math.random()})" 
+                  stroke="${zoneInfo.border}" 
                   stroke-width="2"
-                  stroke-opacity="0.6"
-                  filter="${cases >= 200 ? `url(#zoneGlow_${outbreak.id || Math.random()})` : 'none'}"
+                  stroke-opacity="0.5"
           />
-          <!-- Center hotspot indicator -->
-          <circle cx="50" cy="50" r="8" 
-                  fill="${riskInfo.bg}" 
+          <!-- Center dot -->
+          <circle cx="50" cy="50" r="6" 
+                  fill="${zoneInfo.bg}" 
                   stroke="white" 
                   stroke-width="2"
-                  opacity="0.95"
           />
         </svg>
       `;
 
       el.style.cursor = 'pointer';
       el.style.transition = 'transform 0.2s ease';
-      el.title = `${outbreak.hospital?.name || 'Unknown'} - ${outbreak.disease_type || outbreak.disease} (${riskInfo.text} - ${cases} cases)`;
+      el.title = `${outbreak.location?.name || outbreak.hospital?.name || 'Location'} - ${outbreak.disease || outbreak.disease_type} (${zoneInfo.text})`;
 
       // Hover effect
       el.addEventListener('mouseenter', () => {
@@ -236,8 +228,8 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
         state,
         reportedDate,
         cases,
-        riskLevel: riskInfo.text,
-        riskColor: riskInfo.bg,
+        riskLevel: zoneInfo.text,
+        riskColor: zoneInfo.bg,
         lat,
         lng
       };
@@ -252,14 +244,14 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
       const popupHTML = `
         <div class="p-3 min-w-[220px]">
           <div class="flex items-center gap-2 mb-2">
-            <div class="w-3 h-3 rounded-full" style="background-color: ${riskInfo.bg};"></div>
+            <div class="w-3 h-3 rounded-full" style="background-color: ${zoneInfo.bg};"></div>
             <h3 class="font-bold text-gray-900">${disease}</h3>
           </div>
           <div class="space-y-1 text-sm text-gray-600">
             <p><strong>📍 Location:</strong> ${locationName}${city ? `, ${city}` : ''}</p>
             ${state ? `<p><strong>🗺️ State:</strong> ${state}</p>` : ''}
             <p><strong>👥 Cases:</strong> <span class="font-bold">${cases}</span></p>
-            <p><strong>⚠️ Risk Level:</strong> <span class="font-semibold" style="color: ${riskInfo.bg}">${riskInfo.text}</span></p>
+            <p><strong>⚠️ Zone:</strong> <span class="font-semibold" style="color: ${zoneInfo.bg}">${zoneInfo.text}</span></p>
             <p><strong>📅 Reported:</strong> ${new Date(reportedDate).toLocaleDateString()}</p>
             ${outbreak.verified ? '<p class="text-green-600 font-semibold mt-2">✓ Verified & Approved</p>' : '<p class="text-orange-600 mt-2">⏳ Pending Verification</p>'}
           </div>
@@ -518,29 +510,21 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
         </div>
       )}
 
-      {/* Updated Legend */}
+      {/* Updated Legend - 3 Zones Only */}
       <div className="absolute bottom-4 left-4 bg-white/95 backdrop-blur-sm p-3 rounded-lg shadow-lg border border-gray-200">
         <div className="text-xs font-bold text-gray-800 mb-2">🎯 Risk Zones</div>
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
             <div className="w-5 h-5 rounded-full bg-gradient-to-br from-red-500 to-red-600 shadow-md"></div>
-            <span className="text-xs text-gray-700 font-medium">Critical (500+)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 shadow-md"></div>
-            <span className="text-xs text-gray-700 font-medium">High (200-499)</span>
+            <span className="text-xs text-gray-700 font-medium">Severe</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-5 h-5 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 shadow-md"></div>
-            <span className="text-xs text-gray-700 font-medium">Moderate (50-199)</span>
+            <span className="text-xs text-gray-700 font-medium">Moderate</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-5 h-5 rounded-full bg-gradient-to-br from-green-400 to-green-500 shadow-md"></div>
-            <span className="text-xs text-gray-700 font-medium">Low (10-49)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-gray-400 to-gray-500 shadow-md"></div>
-            <span className="text-xs text-gray-700 font-medium">Minimal (1-9)</span>
+            <span className="text-xs text-gray-700 font-medium">Mild</span>
           </div>
         </div>
         <div className="mt-2 pt-2 border-t border-gray-200">
