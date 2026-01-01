@@ -42,7 +42,9 @@ async def get_dashboard_stats(
     
     # ADD: Query doctor_outbreaks table for doctor submissions
     try:
-        conn = sqlite3.connect('../symptomap.db')
+        # conn = sqlite3.connect('../symptomap.db') # OLD
+        db_path = r'c:\Users\digital metro\Documents\sympto-pulse-map-main\backend-python\symptomap.db'
+        conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
         # Count doctor outbreaks - FIXED: Store result before accessing
@@ -98,7 +100,8 @@ async def get_performance_metrics(
     
     # Count active doctors and submissions
     try:
-        db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'symptomap.db')
+        # db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'symptomap.db') # OLD
+        db_path = r'c:\Users\digital metro\Documents\sympto-pulse-map-main\backend-python\symptomap.db'
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
@@ -153,7 +156,8 @@ async def get_risk_zones(
     import os
     
     try:
-        db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'symptomap.db')
+        # db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'symptomap.db') # OLD
+        db_path = r'c:\Users\digital metro\Documents\sympto-pulse-map-main\backend-python\symptomap.db'
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
