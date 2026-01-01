@@ -117,11 +117,10 @@ async def get_pending_requests(payload: dict = Depends(verify_token)):
 @router.post("/approve/{request_id}", response_model=ApprovalResponse)
 async def approve_request(
     request_id: int,
-    payload: dict = Depends(verify_token),
-    db: AsyncSession = Depends(get_db)
+    payload: dict = Depends(verify_token)
 ):
     """
-    Approve a doctor submission and migrate to official PostgreSQL database
+    Approve a doctor submission (updates status in SQLite)
     
     Requires authentication.
     """
@@ -149,57 +148,7 @@ async def approve_request(
             conn.close()
             raise HTTPException(status_code=400, detail="Request was previously rejected")
         
-        # Create hospital in PostgreSQL if not exists
-        lat = float(row['latitude'])
-        lng = float(row['longitude'])
-        
-        try:
-            location_geom = WKTElement(f"POINT({lng} {lat})", srid=4326)
-        except Exception:
-            location_geom = None
-        
-        # Check if hospital exists
-        from sqlalchemy import select
-        hospital_result = await db.execute(
-            select(Hospital).where(Hospital.name == row['location_name'])
-        )
-        hospital = hospital_result.scalar_one_or_none()
-        
-        if not hospital:
-            hospital = Hospital(
-                name=row['location_name'] or f"Hospital_{request_id}",
-                address=f"{row['city']}, {row['state']}",
-                latitude=lat,
-                longitude=lng,
-                location=location_geom,
-                city=row['city'],
-                state=row['state'],
-                hospital_type="Doctor Submission"
-            )
-            db.add(hospital)
-            await db.commit()
-            await db.refresh(hospital)
-        
-        # Create outbreak in PostgreSQL
-        outbreak = Outbreak(
-            hospital_id=hospital.id,
-            reported_by=None,
-            disease_type=row['disease_type'],
-            patient_count=row['patient_count'],
-            date_started=datetime.fromisoformat(row['date_reported'].replace('Z', '+00:00')) if row['date_reported'] else datetime.now(timezone.utc),
-            severity=row['severity'],
-            notes=row['description'],
-            latitude=lat,
-            longitude=lng,
-            location=location_geom,
-            verified=True
-        )
-        
-        db.add(outbreak)
-        await db.commit()
-        await db.refresh(outbreak)
-        
-        # Update SQLite status
+        # Update SQLite status to approved
         cursor.execute(
             'UPDATE doctor_outbreaks SET status = ? WHERE id = ?',
             ('approved', request_id)
@@ -209,14 +158,13 @@ async def approve_request(
         
         return ApprovalResponse(
             success=True,
-            message=f"Request approved and added to official database",
-            outbreak_id=str(outbreak.id)
+            message=f"Request approved! Outbreak data will appear in dashboard.",
+            outbreak_id=str(request_id)
         )
     
     except HTTPException:
         raise
     except Exception as e:
-        await db.rollback()
         raise HTTPException(status_code=500, detail=f"Error approving request: {str(e)}")
 
 
