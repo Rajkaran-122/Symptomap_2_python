@@ -128,16 +128,6 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
     }
   };
 
-  // Fallback severity-based color
-  const getSeverityColor = (severity: string) => {
-    switch (severity?.toLowerCase()) {
-      case 'severe': return { bg: '#DC2626', border: '#991B1B', text: 'Severe', glow: 'rgba(220, 38, 38, 0.4)' };
-      case 'moderate': return { bg: '#F59E0B', border: '#D97706', text: 'Moderate', glow: 'rgba(245, 158, 11, 0.4)' };
-      case 'mild': return { bg: '#10B981', border: '#059669', text: 'Mild', glow: 'rgba(16, 185, 129, 0.4)' };
-      default: return { bg: '#6B7280', border: '#4B5563', text: 'Unknown', glow: 'rgba(107, 114, 128, 0.3)' };
-    }
-  };
-
   // Update markers when outbreaks change
   useEffect(() => {
     if (!map.current || !mapLoaded) return;
@@ -147,12 +137,21 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
     markersRef.current = [];
 
     outbreaks.forEach(outbreak => {
-      const lat = outbreak.hospital?.location?.lat || outbreak.location?.lat;
-      const lng = outbreak.hospital?.location?.lng || outbreak.location?.lng;
+      // Handle multiple coordinate formats from different API sources
+      const lat = outbreak.location?.latitude ||
+        outbreak.location?.lat ||
+        outbreak.hospital?.location?.lat ||
+        outbreak.latitude;
+      const lng = outbreak.location?.longitude ||
+        outbreak.location?.lng ||
+        outbreak.hospital?.location?.lng ||
+        outbreak.longitude;
 
-      if (!lat || !lng) return;
-
-      const severityInfo = getSeverityColor(outbreak.severity);
+      // Skip if no valid coordinates
+      if (!lat || !lng || lat === 0 || lng === 0) {
+        console.log(`Skipping outbreak without valid coords:`, outbreak.disease || outbreak.disease_type);
+        return;
+      }
 
       // Create marker element with simple, clean circle
       const el = document.createElement('div');
@@ -196,28 +195,35 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
       });
 
       // Add click handler for popup
+      const disease = outbreak.disease || outbreak.disease_type || 'Unknown';
+      const locationName = outbreak.location?.name || outbreak.location?.city || outbreak.hospital?.name || 'Unknown Location';
+      const city = outbreak.location?.city || '';
+      const state = outbreak.location?.state || '';
+      const reportedDate = outbreak.reported_date || outbreak.date_reported || outbreak.date_started || new Date().toISOString();
+
       el.addEventListener('click', () => {
-        alert(`🏥 ${outbreak.hospital?.name || 'Unknown Hospital'}
+        alert(`📍 ${locationName}${city ? `, ${city}` : ''}${state ? `, ${state}` : ''}
         
-🦠 Disease: ${outbreak.disease_type}
-👥 Patients: ${outbreak.patient_count}
-⚠️ Risk Level: ${riskInfo.text} (${cases} cases)
-📅 Started: ${new Date(outbreak.date_started).toLocaleDateString()}`);
+🦠 Disease: ${disease}
+👥 Cases: ${cases}
+⚠️ Risk Level: ${riskInfo.text}
+📅 Reported: ${new Date(reportedDate).toLocaleDateString()}`);
       });
 
       // Create popup HTML
       const popupHTML = `
-        <div class="p-3 min-w-[200px]">
+        <div class="p-3 min-w-[220px]">
           <div class="flex items-center gap-2 mb-2">
-            <div class="w-3 h-3 rounded-full" style="background-color: ${severityInfo.bg};"></div>
-            <h3 class="font-bold text-gray-900">${outbreak.disease_type || 'Unknown Disease'}</h3>
+            <div class="w-3 h-3 rounded-full" style="background-color: ${riskInfo.bg};"></div>
+            <h3 class="font-bold text-gray-900">${disease}</h3>
           </div>
           <div class="space-y-1 text-sm text-gray-600">
-            <p><strong>Hospital:</strong> ${outbreak.hospital?.name || 'N/A'}</p>
-            <p><strong>Patients:</strong> ${outbreak.patient_count || 0}</p>
-            <p><strong>Severity:</strong> <span class="font-semibold" style="color: ${severityInfo.bg}">${severityInfo.text}</span></p>
-            <p><strong>Reported:</strong> ${new Date(outbreak.date_reported || outbreak.date_started).toLocaleDateString()}</p>
-            ${outbreak.verified ? '<p class="text-green-600 font-semibold">✓ Verified</p>' : '<p class="text-orange-600">⚠ Pending Verification</p>'}
+            <p><strong>📍 Location:</strong> ${locationName}${city ? `, ${city}` : ''}</p>
+            ${state ? `<p><strong>🗺️ State:</strong> ${state}</p>` : ''}
+            <p><strong>👥 Cases:</strong> <span class="font-bold">${cases}</span></p>
+            <p><strong>⚠️ Risk Level:</strong> <span class="font-semibold" style="color: ${riskInfo.bg}">${riskInfo.text}</span></p>
+            <p><strong>📅 Reported:</strong> ${new Date(reportedDate).toLocaleDateString()}</p>
+            ${outbreak.verified ? '<p class="text-green-600 font-semibold mt-2">✓ Verified & Approved</p>' : '<p class="text-orange-600 mt-2">⏳ Pending Verification</p>'}
           </div>
         </div>
         `;
