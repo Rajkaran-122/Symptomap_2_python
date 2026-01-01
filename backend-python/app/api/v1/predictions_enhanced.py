@@ -690,3 +690,68 @@ async def get_disease_parameters(disease: str, state: str = None):
         'healthcare_quality': STATE_HEALTHCARE_INDEX.get(state_to_use, 5.5)
     }
 
+
+# Import validation functions
+from app.api.v1.model_validation import (
+    cross_validate_model,
+    compare_models,
+    get_validation_report
+)
+
+
+@router.get("/validation/report")
+async def get_model_validation_report():
+    """Get comprehensive validation report for all diseases"""
+    return get_validation_report()
+
+
+@router.get("/validation/cross-validate/{disease}")
+async def cross_validate_disease(disease: str, k_folds: int = 5):
+    """Run k-fold cross-validation for a specific disease"""
+    return cross_validate_model(disease, k_folds)
+
+
+@router.get("/validation/compare/{disease}")
+async def compare_model_variants(disease: str, state: str = "Maharashtra"):
+    """Compare different model configurations for a disease"""
+    return compare_models(disease, state)
+
+
+@router.get("/validation/metrics")
+async def get_available_metrics():
+    """Get list of available validation metrics"""
+    return {
+        'metrics': [
+            {
+                'name': 'RMSE',
+                'full_name': 'Root Mean Square Error',
+                'description': 'Square root of average squared differences',
+                'interpretation': 'Lower is better, same units as data'
+            },
+            {
+                'name': 'MAE',
+                'full_name': 'Mean Absolute Error',
+                'description': 'Average of absolute differences',
+                'interpretation': 'Lower is better, same units as data'
+            },
+            {
+                'name': 'MAPE',
+                'full_name': 'Mean Absolute Percentage Error',
+                'description': 'Average percentage error',
+                'interpretation': 'Lower is better, expressed as percentage'
+            },
+            {
+                'name': 'R²',
+                'full_name': 'R-squared (Coefficient of Determination)',
+                'description': 'Proportion of variance explained',
+                'interpretation': '1.0 is perfect, 0.0 means no better than mean'
+            }
+        ],
+        'quality_thresholds': {
+            'excellent': {'mape': '<15%', 'r_squared': '>0.9'},
+            'good': {'mape': '15-30%', 'r_squared': '0.7-0.9'},
+            'fair': {'mape': '30-50%', 'r_squared': '0.5-0.7'},
+            'poor': {'mape': '>50%', 'r_squared': '<0.5'}
+        }
+    }
+
