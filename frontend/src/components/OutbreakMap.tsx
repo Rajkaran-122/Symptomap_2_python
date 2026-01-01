@@ -25,6 +25,9 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const [_userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null);
   const [currentZone, setCurrentZone] = useState<string>('');
+  const [selectedOutbreak, setSelectedOutbreak] = useState<any | null>(null);
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+
 
   // Real-time WebSocket connection
   const { lastMessage } = useWebSocket(WS_URL);
@@ -161,23 +164,46 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
       const cases = outbreak.cases || outbreak.patient_count || 1;
       const riskInfo = getRiskColor(cases);
 
-      // Calculate marker size based on cases (larger = more cases)
-      const baseSize = 40;
-      const sizeMultiplier = cases >= 500 ? 1.5 : cases >= 200 ? 1.3 : cases >= 50 ? 1.15 : 1;
-      const markerSize = Math.floor(baseSize * sizeMultiplier);
+      // Calculate zone radius based on cases (larger outbreak = larger zone)
+      const baseRadius = 60;
+      const radiusMultiplier = cases >= 500 ? 2.0 : cases >= 200 ? 1.6 : cases >= 50 ? 1.3 : cases >= 10 ? 1.1 : 1;
+      const zoneSize = Math.floor(baseRadius * radiusMultiplier);
 
+      // Create gradient circle zone - professional look with radial gradient
       el.innerHTML = `
-        <svg width="${markerSize}" height="${markerSize}" viewBox="0 0 40 40" style="filter: drop-shadow(0 3px 8px ${riskInfo.glow});">
-          <!-- Outer glow ring for critical/high -->
-          ${cases >= 200 ? `<circle cx="20" cy="20" r="18" fill="none" stroke="${riskInfo.bg}" stroke-width="2" opacity="0.3"/>` : ''}
-          <!-- Main circle -->
-          <circle cx="20" cy="20" r="15" 
-                  fill="${riskInfo.bg}" 
+        <svg width="${zoneSize}" height="${zoneSize}" viewBox="0 0 100 100" style="overflow: visible;">
+          <defs>
+            <!-- Radial gradient: dark center fading to transparent edges -->
+            <radialGradient id="zoneGradient_${outbreak.id || Math.random()}" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+              <stop offset="0%" style="stop-color:${riskInfo.bg};stop-opacity:0.8"/>
+              <stop offset="40%" style="stop-color:${riskInfo.bg};stop-opacity:0.5"/>
+              <stop offset="70%" style="stop-color:${riskInfo.bg};stop-opacity:0.25"/>
+              <stop offset="100%" style="stop-color:${riskInfo.bg};stop-opacity:0.05"/>
+            </radialGradient>
+            <!-- Glow filter for emphasis -->
+            <filter id="zoneGlow_${outbreak.id || Math.random()}" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+              <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
+          <!-- Zone circle with gradient -->
+          <circle cx="50" cy="50" r="48" 
+                  fill="url(#zoneGradient_${outbreak.id || Math.random()})" 
                   stroke="${riskInfo.border}" 
-                  stroke-width="3"
-                  opacity="0.95"/>
-          <!-- Case count text for larger outbreaks -->
-          ${cases >= 10 ? `<text x="20" y="24" text-anchor="middle" fill="white" font-size="10" font-weight="bold">${cases >= 1000 ? Math.floor(cases / 1000) + 'K' : cases}</text>` : ''}
+                  stroke-width="2"
+                  stroke-opacity="0.6"
+                  filter="${cases >= 200 ? `url(#zoneGlow_${outbreak.id || Math.random()})` : 'none'}"
+          />
+          <!-- Center hotspot indicator -->
+          <circle cx="50" cy="50" r="8" 
+                  fill="${riskInfo.bg}" 
+                  stroke="white" 
+                  stroke-width="2"
+                  opacity="0.95"
+          />
         </svg>
       `;
 
@@ -194,20 +220,32 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
         el.style.transform = 'scale(1)';
       });
 
-      // Add click handler for popup
+      // Add click handler to open slide-in panel
       const disease = outbreak.disease || outbreak.disease_type || 'Unknown';
       const locationName = outbreak.location?.name || outbreak.location?.city || outbreak.hospital?.name || 'Unknown Location';
       const city = outbreak.location?.city || '';
       const state = outbreak.location?.state || '';
       const reportedDate = outbreak.reported_date || outbreak.date_reported || outbreak.date_started || new Date().toISOString();
 
-      el.addEventListener('click', () => {
-        alert(`📍 ${locationName}${city ? `, ${city}` : ''}${state ? `, ${state}` : ''}
-        
-🦠 Disease: ${disease}
-👥 Cases: ${cases}
-⚠️ Risk Level: ${riskInfo.text}
-📅 Reported: ${new Date(reportedDate).toLocaleDateString()}`);
+      // Store outbreak info for panel
+      const outbreakInfo = {
+        ...outbreak,
+        disease,
+        locationName,
+        city,
+        state,
+        reportedDate,
+        cases,
+        riskLevel: riskInfo.text,
+        riskColor: riskInfo.bg,
+        lat,
+        lng
+      };
+
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setSelectedOutbreak(outbreakInfo);
+        setIsPanelOpen(true);
       });
 
       // Create popup HTML
@@ -480,21 +518,29 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
         </div>
       )}
 
-      {/* Legend */}
+      {/* Updated Legend */}
       <div className="absolute bottom-4 left-4 bg-white/95 backdrop-blur-sm p-3 rounded-lg shadow-lg border border-gray-200">
         <div className="text-xs font-bold text-gray-800 mb-2">🎯 Risk Zones</div>
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-full bg-red-600 shadow-md"></div>
-            <span className="text-xs text-gray-700 font-medium">Severe</span>
+            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-red-500 to-red-600 shadow-md"></div>
+            <span className="text-xs text-gray-700 font-medium">Critical (500+)</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-full bg-orange-500 shadow-md"></div>
-            <span className="text-xs text-gray-700 font-medium">Moderate</span>
+            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 shadow-md"></div>
+            <span className="text-xs text-gray-700 font-medium">High (200-499)</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-full bg-green-500 shadow-md"></div>
-            <span className="text-xs text-gray-700 font-medium">Mild</span>
+            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 shadow-md"></div>
+            <span className="text-xs text-gray-700 font-medium">Moderate (50-199)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-green-400 to-green-500 shadow-md"></div>
+            <span className="text-xs text-gray-700 font-medium">Low (10-49)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-gray-400 to-gray-500 shadow-md"></div>
+            <span className="text-xs text-gray-700 font-medium">Minimal (1-9)</span>
           </div>
         </div>
         <div className="mt-2 pt-2 border-t border-gray-200">
@@ -503,6 +549,122 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
           </div>
         </div>
       </div>
+
+      {/* Slide-in Zone Details Panel */}
+      <div
+        className={`absolute top-0 right-0 h-full w-80 bg-white shadow-2xl transform transition-transform duration-300 ease-out z-40 ${isPanelOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}
+      >
+        {selectedOutbreak && (
+          <div className="h-full flex flex-col">
+            {/* Panel Header */}
+            <div
+              className="p-4 text-white"
+              style={{ background: `linear-gradient(135deg, ${selectedOutbreak.riskColor}, ${selectedOutbreak.riskColor}dd)` }}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold uppercase tracking-wide opacity-80">
+                  {selectedOutbreak.riskLevel} Risk Zone
+                </span>
+                <button
+                  onClick={() => setIsPanelOpen(false)}
+                  className="w-7 h-7 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+              <h2 className="text-xl font-bold">{selectedOutbreak.disease}</h2>
+              <p className="text-sm opacity-90 mt-1">
+                📍 {selectedOutbreak.locationName}{selectedOutbreak.city ? `, ${selectedOutbreak.city}` : ''}
+              </p>
+            </div>
+
+            {/* Panel Content */}
+            <div className="flex-1 p-4 overflow-y-auto">
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="bg-gray-50 rounded-lg p-3 text-center">
+                  <div className="text-2xl font-bold" style={{ color: selectedOutbreak.riskColor }}>
+                    {selectedOutbreak.cases}
+                  </div>
+                  <div className="text-xs text-gray-500">Total Cases</div>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3 text-center">
+                  <div className="text-2xl font-bold text-gray-700">
+                    {selectedOutbreak.riskLevel}
+                  </div>
+                  <div className="text-xs text-gray-500">Risk Level</div>
+                </div>
+              </div>
+
+              {/* Details */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
+                  <span className="text-lg">🗺️</span>
+                  <div>
+                    <div className="text-xs text-gray-500">State</div>
+                    <div className="text-sm font-semibold text-gray-800">{selectedOutbreak.state || 'N/A'}</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
+                  <span className="text-lg">📅</span>
+                  <div>
+                    <div className="text-xs text-gray-500">Reported Date</div>
+                    <div className="text-sm font-semibold text-gray-800">
+                      {new Date(selectedOutbreak.reportedDate).toLocaleDateString('en-IN', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                      })}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
+                  <span className="text-lg">📍</span>
+                  <div>
+                    <div className="text-xs text-gray-500">Coordinates</div>
+                    <div className="text-sm font-semibold text-gray-800">
+                      {selectedOutbreak.lat?.toFixed(4)}, {selectedOutbreak.lng?.toFixed(4)}
+                    </div>
+                  </div>
+                </div>
+                {selectedOutbreak.verified && (
+                  <div className="flex items-center gap-2 p-2 bg-green-50 rounded-lg text-green-700">
+                    <span>✓</span>
+                    <span className="text-sm font-semibold">Verified & Approved</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Panel Footer */}
+            <div className="p-4 border-t border-gray-100">
+              <button
+                onClick={() => {
+                  if (map.current && selectedOutbreak.lat && selectedOutbreak.lng) {
+                    map.current.flyTo({
+                      center: [selectedOutbreak.lng, selectedOutbreak.lat],
+                      zoom: 10,
+                      duration: 1500
+                    });
+                  }
+                }}
+                className="w-full py-2.5 bg-gray-900 hover:bg-gray-800 text-white rounded-lg font-medium text-sm transition-colors"
+              >
+                🔍 Zoom to Zone
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Panel Backdrop */}
+      {isPanelOpen && (
+        <div
+          className="absolute inset-0 bg-black/20 z-30"
+          onClick={() => setIsPanelOpen(false)}
+        />
+      )}
 
       {!mapLoaded && (
         <div className="absolute inset-0 bg-gray-100 flex items-center justify-center z-50">
