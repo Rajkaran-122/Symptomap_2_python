@@ -112,12 +112,20 @@ export const AdminDashboard: React.FC = () => {
                         <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
                         <p className="text-gray-600">Manage outbreaks, verify reports, and monitor system activity</p>
                     </div>
-                    <button
-                        onClick={() => setShowReportModal(true)}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium flex items-center shadow-sm"
-                    >
-                        <span className="mr-2 text-xl">+</span> Report New Outbreak
-                    </button>
+                    <div className="flex gap-3">
+                        <a
+                            href="/admin/approvals"
+                            className="bg-amber-500 text-white px-4 py-2 rounded-lg hover:bg-amber-600 font-medium flex items-center shadow-sm"
+                        >
+                            <span className="mr-2">📋</span> Doctor Requests
+                        </a>
+                        <button
+                            onClick={() => setShowReportModal(true)}
+                            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium flex items-center shadow-sm"
+                        >
+                            <span className="mr-2 text-xl">+</span> Report New Outbreak
+                        </button>
+                    </div>
                 </div>
 
                 {/* Report Modal */}

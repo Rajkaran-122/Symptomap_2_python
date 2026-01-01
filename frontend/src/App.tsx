@@ -17,6 +17,7 @@ import PredictionDashboard from '@/pages/PredictionDashboard';
 import LandingPage from '@/pages/LandingPage';
 import DoctorLogin from '@/pages/DoctorLogin';
 import DoctorStation from '@/pages/DoctorStation';
+import ApprovalRequestsPage from '@/pages/ApprovalRequestsPage';
 
 function App() {
   return (
@@ -25,6 +26,9 @@ function App() {
         {/* Doctor Station Routes (No Layout) */}
         <Route path="/doctor" element={<DoctorLogin />} />
         <Route path="/doctor/station" element={<DoctorStation />} />
+
+        {/* Admin Approval Route (No Layout for full-page experience) */}
+        <Route path="/admin/approvals" element={<ApprovalRequestsPage />} />
 
         {/* Main App Routes (With Layout) */}
         <Route path="/*" element={
