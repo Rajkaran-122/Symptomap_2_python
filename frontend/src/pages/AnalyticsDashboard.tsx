@@ -4,7 +4,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { SymptoMapAPI } from '@/services/api';
-import { Activity, TrendingUp, AlertCircle, BarChart } from 'lucide-react';
+import { Activity, TrendingUp, AlertCircle, BarChart, Download } from 'lucide-react';
+import WeekComparison from '@/components/WeekComparison';
 
 interface AnalyticsData {
     disease_distribution: Array<{ disease: string; count: number }>;
@@ -55,9 +56,18 @@ export const AnalyticsDashboard: React.FC = () => {
         <div className="min-h-screen bg-gray-50 p-8">
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">Analytics Dashboard</h1>
-                    <p className="text-gray-600">Real-time outbreak data analysis and insights</p>
+                <div className="flex items-center justify-between mb-8">
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-900 mb-2">Analytics Dashboard</h1>
+                        <p className="text-gray-600">Real-time outbreak data analysis and insights</p>
+                    </div>
+                    <button
+                        onClick={() => window.open('http://localhost:8000/api/v1/export/csv/outbreaks', '_blank')}
+                        className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors shadow-sm"
+                    >
+                        <Download className="w-4 h-4" />
+                        Export CSV
+                    </button>
                 </div>
 
                 {/* Key Metrics */}
@@ -235,6 +245,11 @@ export const AnalyticsDashboard: React.FC = () => {
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    {/* Week Comparison */}
+                    <div className="col-span-2">
+                        <WeekComparison />
                     </div>
                 </div>
             </div>

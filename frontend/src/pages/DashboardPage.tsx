@@ -5,6 +5,8 @@ import { useToast } from '@/hooks/useToast';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { OutbreakMap } from '@/components/OutbreakMap';
 import { FilterPanel } from '@/components/FilterPanel';
+import ActivityFeed from '@/components/ActivityFeed';
+import WeekComparison from '@/components/WeekComparison';
 import { Activity, Clock, Users, Zap, TrendingUp, Shield, AlertCircle, FileText, MapPin, Target } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { ToastContainer } from '@/components/Toast';
@@ -287,7 +289,17 @@ const DashboardPage = () => {
                     </div>
                 </div>
 
-                {/* ROW 4: System Performance Metrics */}
+                {/* ROW 4: Activity Feed and Week Comparison */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <div className="col-span-12 lg:col-span-8">
+                        <ActivityFeed limit={8} className="h-full" />
+                    </div>
+                    <div className="col-span-12 lg:col-span-4">
+                        <WeekComparison className="h-full" />
+                    </div>
+                </div>
+
+                {/* ROW 5: System Performance Metrics */}
                 <div className="bg-gradient-to-br from-gray-50 to-white rounded-3xl p-8 border border-gray-100 shadow-sm">
                     <div className="flex items-center justify-between mb-8">
                         <div>
