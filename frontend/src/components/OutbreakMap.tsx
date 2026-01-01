@@ -116,23 +116,7 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
     };
   }, []);
 
-  // Helper function to get color based on severity (3 zones only)
-  const getZoneColor = (severity: string) => {
-    switch (severity?.toLowerCase()) {
-      case 'severe':
-      case 'critical':
-      case 'high':
-        return { bg: '#DC2626', border: '#991B1B', text: 'Severe', opacity: 0.4 }; // Red
-      case 'moderate':
-      case 'medium':
-        return { bg: '#EAB308', border: '#CA8A04', text: 'Moderate', opacity: 0.35 }; // Yellow
-      case 'mild':
-      case 'low':
-      case 'minimal':
-      default:
-        return { bg: '#22C55E', border: '#16A34A', text: 'Mild', opacity: 0.3 }; // Green
-    }
-  };
+
 
   // Update map layers when outbreaks change
   useEffect(() => {
