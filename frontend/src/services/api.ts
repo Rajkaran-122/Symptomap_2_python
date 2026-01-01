@@ -3,10 +3,11 @@ import axios from 'axios';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
 export const SymptoMapAPI = {
-  // Outbreak endpoints
+  // Outbreak endpoints - uses /outbreaks/all to get approved doctor submissions
   getOutbreaks: async (params?: any) => {
-    const response = await axios.get(`${API_URL}/outbreaks/`, { params });
-    return response.data;
+    const response = await axios.get(`${API_URL}/outbreaks/all`, { params });
+    // Return outbreaks array from the response
+    return response.data?.outbreaks || response.data || [];
   },
 
   // Prediction endpoints
