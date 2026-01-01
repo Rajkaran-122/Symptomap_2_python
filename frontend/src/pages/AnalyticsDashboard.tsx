@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { SymptoMapAPI } from '@/services/api';
 import { Activity, TrendingUp, AlertCircle, BarChart, Download } from 'lucide-react';
 import WeekComparison from '@/components/WeekComparison';
+import DiseaseTrendChart from '@/components/DiseaseTrendChart';
 
 interface AnalyticsData {
     disease_distribution: Array<{ disease: string; count: number }>;
@@ -251,6 +252,11 @@ export const AnalyticsDashboard: React.FC = () => {
                     <div className="col-span-2">
                         <WeekComparison />
                     </div>
+                </div>
+
+                {/* Disease Trend Chart - Full Width */}
+                <div className="mt-6">
+                    <DiseaseTrendChart />
                 </div>
             </div>
         </div>
