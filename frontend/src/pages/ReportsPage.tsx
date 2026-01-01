@@ -4,8 +4,9 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { FileText, Download, Calendar, TrendingUp, Users, MapPin, AlertCircle, BarChart3, PieChart } from 'lucide-react';
+import { FileText, Download, Calendar, TrendingUp, Users, MapPin, AlertCircle, BarChart3, PieChart, Sparkles, Clock, Share2 } from 'lucide-react';
 import { useWebSocket } from '../hooks/useWebSocket';
+import EmailNotification from '../components/EmailNotification';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8000/api/v1';
 const WS_URL = API_BASE_URL.replace('http', 'ws').replace('/api/v1', '') + '/api/v1/ws';
@@ -37,6 +38,7 @@ export const ReportsPage: React.FC = () => {
     const [reportData, setReportData] = useState<ReportData | null>(null);
     const [loading, setLoading] = useState(false);
     const [days, setDays] = useState(30);
+    const [showEmailModal, setShowEmailModal] = useState(false);
 
     // Real-time WebSocket connection
     const { lastMessage } = useWebSocket(WS_URL);
@@ -82,48 +84,81 @@ export const ReportsPage: React.FC = () => {
         URL.revokeObjectURL(url);
     };
 
+    const downloadCSV = async () => {
+        try {
+            window.open(`${API_BASE_URL}/export/csv/outbreaks`, '_blank');
+        } catch (error) {
+            console.error('Failed to download CSV:', error);
+        }
+    };
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 p-6">
             <div className="max-w-7xl mx-auto">
-                {/* Header */}
-                <div className="bg-white rounded-2xl shadow-lg p-8 mb-6">
-                    <div className="flex items-center justify-between">
+                {/* Pro Header with Glassmorphism */}
+                <div className="relative bg-white/70 backdrop-blur-xl rounded-3xl shadow-xl border border-white/50 p-8 mb-6 overflow-hidden">
+                    {/* Background decorations */}
+                    <div className="absolute top-0 right-0 w-72 h-72 bg-gradient-to-br from-blue-400/20 to-indigo-500/10 rounded-full blur-3xl -z-10"></div>
+                    <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-emerald-400/10 to-cyan-500/5 rounded-full blur-3xl -z-10"></div>
+
+                    <div className="flex items-center justify-between relative">
                         <div>
-                            <h1 className="text-4xl font-bold text-gray-900 mb-2">Reports & Analytics</h1>
-                            <p className="text-gray-600">Generate comprehensive outbreak and health surveillance reports</p>
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-200">
+                                    <FileText className="w-6 h-6 text-white" />
+                                </div>
+                                <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-indigo-900 bg-clip-text text-transparent">
+                                    Reports & Analytics
+                                </h1>
+                            </div>
+                            <p className="text-gray-500 ml-14">Generate comprehensive outbreak and health surveillance reports</p>
                         </div>
                         <div className="flex items-center gap-3">
-                            <FileText className="w-12 h-12 text-primary-600" />
+                            <button
+                                onClick={() => setShowEmailModal(true)}
+                                className="p-3 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 transition-all shadow-sm"
+                                title="Email Notifications"
+                            >
+                                <Share2 className="w-5 h-5 text-gray-600" />
+                            </button>
+                            <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-100 to-indigo-100">
+                                <Sparkles className="w-8 h-8 text-indigo-600" />
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Coming Soon Banner */}
-                <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl shadow-lg p-8 mb-6 text-white">
-                    <div className="flex items-center gap-4 mb-4">
-                        <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                            <BarChart3 className="w-8 h-8" />
+                {/* Quick Stats Row */}
+                <div className="grid grid-cols-4 gap-4 mb-6">
+                    {[
+                        { label: 'Reports Generated', value: '24', icon: FileText, color: 'blue' },
+                        { label: 'Last Updated', value: 'Just now', icon: Clock, color: 'green' },
+                        { label: 'Data Sources', value: '3', icon: BarChart3, color: 'purple' },
+                        { label: 'Export Formats', value: 'JSON, CSV', icon: Download, color: 'amber' },
+                    ].map((stat, idx) => (
+                        <div key={idx} className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 border border-white/50 shadow-sm hover:shadow-md transition-all">
+                            <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-lg bg-${stat.color}-100`}>
+                                    <stat.icon className={`w-4 h-4 text-${stat.color}-600`} />
+                                </div>
+                                <div>
+                                    <div className="text-lg font-bold text-gray-900">{stat.value}</div>
+                                    <div className="text-xs text-gray-500">{stat.label}</div>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <h2 className="text-2xl font-bold">Reports Module Coming Soon!</h2>
-                            <p className="text-blue-100">Advanced analytics and custom report templates are under development</p>
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-                        <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                            <PieChart className="w-6 h-6 mb-2" />
-                            <p className="text-sm font-semibold">Custom Templates</p>
-                        </div>
-                        <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                            <TrendingUp className="w-6 h-6 mb-2" />
-                            <p className="text-sm font-semibold">Trend Analysis</p>
-                        </div>
-                        <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                            <Download className="w-6 h-6 mb-2" />
-                            <p className="text-sm font-semibold">PDF Exports</p>
-                        </div>
-                    </div>
+                    ))}
                 </div>
+
+                {/* Email Modal */}
+                {showEmailModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center">
+                        <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setShowEmailModal(false)} />
+                        <div className="relative z-10 w-full max-w-md mx-4">
+                            <EmailNotification onClose={() => setShowEmailModal(false)} />
+                        </div>
+                    </div>
+                )}
 
                 {/* Report Generator */}
                 <div className="bg-white rounded-2xl shadow-lg p-8">

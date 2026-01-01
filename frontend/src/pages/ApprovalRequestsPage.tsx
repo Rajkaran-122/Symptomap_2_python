@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     CheckCircle, XCircle, Clock, AlertTriangle,
-    RefreshCw, MapPin, Users, Activity
+    RefreshCw, MapPin, Users, Activity, Eye
 } from 'lucide-react';
+import ApprovalDetailModal from '../components/ApprovalDetailModal';
 
 interface PendingRequest {
     id: number;
@@ -30,6 +31,7 @@ const ApprovalRequestsPage = () => {
     const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
     const [successMessage, setSuccessMessage] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
+    const [selectedRequest, setSelectedRequest] = useState<PendingRequest | null>(null);
 
     // Check authentication
     useEffect(() => {
@@ -390,6 +392,22 @@ const ApprovalRequestsPage = () => {
                     </button>
                 </div>
             </div>
+
+            {/* Detail Modal */}
+            <ApprovalDetailModal
+                outbreak={selectedRequest}
+                isOpen={!!selectedRequest}
+                onClose={() => setSelectedRequest(null)}
+                onApprove={(id) => {
+                    handleApprove(id);
+                    setSelectedRequest(null);
+                }}
+                onReject={(id) => {
+                    handleReject(id);
+                    setSelectedRequest(null);
+                }}
+                loading={actionLoading !== null}
+            />
         </div>
     );
 };
