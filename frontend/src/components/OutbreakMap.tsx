@@ -163,14 +163,20 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
       const el = document.createElement('div');
       el.className = 'outbreak-marker';
 
-      // Get zone color based on severity (3 zones: Red, Yellow, Green)
-      const severity = outbreak.severity || 'moderate';
-      const cases = outbreak.cases || outbreak.patient_count || 1;
-      const zoneInfo = getZoneColor(severity);
+      // 1. Determine Severity based on Data (Case Count) purely
+      // This ensures visual zones match the actual magnitude of data
+      const cases = parseInt(outbreak.cases || outbreak.patient_count || 1);
 
-      // Large zone size for visibility - based on cases
+      let dataBasedSeverity = 'mild';
+      if (cases >= 300) dataBasedSeverity = 'severe';
+      else if (cases >= 50) dataBasedSeverity = 'moderate';
+
+      // Get color for this calculated severity
+      const zoneInfo = getZoneColor(dataBasedSeverity);
+
+      // 2. Large zone size for visibility - based on cases
       const baseSize = 80;
-      const sizeMultiplier = cases >= 100 ? 1.5 : cases >= 50 ? 1.3 : cases >= 20 ? 1.15 : 1;
+      const sizeMultiplier = cases >= 500 ? 1.6 : cases >= 200 ? 1.4 : cases >= 50 ? 1.2 : 1;
       const zoneSize = Math.floor(baseSize * sizeMultiplier);
 
       // Clean design: Large semi-transparent circle + small solid center dot
@@ -191,12 +197,14 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
                   stroke-width="2.5"
                   fill-opacity="1"
           />
+          <!-- Optional: Show Case Count in visual if very high -->
+          ${cases >= 300 ? `<text x="50" y="-5" text-anchor="middle" fill="${zoneInfo.border}" font-size="20" font-weight="bold">${cases}</text>` : ''}
         </svg>
       `;
 
       el.style.cursor = 'pointer';
       el.style.transition = 'transform 0.2s ease';
-      el.title = `${outbreak.location?.name || outbreak.hospital?.name || 'Location'} - ${outbreak.disease || outbreak.disease_type} (${zoneInfo.text})`;
+      el.title = `${outbreak.location?.name || outbreak.hospital?.name || 'Location'} - ${outbreak.disease || outbreak.disease_type} (${zoneInfo.text} - ${cases} cases)`;
 
       // Hover effect
       el.addEventListener('mouseenter', () => {
