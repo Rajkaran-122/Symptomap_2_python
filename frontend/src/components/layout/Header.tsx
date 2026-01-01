@@ -1,8 +1,38 @@
 
-import React from 'react';
-import { Bell, Search, Menu, User } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Bell, Search, User } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const Header = () => {
+    const [pendingCount, setPendingCount] = useState(0);
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        const fetchPendingCount = async () => {
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/outbreaks/pending-count');
+                if (response.ok) {
+                    const data = await response.json();
+                    setPendingCount(data.pending_count || 0);
+                }
+            } catch (error) {
+                console.error('Error fetching pending count:', error);
+            }
+        };
+        fetchPendingCount();
+        const interval = setInterval(fetchPendingCount, 30000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const handleNotificationClick = () => {
+        const token = localStorage.getItem('doctor_token');
+        if (token) {
+            navigate('/admin/approvals');
+        } else {
+            navigate('/doctor');
+        }
+    };
+
     return (
         <header className="fixed top-0 left-0 right-0 h-16 bg-gradient-to-r from-primary-900 to-primary-800 text-white z-40 shadow-md flex items-center justify-between px-6">
             {/* Left: Branding */}
@@ -32,9 +62,18 @@ const Header = () => {
 
             {/* Right: Actions */}
             <div className="flex items-center space-x-4">
-                <button className="p-2 rounded-full hover:bg-white/10 transition-colors relative">
+                {/* Notification Bell with Live Count */}
+                <button
+                    onClick={handleNotificationClick}
+                    className="p-2 rounded-full hover:bg-white/10 transition-colors relative"
+                    title={pendingCount > 0 ? `${pendingCount} pending approval requests` : 'No pending requests'}
+                >
                     <Bell className="w-5 h-5 text-primary-100" />
-                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-critical rounded-full border border-primary-900"></span>
+                    {pendingCount > 0 && (
+                        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center px-1 animate-pulse">
+                            {pendingCount > 99 ? '99+' : pendingCount}
+                        </span>
+                    )}
                 </button>
 
                 <div className="h-8 w-px bg-primary-700 mx-2"></div>
@@ -54,3 +93,4 @@ const Header = () => {
 };
 
 export default Header;
+

@@ -1,11 +1,12 @@
 """
-Public API endpoint to get all outbreaks including doctor submissions
-Combines data from both doctor_outbreaks and regular outbreaks tables
+Public API endpoint to get all outbreaks including approved doctor submissions
+Combines data from both doctor_outbreaks (approved only) and regular outbreaks tables
 """
 
 from fastapi import APIRouter
 from typing import List, Dict
 import sqlite3
+import os
 from datetime import datetime, timezone
 
 router = APIRouter(prefix="/outbreaks", tags=["Public Outbreaks"])
@@ -13,7 +14,9 @@ router = APIRouter(prefix="/outbreaks", tags=["Public Outbreaks"])
 
 def get_db_connection():
     """Get SQLite database connection"""
-    conn = sqlite3.connect('../symptomap.db')
+    # Use correct path relative to app location
+    db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'symptomap.db')
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -21,9 +24,10 @@ def get_db_connection():
 @router.get("/all")
 async def get_all_outbreaks():
     """
-    Get all outbreaks from both doctor submissions and regular database
+    Get all outbreaks from both APPROVED doctor submissions and regular database
     
     Returns combined list of outbreaks for dashboard display
+    Only includes doctor submissions that have been approved by admin
     """
     
     outbreaks = []
@@ -33,7 +37,7 @@ async def get_all_outbreaks():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Get doctor submissions with better error handling
+        # Get APPROVED doctor submissions only
         try:
             cursor.execute('''
                 SELECT 
@@ -48,8 +52,10 @@ async def get_all_outbreaks():
                     state,
                     description,
                     date_reported,
-                    created_at
+                    created_at,
+                    status
                 FROM doctor_outbreaks
+                WHERE status = 'approved'
                 ORDER BY created_at DESC
             ''')
             
@@ -70,8 +76,9 @@ async def get_all_outbreaks():
                         },
                         "description": str(row['description']) if row['description'] else "",
                         "reported_date": str(row['date_reported']) if row['date_reported'] else str(row['created_at']),
-                        "source": "Doctor Submission",
-                        "status": "active"
+                        "source": "Doctor Submission (Approved)",
+                        "status": "approved",
+                        "verified": True
                     }
                     outbreaks.append(outbreak_data)
                 except Exception as row_error:
@@ -79,9 +86,9 @@ async def get_all_outbreaks():
                     continue
                     
         except Exception as e:
-            print(f"Error fetching doctor outbreaks: {e}")
+            print(f"Error fetching approved doctor outbreaks: {e}")
         
-        # Get doctor alerts with better error handling
+        # Get active doctor alerts
         try:
             cursor.execute('''
                 SELECT 
@@ -138,3 +145,19 @@ async def get_all_outbreaks():
         "total_alerts": len(alerts),
         "last_updated": datetime.now(timezone.utc).isoformat()
     }
+
+
+@router.get("/pending-count")
+async def get_pending_count():
+    """Get count of pending submissions for notification badge"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM doctor_outbreaks WHERE status = 'pending' OR status IS NULL")
+        row = cursor.fetchone()
+        count = row[0] if row else 0
+        conn.close()
+        return {"pending_count": count}
+    except:
+        return {"pending_count": 0}
+
