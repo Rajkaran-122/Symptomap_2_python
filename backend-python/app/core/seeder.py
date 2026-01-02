@@ -11,6 +11,7 @@ import random
 from app.core.database import AsyncSessionLocal, Base, engine
 from app.models.outbreak import Hospital, Outbreak
 from app.models.user import User
+from app.models.doctor import DoctorOutbreak, DoctorAlert
 
 
 # Major Indian cities with coordinates
@@ -181,6 +182,58 @@ async def create_outbreaks(db, hospitals, admin_user):
     
     return outbreaks
 
+async def create_doctor_data(db):
+    """Create doctor submissions (pending and approved)"""
+    # 1. Pending Outbreaks
+    print("   Creating pending doctor outbreaks...")
+    pending_locs = [
+        {"city": "Bhopal", "state": "Madhya Pradesh", "lat": 23.2599, "lng": 77.4126, "h": "Gandhi Medical College"},
+        {"city": "Indore", "state": "Madhya Pradesh", "lat": 22.7196, "lng": 75.8577, "h": "MY Hospital"},
+        {"city": "Patna", "state": "Bihar", "lat": 25.5941, "lng": 85.1376, "h": "AIIMS Patna"},
+    ]
+    
+    for i in range(15):
+        loc = random.choice(pending_locs)
+        disease = random.choice(DISEASES)
+        doc_outbreak = DoctorOutbreak(
+             disease_type=disease,
+             patient_count=random.randint(5, 50),
+             severity='moderate' if random.random() > 0.7 else 'mild',
+             latitude=loc['lat'] + random.uniform(-0.05, 0.05),
+             longitude=loc['lng'] + random.uniform(-0.05, 0.05),
+             location_name=loc['h'],
+             city=loc['city'],
+             state=loc['state'],
+             description=f"Suspected {disease} cluster reported.",
+             date_reported=datetime.now(timezone.utc) - timedelta(hours=random.randint(1, 48)),
+             submitted_by="dr_verification_test",
+             status="pending"
+        )
+        db.add(doc_outbreak)
+        
+    # 2. Approved Outbreaks (for public view)
+    print("   Creating approved doctor outbreaks...")
+    for i in range(10):
+        disease = random.choice(DISEASES)
+        doc_outbreak = DoctorOutbreak(
+             disease_type=disease,
+             patient_count=random.randint(20, 100),
+             severity='severe',
+             latitude=20.5937 + random.uniform(-5, 5),
+             longitude=78.9629 + random.uniform(-5, 5),
+             location_name="City General Hospital",
+             city="Nagpur",
+             state="Maharashtra",
+             description=f"Confirmed {disease} outbreak.",
+             date_reported=datetime.now(timezone.utc) - timedelta(days=random.randint(2, 10)),
+             submitted_by="dr_verification_test",
+             status="approved"
+        )
+        db.add(doc_outbreak)
+        
+    await db.commit()
+    print("✅ Created doctor outbreaks (pending & approved)")
+
 
 async def seed_database():
     """Main seeding function"""
@@ -195,6 +248,9 @@ async def seed_database():
         
         # Create outbreaks
         outbreaks = await create_outbreaks(db, hospitals, admin_user)
+
+        # Create doctor data
+        await create_doctor_data(db)
     
     print("\n✨ Database seeding completed successfully!\n")
     print(f"Summary:")

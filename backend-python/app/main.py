@@ -12,6 +12,9 @@ from app.core.config import settings
 from app.core.database import engine, Base
 from app.api.v1 import api_router
 from app.core.redis import redis_client
+import app.models # Register all models
+from sqlalchemy import text
+from app.core.seeder import seed_database
 from app.api.v1.websocket import router as websocket_router
 
 @asynccontextmanager
@@ -23,6 +26,14 @@ async def lifespan(app: FastAPI):
     # Create database tables
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        
+        # Check if we need to seed
+        result = await conn.execute(text("SELECT count(*) FROM hospitals"))
+        count = result.scalar()
+        
+    if count == 0:
+        print("🌱 Seeding empty database...")
+        await seed_database()
     
     # Connect to Redis
     await redis_client.connect()
