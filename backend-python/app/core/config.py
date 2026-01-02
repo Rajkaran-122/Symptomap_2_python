@@ -44,7 +44,13 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api/v1"
     
     # CORS
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173", "*"]
+    CORS_ORIGINS: List[str] = [
+        "http://localhost:3000", 
+        "http://localhost:5173", 
+        "https://symptomap-2-python.vercel.app",
+        "https://symptomap-2-python.vercel.app/",
+        "https://symptomap-2-python-1.onrender.com"
+    ]
     
     # Rate Limiting
     RATE_LIMIT_PER_MINUTE: int = 60
