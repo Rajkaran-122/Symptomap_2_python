@@ -4,8 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8000/api/v1';
+import { API_BASE_URL } from '../config/api';
 
 interface Outbreak {
     id: string;
@@ -40,8 +39,19 @@ export const AdminDashboard: React.FC = () => {
             if (filter.verified !== 'all') params.append('verified', filter.verified);
             if (filter.disease) params.append('disease_type', filter.disease);
 
-            const response = await axios.get(`${API_BASE_URL}/outbreaks/?${params}`);
-            setOutbreaks(response.data);
+            const response = await axios.get(`${API_BASE_URL}/outbreaks/all?days=30`);
+            // Transform the response to match expected format
+            const data = response.data.outbreaks || [];
+            const transformed = data.map((o: any) => ({
+                id: o.id,
+                hospital: { name: o.location?.name || o.disease || 'Unknown', location: { lat: o.location?.latitude || 0, lng: o.location?.longitude || 0 } },
+                disease_type: o.disease || 'Unknown',
+                patient_count: o.cases || 0,
+                severity: o.severity || 'moderate',
+                verified: o.verified || false,
+                date_reported: o.reported_date || new Date().toISOString()
+            }));
+            setOutbreaks(transformed);
         } catch (error) {
             console.error('Failed to load outbreaks:', error);
         } finally {
