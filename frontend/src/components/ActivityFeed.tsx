@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Activity, CheckCircle, XCircle, AlertTriangle, Bell, Clock, Zap } from 'lucide-react';
+import { API_BASE_URL } from '../config/api';
 
 interface ActivityItem {
     id: string;
@@ -26,7 +27,7 @@ const ActivityFeed = ({ limit = 10, className = '' }: ActivityFeedProps) => {
     useEffect(() => {
         const fetchActivities = async () => {
             try {
-                const response = await fetch('http://localhost:8000/api/v1/analytics/activity-feed');
+                const response = await fetch(`${API_BASE_URL}/analytics/activity-feed`);
                 if (response.ok) {
                     const data = await response.json();
                     setActivities(data.activities.slice(0, limit));

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { TrendingUp } from 'lucide-react';
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
+import { API_BASE_URL } from '../config/api';
 
 interface TrendDataPoint {
     date: string;
@@ -20,7 +21,7 @@ const DiseaseTrendChart = ({ className = '' }: DiseaseTrendChartProps) => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await fetch('http://localhost:8000/api/v1/analytics/trend-data');
+                const response = await fetch(`${API_BASE_URL}/analytics/trend-data`);
                 if (response.ok) {
                     const result = await response.json();
                     setData(result.trend_data || []);

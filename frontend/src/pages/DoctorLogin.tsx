@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, AlertCircle, Activity } from 'lucide-react';
+import { API_BASE_URL } from '../config/api';
 
 const DoctorLogin = () => {
     const navigate = useNavigate();
@@ -14,7 +15,7 @@ const DoctorLogin = () => {
         setLoading(true);
 
         try {
-            const response = await fetch('http://localhost:8000/api/v1/doctor/login', {
+            const response = await fetch(`${API_BASE_URL}/doctor/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

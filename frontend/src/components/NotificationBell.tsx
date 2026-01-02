@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from '../config/api';
 
 interface NotificationBellProps {
     className?: string;
@@ -13,7 +14,7 @@ const NotificationBell = ({ className = '' }: NotificationBellProps) => {
 
     const fetchPendingCount = async () => {
         try {
-            const response = await fetch('http://localhost:8000/api/v1/outbreaks/pending-count');
+            const response = await fetch(`${API_BASE_URL}/outbreaks/pending-count`);
             if (response.ok) {
                 const data = await response.json();
                 setPendingCount(data.pending_count || 0);

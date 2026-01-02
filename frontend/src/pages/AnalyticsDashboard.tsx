@@ -7,6 +7,7 @@ import { SymptoMapAPI } from '@/services/api';
 import { Activity, TrendingUp, AlertCircle, BarChart, Download } from 'lucide-react';
 import WeekComparison from '@/components/WeekComparison';
 import DiseaseTrendChart from '@/components/DiseaseTrendChart';
+import { API_BASE_URL } from '@/config/api';
 
 interface AnalyticsData {
     disease_distribution: Array<{ disease: string; count: number }>;
@@ -63,7 +64,7 @@ export const AnalyticsDashboard: React.FC = () => {
                         <p className="text-gray-600">Real-time outbreak data analysis and insights</p>
                     </div>
                     <button
-                        onClick={() => window.open('http://localhost:8000/api/v1/export/csv/outbreaks', '_blank')}
+                        onClick={() => window.open(`${API_BASE_URL}/export/csv/outbreaks`, '_blank')}
                         className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors shadow-sm"
                     >
                         <Download className="w-4 h-4" />

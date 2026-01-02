@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, Minus, BarChart3, AlertTriangle, Users } from 'lucide-react';
+import { API_BASE_URL } from '../config/api';
 
 interface WeekData {
     this_week: { outbreaks: number; cases: number };
@@ -19,7 +20,7 @@ const WeekComparison = ({ className = '' }: { className?: string }) => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await fetch('http://localhost:8000/api/v1/analytics/week-comparison');
+                const response = await fetch(`${API_BASE_URL}/analytics/week-comparison`);
                 if (response.ok) {
                     const result = await response.json();
                     if (!result.error) {

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Activity, MapPin, AlertTriangle, FileText, LogOut, CheckCircle } from 'lucide-react';
 import OutbreakForm from '../components/doctor/OutbreakForm';
 import AlertForm from '../components/doctor/AlertForm';
+import { API_BASE_URL } from '../config/api';
 
 type Tab = 'outbreak' | 'alert' | 'submissions';
 
@@ -39,7 +40,7 @@ const DoctorStation = () => {
 
     const loadStats = async () => {
         try {
-            const response = await fetch('http://localhost:8000/api/v1/doctor/stats', {
+            const response = await fetch(`${API_BASE_URL}/doctor/stats`, {
                 headers: getAuthHeaders()
             });
             const data = await response.json();
@@ -51,7 +52,7 @@ const DoctorStation = () => {
 
     const loadSubmissions = async () => {
         try {
-            const response = await fetch('http://localhost:8000/api/v1/doctor/submissions', {
+            const response = await fetch(`${API_BASE_URL}/doctor/submissions`, {
                 headers: getAuthHeaders()
             });
             const data = await response.json();
@@ -142,8 +143,8 @@ const DoctorStation = () => {
                             <button
                                 onClick={() => setActiveTab('outbreak')}
                                 className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'outbreak'
-                                        ? 'border-blue-500 text-blue-600'
-                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                     }`}
                             >
                                 <div className="flex items-center gap-2">
@@ -155,8 +156,8 @@ const DoctorStation = () => {
                             <button
                                 onClick={() => setActiveTab('alert')}
                                 className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'alert'
-                                        ? 'border-blue-500 text-blue-600'
-                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                     }`}
                             >
                                 <div className="flex items-center gap-2">
@@ -168,8 +169,8 @@ const DoctorStation = () => {
                             <button
                                 onClick={() => setActiveTab('submissions')}
                                 className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'submissions'
-                                        ? 'border-blue-500 text-blue-600'
-                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                     }`}
                             >
                                 <div className="flex items-center gap-2">
@@ -230,8 +231,8 @@ const DoctorStation = () => {
                                                                 </p>
                                                             </div>
                                                             <span className={`px-2 py-1 text-xs font-medium rounded-full ${alert.alert_type === 'critical' ? 'bg-red-100 text-red-700' :
-                                                                    alert.alert_type === 'warning' ? 'bg-orange-100 text-orange-700' :
-                                                                        'bg-blue-100 text-blue-700'
+                                                                alert.alert_type === 'warning' ? 'bg-orange-100 text-orange-700' :
+                                                                    'bg-blue-100 text-blue-700'
                                                                 }`}>
                                                                 {alert.alert_type}
                                                             </span>

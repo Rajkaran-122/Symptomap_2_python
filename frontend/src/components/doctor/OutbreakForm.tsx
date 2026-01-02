@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { MapPin, Users, AlertCircle, CheckCircle } from 'lucide-react';
 import MapPicker from './MapPicker';
+import { API_BASE_URL } from '../../config/api';
 
 interface OutbreakFormProps {
     onSuccess: () => void;
@@ -46,7 +47,7 @@ const OutbreakForm = ({ onSuccess }: OutbreakFormProps) => {
         try {
             const token = localStorage.getItem('doctor_token');
 
-            const response = await fetch('http://localhost:8000/api/v1/doctor/outbreak', {
+            const response = await fetch(`${API_BASE_URL}/doctor/outbreak`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

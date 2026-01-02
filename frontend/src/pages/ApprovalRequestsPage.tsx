@@ -5,6 +5,7 @@ import {
     RefreshCw, MapPin, Users, Activity
 } from 'lucide-react';
 import ApprovalDetailModal from '../components/ApprovalDetailModal';
+import { API_BASE_URL } from '../config/api';
 
 interface PendingRequest {
     id: number;
@@ -53,8 +54,8 @@ const ApprovalRequestsPage = () => {
         setLoading(true);
         try {
             const endpoint = filter === 'pending'
-                ? 'http://localhost:8000/api/v1/admin/pending'
-                : 'http://localhost:8000/api/v1/admin/all-requests';
+                ? `${API_BASE_URL}/admin/pending`
+                : `${API_BASE_URL}/admin/all-requests`;
 
             const response = await fetch(endpoint, {
                 headers: getAuthHeaders()
@@ -91,7 +92,7 @@ const ApprovalRequestsPage = () => {
         setErrorMessage('');
 
         try {
-            const response = await fetch(`http://localhost:8000/api/v1/admin/approve/${id}`, {
+            const response = await fetch(`${API_BASE_URL}/admin/approve/${id}`, {
                 method: 'POST',
                 headers: getAuthHeaders()
             });
@@ -119,7 +120,7 @@ const ApprovalRequestsPage = () => {
         setErrorMessage('');
 
         try {
-            const response = await fetch(`http://localhost:8000/api/v1/admin/reject/${id}`, {
+            const response = await fetch(`${API_BASE_URL}/admin/reject/${id}`, {
                 method: 'POST',
                 headers: getAuthHeaders()
             });

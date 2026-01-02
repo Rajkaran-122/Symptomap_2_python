@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AlertTriangle, MapPin, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import MapPicker from './MapPicker';
+import { API_BASE_URL } from '../../config/api';
 
 interface AlertFormProps {
     onSuccess: () => void;
@@ -39,7 +40,7 @@ const AlertForm = ({ onSuccess }: AlertFormProps) => {
         try {
             const token = localStorage.getItem('doctor_token');
 
-            const response = await fetch('http://localhost:8000/api/v1/doctor/alert', {
+            const response = await fetch(`${API_BASE_URL}/doctor/alert`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
