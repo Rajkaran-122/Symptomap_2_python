@@ -1,0 +1,56 @@
+# Render.com Blueprint Configuration
+# Deploy with: https://render.com/docs/blueprint-spec
+
+services:
+  # Backend API Service
+  - type: web
+    name: symptomap-api
+    runtime: python
+    region: oregon
+    plan: free
+    buildCommand: |
+      cd backend-python
+      pip install -r requirements.txt
+    startCommand: |
+      cd backend-python
+      uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_HOURS
+        value: 24
+      - key: DOCTOR_PASSWORD
+        value: Doctor@SymptoMap2025
+      - key: PYTHON_VERSION
+        value: 3.11.0
+    healthCheckPath: /health
+    autoDeploy: true
+
+  # Frontend Static Site
+  - type: web
+    name: symptomap-frontend
+    runtime: static
+    region: oregon
+    plan: free
+    buildCommand: |
+      cd frontend
+      npm install
+      npm run build
+    staticPublishPath: frontend/dist
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: symptomap-api
+          envVarKey: RENDER_EXTERNAL_URL
+    autoDeploy: true

@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  # Backend API
+  backend:
+    build:
+      context: ./backend-python
+      dockerfile: Dockerfile
+    container_name: symptomap-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-symptomap-secret-key-change-in-production}
+      - JWT_ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_HOURS=24
+      - DOCTOR_PASSWORD=${DOCTOR_PASSWORD:-Doctor@SymptoMap2025}
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:80,https://symptomap.onrender.com
+    volumes:
+      - ./data:/app/data
+      - sqlite-data:/app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - symptomap-network
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    container_name: symptomap-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_URL=http://backend:8000/api/v1
+    restart: unless-stopped
+    networks:
+      - symptomap-network
+
+volumes:
+  sqlite-data:
+
+networks:
+  symptomap-network:
+    driver: bridge
