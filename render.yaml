@@ -8,12 +8,9 @@ services:
     runtime: python
     region: oregon
     plan: free
-    buildCommand: |
-      cd backend-python
-      pip install -r requirements.txt
-    startCommand: |
-      cd backend-python
-      uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    rootDir: backend-python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: JWT_SECRET_KEY
         generateValue: true
@@ -34,11 +31,9 @@ services:
     runtime: static
     region: oregon
     plan: free
-    buildCommand: |
-      cd frontend
-      npm install
-      npm run build
-    staticPublishPath: frontend/dist
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
     headers:
       - path: /*
         name: Cache-Control
@@ -49,8 +44,5 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_URL
-        fromService:
-          type: web
-          name: symptomap-api
-          envVarKey: RENDER_EXTERNAL_URL
+        value: https://symptomap-api.onrender.com/api/v1
     autoDeploy: true
