@@ -6,22 +6,27 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy.orm import declarative_base
 from app.core.config import settings
 
-# Create async engine
+# Convert sync SQLite URL to async format
+database_url = settings.DATABASE_URL
+if database_url.startswith("sqlite:///"):
+    # Convert sqlite:/// to sqlite+aiosqlite:/// for async support
+    database_url = database_url.replace("sqlite:///", "sqlite+aiosqlite:///")
+
 # Create async engine
 engine_args = {
     "echo": settings.DEBUG,
-    "pool_pre_ping": True,
 }
 
 # SQLite specific config
-if "sqlite" in settings.DATABASE_URL:
+if "sqlite" in database_url:
     engine_args["connect_args"] = {"check_same_thread": False}
 else:
+    engine_args["pool_pre_ping"] = True
     engine_args["pool_size"] = 10
     engine_args["max_overflow"] = 20
 
 engine = create_async_engine(
-    settings.DATABASE_URL,
+    database_url,
     **engine_args
 )
 
@@ -49,3 +54,4 @@ async def get_db() -> AsyncSession:
             raise
         finally:
             await session.close()
+
