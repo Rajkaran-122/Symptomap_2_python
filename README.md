@@ -1,546 +1,332 @@
-# 🏥 SymptoMap Doctor Station
+# 🏥 SymptoMap - Real-Time Disease Surveillance Platform
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
-[![Node](https://img.shields.io/badge/Node.js-16%2B-green.svg)](https://nodejs.org/)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![Node](https://img.shields.io/badge/Node.js-18%2B-green.svg)](https://nodejs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104%2B-009688.svg)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-18%2B-61DAFB.svg)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5%2B-3178C6.svg)](https://www.typescriptlang.org/)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![Status](https://img.shields.io/badge/Status-Production%20Ready-success.svg)]()
 
-> **A secure, password-protected web platform for healthcare professionals to submit disease outbreak data and health alerts in real-time.**
+> **An AI-powered epidemiological surveillance platform for real-time disease outbreak tracking, prediction, and public health response coordination.**
 
 ---
 
-## 📋 Table of Contents
-
-- [Quick Start](#-quick-start)
-- [Features](#-features)
-- [Screenshots](#-screenshots)
-- [Tech Stack](#️-tech-stack)
-- [Installation](#-installation)
-- [Usage](#-usage)
-- [Deployment](#-deployment)
-- [Documentation](#-documentation)
-- [Contributing](#-contributing)
-- [License](#-license)
-- [Support](#-support)
-
----
-
-## ⚡ Quick Start
-
-### One-Command Startup
-
-**Windows:**
-```batch
-.\start.bat
-```
-
-**Mac/Linux:**
-```bash
-chmod +x start.sh
-./start.sh
-```
-
-### Access the Application
-
-| Service | URL |
-|---------|-----|
-| 🏥 **Doctor Portal** | http://localhost:3000/doctor |
-| 📊 **Dashboard** | http://localhost:3000/dashboard |
-| 📚 **API Docs** | http://localhost:8000/api/docs |
-
-**Default Password:** `Doctor@SymptoMap2025`
-
-> 👉 **New here?** Read [START_HERE.md](START_HERE.md) for a 5-minute guided setup.
-
----
-
-## ✨ Features
-
-### 🔐 Security
-- **JWT Authentication** - Secure token-based sessions (24-hour expiry)
-- **Input Validation** - Comprehensive data sanitization
-- **SQL Injection Prevention** - Parameterized queries only
-- **HTTPS Ready** - Production SSL/TLS support
-
-### 📝 Outbreak Reporting
-- **Interactive Map** - Click to mark exact outbreak locations
-- **10+ Disease Types** - Dengue, Malaria, COVID-19, Influenza, and more
-- **Severity Levels** - Mild, Moderate, Severe classification
-- **Rich Metadata** - Patient counts, descriptions, dates
-
-### 🚨 Alert System
-- **3 Alert Types** - Critical, Warning, Info
-- **Geo-targeted** - Location-based alert zones
-- **Auto-expiry** - Configurable alert duration
-- **Priority Levels** - Urgent to informational
-
-### 📊 Real-time Dashboard
-- **Live Updates** - 30-second auto-refresh
-- **Statistics Cards** - Total cases, trends, risk zones
-- **Interactive Map** - Visual outbreak tracking
-- **Recent Submissions** - Latest doctor reports
-
-### 🛠️ Utilities
-- **CSV Import/Export** - Bulk data operations
-- **Automated Backups** - Every 6 hours, keeps last 30
-- **Sample Data** - Pre-loaded test outbreaks
-- **Quick Start Scripts** - One-command deployment
-
-### 🌐 Cross-Platform
-- **Mobile Responsive** - Works on phones, tablets, desktops
-- **Multi-Browser** - Chrome, Firefox, Safari, Edge
-- **Docker Ready** - Container deployment included
-- **Cloud Deploy** - Render, Railway, Heroku compatible
-
----
-
-## 📸 Screenshots
-
-### Doctor Login Portal
-![Doctor Login](docs/screenshots/doctor-login.png)
-*Secure password-protected access for healthcare professionals*
-
-### Outbreak Submission Form
-![Outbreak Form](docs/screenshots/outbreak-form.png)
-*Comprehensive form with interactive map location picker*
-
-### Real-time Dashboard
-![Dashboard](docs/screenshots/dashboard.png)
-*Live outbreak tracking with statistics and visualizations*
-
-### Alert Creation
-![Alert Creation](docs/screenshots/alert-form.png)
-*Create health alerts with geo-targeting and priority levels*
-
-> 📁 Screenshots available in `docs/screenshots/` directory
-
----
-
-## 🛠️ Tech Stack
-
-### Backend
-- **Framework:** FastAPI 0.104+
-- **Language:** Python 3.10+
-- **Database:** SQLite 3 (development), PostgreSQL (production)
-- **Auth:** PyJWT
-- **Server:** Uvicorn (ASGI)
-
-### Frontend
-- **Framework:** React 18+
-- **Language:** TypeScript 5+
-- **Build Tool:** Vite 5+
-- **Styling:** Tailwind CSS 3+
-- **Maps:** MapLibre GL JS
-- **UI Components:** shadcn/ui
-
-### DevOps
-- **Containerization:** Docker 24+
-- **Orchestration:** docker-compose 2+
-- **Reverse Proxy:** Nginx 1.24+
-- **CI/CD:** GitHub Actions ready
-
----
-
-## 📦 Installation
+## 🚀 Quick Start
 
 ### Prerequisites
-- Python 3.8 or higher
-- Node.js 16 or higher
-- Git
 
-### Option 1: Quick Start (Recommended)
+| Requirement | Version | Check Command |
+|-------------|---------|---------------|
+| Python | 3.10+ | `python --version` |
+| Node.js | 18+ | `node --version` |
+| npm | 9+ | `npm --version` |
+| Git | Latest | `git --version` |
+
+### Installation & Setup
 
 ```bash
-# Clone repository
-git clone https://github.com/YOUR_USERNAME/symptomap.git
-cd symptomap
+# 1. Clone the repository
+git clone https://github.com/Rajkaran-122/Symptomap_2_python.git
+cd Symptomap_2_python
 
-# Run startup script
-.\start.bat          # Windows
-./start.sh           # Mac/Linux
-```
-
-### Option 2: Manual Setup
-
-**Backend:**
-```bash
+# 2. Setup Backend (Terminal 1)
 cd backend-python
 python -m venv venv
-source venv/bin/activate  # Mac/Linux
-venv\Scripts\activate     # Windows
-pip install -r requirements.txt
-python -m uvicorn app.main:app --reload
-```
 
-**Frontend:**
-```bash
+# Windows:
+venv\Scripts\activate
+# Mac/Linux:
+source venv/bin/activate
+
+pip install -r requirements.txt
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+# 3. Setup Frontend (Terminal 2)
 cd frontend
 npm install
 npm run dev
 ```
 
-### Option 3: Docker
+### 🌐 Access the Application
 
-```bash
-docker-compose up -d
+| Portal | URL | Credentials |
+|--------|-----|-------------|
+| 📊 **Dashboard** | http://localhost:3000/dashboard | Public |
+| 🏥 **Doctor Station** | http://localhost:3000/doctor | Password: `Doctor@SymptoMap2025` |
+| 👨‍💼 **Admin Panel** | http://localhost:3000/admin | Same as Doctor |
+| ✅ **Approval Requests** | http://localhost:3000/admin/approvals | Same as Doctor |
+| 📚 **API Docs** | http://localhost:8000/docs | Public |
+
+---
+
+## ✨ Features
+
+### 🗺️ Real-Time Outbreak Map
+- Interactive MapLibre GL map with outbreak markers
+- Aggregated zone visualization by city/region
+- Color-coded severity (Mild 🟢 | Moderate 🟡 | Severe 🔴)
+- Live location-based risk zones
+
+### 👨‍⚕️ Doctor Station
+- Secure authenticated portal for healthcare professionals
+- Submit outbreak reports with location, severity, case counts
+- Create health alerts with geo-targeting
+- View submission history and status
+
+### 👨‍💼 Admin Approval Workflow
+- Review pending doctor submissions
+- Approve or reject outbreak reports
+- Real-time dashboard updates after approval
+- Complete audit trail
+
+### 📈 Analytics Dashboard
+- SEIR model disease progression charts
+- Week-over-week comparison trends
+- Risk zone assessment
+- System performance metrics
+- PDF report generation
+
+### 🔔 Real-Time Updates
+- WebSocket live notifications
+- Auto-refresh every 60 seconds
+- Toast notifications for new outbreaks/alerts
+
+---
+
+## 📁 Project Structure
+
+```
+Symptomap_2_python/
+├── backend-python/              # FastAPI Backend
+│   ├── app/
+│   │   ├── api/v1/             # API Endpoints
+│   │   │   ├── doctor_station.py    # Doctor submission API
+│   │   │   ├── approval.py          # Admin approval API
+│   │   │   ├── public_outbreaks.py  # Public outbreak data
+│   │   │   └── ...
+│   │   ├── core/               # Database & Config
+│   │   ├── models/             # SQLAlchemy Models
+│   │   └── main.py             # App Entry Point
+│   └── requirements.txt
+│
+├── frontend/                    # React + TypeScript Frontend
+│   ├── src/
+│   │   ├── pages/              # Page Components
+│   │   │   ├── DashboardPage.tsx
+│   │   │   ├── DoctorStation.tsx
+│   │   │   ├── ApprovalRequestsPage.tsx
+│   │   │   └── ...
+│   │   ├── components/         # Reusable Components
+│   │   │   ├── OutbreakMap.tsx
+│   │   │   ├── FilterPanel.tsx
+│   │   │   └── ...
+│   │   ├── hooks/              # Custom React Hooks
+│   │   └── services/           # API Service Layer
+│   └── package.json
+│
+├── generate_pending.py          # Test data generator
+├── start.bat                    # Windows startup script
+├── start.sh                     # Linux/Mac startup script
+└── README.md
 ```
 
 ---
 
-## 🚀 Usage
+## 🔧 API Endpoints
 
-### For Doctors (Submitting Data)
+### Public Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/outbreaks/all` | Get all approved outbreaks |
+| GET | `/api/v1/outbreaks/pending-count` | Get pending approval count |
+| GET | `/api/v1/stats/dashboard` | Dashboard statistics |
 
-1. **Login** at http://localhost:3000/doctor
-2. **Submit Outbreak**:
-   - Select disease type
-   - Enter patient count
-   - Choose severity level
-   - Mark location on map
-   - Add description
+### Authenticated Endpoints (Require JWT Token)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/auth/login` | Doctor login |
+| POST | `/api/v1/doctor/outbreak` | Submit outbreak report |
+| POST | `/api/v1/doctor/alert` | Create health alert |
+| GET | `/api/v1/doctor/submissions` | Get doctor's submissions |
+| GET | `/api/v1/admin/pending` | Get pending approvals |
+| POST | `/api/v1/admin/approve/{id}` | Approve submission |
+| POST | `/api/v1/admin/reject/{id}` | Reject submission |
+
+📚 **Full API Documentation:** http://localhost:8000/docs
+
+---
+
+## 🎯 Workflow
+
+### Doctor Submission Flow
+```
+Doctor Login → Submit Outbreak → Status: PENDING
+                                      ↓
+                              Admin Reviews
+                                      ↓
+                    ┌─────────────────┴─────────────────┐
+                    ↓                                   ↓
+             APPROVED                              REJECTED
+                    ↓                                   ↓
+         Appears on Dashboard              Not shown on Dashboard
+```
+
+### Testing the Workflow
+
+1. **Generate Test Data:**
+   ```bash
+   python generate_pending.py
+   ```
+
+2. **Login as Doctor:**
+   - Go to http://localhost:3000/doctor
+   - Password: `Doctor@SymptoMap2025`
+
+3. **Submit an Outbreak:**
+   - Navigate to Doctor Station
+   - Fill in disease, location, severity
    - Submit
 
-3. **Create Alert**:
-   - Select alert type (Critical/Warning/Info)
-   - Write title and message
-   - Mark affected area on map
-   - Set expiry duration
-   - Submit
+4. **Approve as Admin:**
+   - Go to http://localhost:3000/admin/approvals
+   - Click "Approve" on pending request
 
-4. **View Submissions**:
-   - Click "My Submissions" tab
-   - See all your reports
-   - Export to CSV if needed
-
-> 📖 **Full Guide:** See [USER_MANUAL.md](USER_MANUAL.md) for detailed instructions
-
-### For Developers
-
-**Start Development Servers:**
-```bash
-# Backend (Terminal 1)
-cd backend-python && python -m uvicorn app.main:app --reload
-
-# Frontend (Terminal 2)
-cd frontend && npm run dev
-```
-
-**Run Tests:**
-```bash
-# Backend tests
-cd backend-python && pytest tests/ -v
-
-# Frontend tests
-cd frontend && npm test
-```
-
-**View API Documentation:**
-http://localhost:8000/api/docs
-
-> 💻 **Developer Guide:** See [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md)
+5. **Verify on Dashboard:**
+   - Go to http://localhost:3000/dashboard
+   - See approved outbreak on map
 
 ---
 
-## 🌐 Deployment
+## 🛠️ Development
 
-### Render.com (Free Tier, Recommended)
+### Environment Variables
 
-```bash
-# 1. Connect GitHub repository to Render
-# 2. Create Web Service for backend
-# 3. Create Static Site for frontend
-# 4. Set environment variables
-# 5. Deploy!
+Create `.env` file in `backend-python/`:
+```env
+# JWT Configuration
+JWT_SECRET_KEY=your-secret-key-here
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_HOURS=24
+
+# Doctor Password
+DOCTOR_PASSWORD=Doctor@SymptoMap2025
+
+# Database
+DATABASE_URL=sqlite:///./symptomap.db
+
+# CORS Origins
+CORS_ORIGINS=http://localhost:3000,http://localhost:5173
 ```
 
-**Live URL:** `https://symptomap.onrender.com/doctor`
-
-### Railway.app
-
-```bash
-railway login
-railway init
-railway up
+Create `.env` in `frontend/`:
+```env
+VITE_API_URL=http://localhost:8000/api/v1
 ```
 
-**Live URL:** `https://symptomap.up.railway.app/doctor`
-
-### Docker (Self-Hosted)
+### Running Tests
 
 ```bash
+# Backend API Test
+cd backend-python
+python -m pytest tests/ -v
+
+# Frontend Type Check
+cd frontend
+npm run build
+```
+
+---
+
+## 🐳 Docker Deployment
+
+```bash
+# Build and run
 docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop
+docker-compose down
 ```
-
-**Access:** `http://your-domain.com/doctor`
-
-> 🚢 **Deployment Guide:** See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
 
 ---
 
-## 📚 Documentation
+## 📊 Tech Stack
 
-We provide comprehensive documentation for all user types:
-
-| Document | Purpose | Audience |
-|----------|---------|----------|
-| [START_HERE.md](START_HERE.md) | Quick 5-minute guide | Everyone |
-| [USER_MANUAL.md](USER_MANUAL.md) | Step-by-step usage | Doctors |
-| [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) | Technical overview | Developers |
-| [QUICK_REFERENCE.md](QUICK_REFERENCE.md) | Command cheat sheet | Developers |
-| [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) | Deploy to production | DevOps |
-| [DOCTOR_STATION_BRD.md](DOCTOR_STATION_BRD.md) | Requirements doc | All |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guide | Contributors |
-
-**Total Documentation:** 150+ pages, 60,000+ words
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | React 18, TypeScript, Vite, TailwindCSS |
+| **Backend** | Python 3.10+, FastAPI, SQLAlchemy |
+| **Database** | SQLite (dev), PostgreSQL (prod) |
+| **Maps** | MapLibre GL JS, OpenStreetMap |
+| **Charts** | Recharts |
+| **Auth** | JWT (PyJWT) |
+| **Real-time** | WebSockets |
 
 ---
 
-## 🛠️ Utilities
+## 🔐 Security Features
 
-### Database Backup
-```bash
-# Manual backup
-python scripts/backup.py
+- ✅ JWT-based authentication (24hr expiry)
+- ✅ Password-protected doctor access
+- ✅ Admin approval workflow for data validation
+- ✅ SQL injection prevention (parameterized queries)
+- ✅ Input validation and sanitization
+- ✅ CORS configuration
+- ✅ HTTPS ready for production
 
-# Schedule (every 6 hours)
-# Mac/Linux: crontab -e
-0 */6 * * * python /path/to/scripts/backup.py
+---
 
-# Windows: Task Scheduler
-schtasks /create /tn "SymptoMap Backup" /tr "python C:\path\to\scripts\backup.py" /sc hourly /mo 6
-```
+## 📈 Roadmap
 
-### CSV Operations
-```bash
-# Import data
-python scripts/import_csv.py data/sample_outbreaks.csv
+### ✅ Version 1.0 (Current)
+- [x] Real-time outbreak map
+- [x] Doctor submission portal
+- [x] Admin approval workflow
+- [x] Dashboard analytics
+- [x] SEIR model projections
+- [x] PDF report generation
 
-# Export data
-python scripts/export_csv.py export/my_export.csv
-```
+### 🔜 Version 1.1 (Planned)
+- [ ] Multi-user authentication
+- [ ] Email/SMS notifications
+- [ ] Advanced analytics
+- [ ] Mobile app (PWA)
+- [ ] Multi-language support
 
 ---
 
 ## 🤝 Contributing
 
-We welcome contributions! Here's how to get started:
-
-1. **Fork** the repository
-2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
-3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
-4. **Push** to the branch (`git push origin feature/amazing-feature`)
-5. **Open** a Pull Request
-
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on:
-- Code style guidelines
-- Testing requirements
-- Pull request process
-- Development setup
-
----
-
-## 📋 Project Structure
-
-```
-symptomap/
-├── backend-python/          # FastAPI backend
-│   ├── app/
-│   │   ├── api/            # API endpoints
-│   │   ├── core/           # Core functionality
-│   │   ├── models/         # Data models
-│   │   └── main.py         # Application entry
-│   ├── tests/              # Backend tests
-│   └── requirements.txt    # Python dependencies
-│
-├── frontend/               # React frontend
-│   ├── src/
-│   │   ├── pages/         # Page components
-│   │   ├── components/    # Reusable components
-│   │   └── App.tsx        # Main app
-│   ├── tests/             # Frontend tests
-│   └── package.json       # Node dependencies
-│
-├── scripts/               # Utility scripts
-│   ├── backup.py         # Database backup
-│   ├── import_csv.py     # CSV import
-│   └── export_csv.py     # CSV export
-│
-├── docs/                  # Documentation
-│   ├── START_HERE.md
-│   ├── USER_MANUAL.md
-│   └── ...
-│
-├── data/                  # Sample data
-├── backups/              # Auto-generated backups
-├── export/               # CSV exports
-├── docker-compose.yml    # Docker config
-├── start.sh              # Mac/Linux startup
-├── start.bat             # Windows startup
-└── README.md             # This file
-```
-
----
-
-## 📊 Statistics
-
-```
-📦 Project Size:
-├── Total Files: 150+
-├── Lines of Code: 15,000+
-├── Documentation: 150 pages
-├── API Endpoints: 12
-├── Frontend Pages: 5
-├── Database Tables: 2
-├── Utility Scripts: 8
-└── Test Coverage: 85%
-
-⚡ Performance:
-├── Page Load: < 2s
-├── API Response: < 500ms
-├── Map Render: < 1s
-└── Dashboard Update: 30s
-
-🌍 Support:
-├── Languages: English (Hindi planned)
-├── Browsers: Chrome, Firefox, Safari, Edge
-├── Devices: Desktop, Tablet, Mobile
-└── Platforms: Windows, macOS, Linux
-```
-
----
-
-## 🔐 Security
-
-- **Authentication:** JWT tokens with 24-hour expiry
-- **Authorization:** Password-protected doctor access
-- **Validation:** All inputs sanitized and validated
-- **Database:** SQL injection prevention
-- **HTTPS:** SSL/TLS encryption in production
-- **Rate Limiting:** 100 requests/minute per IP (configurable)
-- **CORS:** Restricted to allowed origins
-
-**Security Audit:** Last conducted December 2025
-
----
-
-## 🧪 Testing
-
-### Run All Tests
-```bash
-# Backend
-cd backend-python && pytest tests/ -v --cov=app
-
-# Frontend
-cd frontend && npm test -- --coverage
-```
-
-### Manual Testing
-```bash
-# Health check
-curl http://localhost:8000/health
-
-# API test
-curl -X POST http://localhost:8000/api/v1/doctor/login \
-  -H "Content-Type: application/json" \
-  -d '{"password":"Doctor@SymptoMap2025"}'
-```
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-**Free to use, modify, and distribute with attribution.**
+This project is licensed under the MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
-## 💬 Support
+## 👨‍💻 Author
 
-### Get Help
-- 📖 **Documentation:** Check the `docs/` folder
-- 💻 **API Docs:** http://localhost:8000/api/docs
-- 🐛 **Bug Reports:** [Create an issue](https://github.com/YOUR_USERNAME/symptomap/issues)
-- 💡 **Feature Requests:** [Open a discussion](https://github.com/YOUR_USERNAME/symptomap/discussions)
-- 📧 **Email:** support@symptomap.example.com
-
-### Community
-- 🌟 **Star** this repo if you find it useful
-- 🔄 **Fork** to create your own version
-- 📣 **Share** with other healthcare professionals
-- 🤝 **Contribute** to make it better
-
----
-
-## 🎯 Roadmap
-
-### Version 1.0 (Current) ✅
-- [x] Doctor authentication
-- [x] Outbreak submission
-- [x] Alert system
-- [x] Real-time dashboard
-- [x] CSV import/export
-- [x] Automated backups
-- [x] Complete documentation
-
-### Version 1.1 (Planned)
-- [ ] Multi-doctor accounts
-- [ ] Email notifications
-- [ ] SMS alerts
-- [ ] Advanced analytics
-- [ ] Mobile app (PWA)
-- [ ] Multi-language support (Hindi)
-
-### Version 2.0 (Future)
-- [ ] ML-based outbreak prediction
-- [ ] Integration with health systems
-- [ ] Public API for researchers
-- [ ] Advanced visualization
-- [ ] Automated reporting
-
----
-
-## 🌟 Acknowledgments
-
-- **OpenStreetMap** - Map data
-- **FastAPI** - Backend framework
-- **React** - Frontend framework
-- **shadcn/ui** - UI components
-- **MapLibre** - Map rendering
-- **All Contributors** - Thank you!
-
----
-
-## 📞 Contact
-
-**Project Maintainer:** Your Name  
-**Email:** your.email@example.com  
-**GitHub:** [@yourusername](https://github.com/yourusername)  
-**Website:** https://symptomap.example.com
-
----
-
-## 🏆 Status
-
-```
-✅ Production Ready
-✅ Fully Documented
-✅ Actively Maintained
-✅ Open to Contributions
-```
+**Rajkaran**  
+GitHub: [@Rajkaran-122](https://github.com/Rajkaran-122)
 
 ---
 
 <div align="center">
 
-**Made with ❤️ for public health monitoring**
+**Made with ❤️ for Public Health Surveillance**
 
-[⭐ Star this repo](https://github.com/YOUR_USERNAME/symptomap) • [🐛 Report Bug](https://github.com/YOUR_USERNAME/symptomap/issues) • [💡 Request Feature](https://github.com/YOUR_USERNAME/symptomap/issues)
+[⭐ Star this repo](https://github.com/Rajkaran-122/Symptomap_2_python) • [🐛 Report Bug](https://github.com/Rajkaran-122/Symptomap_2_python/issues) • [💡 Request Feature](https://github.com/Rajkaran-122/Symptomap_2_python/issues)
 
-**Last Updated:** December 2025 • **Version:** 1.0.0 • **License:** MIT
+**Last Updated:** January 2026 • **Version:** 1.0.0
 
 </div>
