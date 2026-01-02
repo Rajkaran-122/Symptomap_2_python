@@ -98,6 +98,21 @@ async def health_check():
     }
 
 
+@app.post("/seed")
+async def manual_seed():
+    """Manually trigger database seeding"""
+    try:
+        from app.core.seeder import seed_database
+        await seed_database()
+        return {"status": "success", "message": "Database seeded successfully"}
+    except Exception as e:
+        import traceback
+        return {
+            "status": "error", 
+            "message": str(e),
+            "traceback": traceback.format_exc()
+        }
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
