@@ -141,16 +141,16 @@ async def generate_comprehensive_report(
     """Generate comprehensive system report including doctor submissions"""
     
     try:
-        # Get outbreak stats from ORM
+        # Get outbreak stats from ORM - use COALESCE to handle NULL date_reported
         outbreak_sql = """
             SELECT 
                 COUNT(*) as total,
                 SUM(CASE WHEN severity = 'severe' THEN 1 ELSE 0 END) as severe,
                 SUM(CASE WHEN severity = 'moderate' THEN 1 ELSE 0 END) as moderate,
                 SUM(CASE WHEN severity = 'mild' THEN 1 ELSE 0 END) as mild,
-                SUM(patient_count) as total_patients
+                COALESCE(SUM(patient_count), 0) as total_patients
             FROM outbreaks
-            WHERE date_reported >= :start_date
+            WHERE COALESCE(date_reported, date_started, created_at) >= :start_date
         """
         
         # Get alert stats from ORM
@@ -160,14 +160,14 @@ async def generate_comprehensive_report(
                 SUM(CASE WHEN severity = 'critical' THEN 1 ELSE 0 END) as critical,
                 SUM(CASE WHEN severity = 'warning' THEN 1 ELSE 0 END) as warning
             FROM alerts
-            WHERE sent_at >= :start_date
+            WHERE COALESCE(sent_at, created_at) >= :start_date
         """
         
         # Get hospital stats from ORM
         hospital_sql = """
             SELECT COUNT(DISTINCT hospital_id) as affected_hospitals
             FROM outbreaks
-            WHERE date_reported >= :start_date
+            WHERE COALESCE(date_reported, date_started, created_at) >= :start_date
         """
         
         start_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
