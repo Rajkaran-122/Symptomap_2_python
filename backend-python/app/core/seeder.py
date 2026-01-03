@@ -105,9 +105,9 @@ async def create_admin_user(db):
     admin = User(
         email="admin@symptomap.com",
         full_name="System Administrator",
-        hashed_password=get_password_hash("admin123"),
+        password_hash=get_password_hash("admin123"),
         role="admin",
-        is_verified=True
+        verification_status="verified"
     )
     
     db.add(admin)

@@ -10,17 +10,14 @@ from pydantic import BaseModel, EmailStr
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 
 from app.core.database import get_db
 from app.core.config import settings
+from app.core.security import get_password_hash, verify_password
 from app.models.user import User
 
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
-
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # OAuth2 scheme
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_PREFIX}/auth/login")
@@ -43,6 +40,7 @@ class Token(BaseModel):
 
 # Helper functions
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
@@ -93,10 +91,9 @@ async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
         )
     
     # Create new user
-    hashed_password = pwd_context.hash(user_data.password)
     new_user = User(
         email=user_data.email,
-        password_hash=hashed_password,
+        password_hash=get_password_hash(user_data.password),
         full_name=user_data.full_name,
         phone=user_data.phone,
         role=user_data.role,
@@ -126,7 +123,7 @@ async def login(
     result = await db.execute(select(User).where(User.email == form_data.username))
     user = result.scalar_one_or_none()
     
-    if not user or not pwd_context.verify(form_data.password, user.password_hash):
+    if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",

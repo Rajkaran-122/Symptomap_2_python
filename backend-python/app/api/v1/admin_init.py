@@ -38,9 +38,9 @@ async def initialize_demo_data(db: AsyncSession = Depends(get_db)):
         admin = User(
             email="demo@symptomap.com",
             full_name="Demo Admin",
-            hashed_password=get_password_hash("demo123"),
+            password_hash=get_password_hash("demo123"),
             role="admin",
-            is_verified=True
+            verification_status="verified"
         )
         db.add(admin)
         await db.commit()
