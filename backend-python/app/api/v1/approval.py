@@ -52,6 +52,26 @@ def ensure_status_column():
     conn = get_sqlite_connection()
     cursor = conn.cursor()
     
+    # Ensure table exists first (Robustness fix)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS doctor_outbreaks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            disease_type TEXT,
+            patient_count INTEGER,
+            severity TEXT,
+            latitude REAL,
+            longitude REAL,
+            location_name TEXT,
+            city TEXT,
+            state TEXT,
+            description TEXT,
+            date_reported TEXT,
+            submitted_by TEXT,
+            created_at TEXT,
+            status TEXT DEFAULT 'pending'
+        )
+    ''')
+    
     # Check if status column exists
     cursor.execute("PRAGMA table_info(doctor_outbreaks)")
     columns = [col[1] for col in cursor.fetchall()]
@@ -60,6 +80,7 @@ def ensure_status_column():
         cursor.execute("ALTER TABLE doctor_outbreaks ADD COLUMN status TEXT DEFAULT 'pending'")
         conn.commit()
     
+    conn.commit()  # Ensure table creation is committed
     conn.close()
 
 

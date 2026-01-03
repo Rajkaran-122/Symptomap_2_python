@@ -61,6 +61,13 @@ const ApprovalRequestsPage = () => {
                 headers: getAuthHeaders()
             });
 
+            if (response.status === 401) {
+                // Token expired or invalid
+                localStorage.removeItem('doctor_token');
+                navigate('/doctor');
+                return;
+            }
+
             if (!response.ok) {
                 throw new Error('Failed to fetch requests');
             }
