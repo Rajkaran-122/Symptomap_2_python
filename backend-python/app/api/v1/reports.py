@@ -138,110 +138,51 @@ async def generate_comprehensive_report(
     days: int = 30,
     db: AsyncSession = Depends(get_db)
 ):
-    """Generate comprehensive system report including doctor submissions"""
+    """Generate comprehensive system report from doctor submissions"""
     
     try:
-        # Get outbreak stats from ORM - use COALESCE to handle NULL date_reported
-        outbreak_sql = """
+        from app.core.config import get_sqlite_db_path
+        
+        conn = sqlite3.connect(get_sqlite_db_path())
+        cursor = conn.cursor()
+        
+        # Get outbreak stats from doctor_outbreaks (approved only)
+        cursor.execute('''
             SELECT 
                 COUNT(*) as total,
                 SUM(CASE WHEN severity = 'severe' THEN 1 ELSE 0 END) as severe,
                 SUM(CASE WHEN severity = 'moderate' THEN 1 ELSE 0 END) as moderate,
                 SUM(CASE WHEN severity = 'mild' THEN 1 ELSE 0 END) as mild,
-                COALESCE(SUM(patient_count), 0) as total_patients
-            FROM outbreaks
-            WHERE COALESCE(date_reported, date_started, created_at) >= :start_date
-        """
+                COALESCE(SUM(patient_count), 0) as total_patients,
+                COUNT(DISTINCT location_name) as hospitals
+            FROM doctor_outbreaks
+            WHERE status = 'approved'
+        ''')
+        row = cursor.fetchone()
         
-        # Get alert stats from ORM
-        alert_sql = """
+        total_outbreaks = row[0] if row else 0
+        total_severe = row[1] if row else 0
+        total_moderate = row[2] if row else 0
+        total_mild = row[3] if row else 0
+        total_patients = row[4] if row else 0
+        total_hospitals = row[5] if row else 0
+        
+        # Get alert stats from doctor_alerts
+        cursor.execute('''
             SELECT 
                 COUNT(*) as total,
-                SUM(CASE WHEN severity = 'critical' THEN 1 ELSE 0 END) as critical,
-                SUM(CASE WHEN severity = 'warning' THEN 1 ELSE 0 END) as warning
-            FROM alerts
-            WHERE COALESCE(sent_at, created_at) >= :start_date
-        """
+                SUM(CASE WHEN alert_type = 'critical' THEN 1 ELSE 0 END) as critical,
+                SUM(CASE WHEN alert_type = 'warning' THEN 1 ELSE 0 END) as warning
+            FROM doctor_alerts
+            WHERE status = 'active'
+        ''')
+        alert_row = cursor.fetchone()
         
-        # Get hospital stats from ORM
-        hospital_sql = """
-            SELECT COUNT(DISTINCT hospital_id) as affected_hospitals
-            FROM outbreaks
-            WHERE COALESCE(date_reported, date_started, created_at) >= :start_date
-        """
+        total_alerts = alert_row[0] if alert_row else 0
+        total_critical = alert_row[1] if alert_row else 0
+        total_warning = alert_row[2] if alert_row else 0
         
-        start_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
-        
-        outbreak_result = await db.execute(text(outbreak_sql), {"start_date": start_date})
-        outbreak_row = outbreak_result.fetchone()
-        
-        alert_result = await db.execute(text(alert_sql), {"start_date": start_date})
-        alert_row = alert_result.fetchone()
-        
-        hospital_result = await db.execute(text(hospital_sql), {"start_date": start_date})
-        hospital_row = hospital_result.fetchone()
-        
-        # ADD: Query doctor_outbreaks and doctor_alerts from SQLite
-        try:
-            from app.core.config import get_sqlite_db_path
-            conn = sqlite3.connect(get_sqlite_db_path())
-            cursor = conn.cursor()
-            
-            # Count doctor outbreaks by severity
-            cursor.execute('''
-                SELECT 
-                    COUNT(*) as total,
-                    SUM(CASE WHEN severity = 'severe' THEN 1 ELSE 0 END) as severe,
-                    SUM(CASE WHEN severity = 'moderate' THEN 1 ELSE 0 END) as moderate,
-                    SUM(CASE WHEN severity = 'mild' THEN 1 ELSE 0 END) as mild,
-                    SUM(patient_count) as total_patients,
-                    COUNT(DISTINCT location_name) as hospitals
-                FROM doctor_outbreaks
-            ''')
-            row = cursor.fetchone()
-            doctor_outbreaks = {
-                'total': row[0] if row else 0,
-                'severe': row[1] if row else 0,
-                'moderate': row[2] if row else 0,
-                'mild': row[3] if row else 0,
-                'total_patients': row[4] if row else 0,
-                'hospitals': row[5] if row else 0
-            }
-            
-            # Count doctor alerts by type
-            cursor.execute('''
-                SELECT 
-                    COUNT(*) as total,
-                    SUM(CASE WHEN alert_type = 'critical' THEN 1 ELSE 0 END) as critical,
-                    SUM(CASE WHEN alert_type = 'warning' THEN 1 ELSE 0 END) as warning
-                FROM doctor_alerts
-                WHERE status = 'active'
-            ''')
-            row = cursor.fetchone()
-            doctor_alerts = {
-                'total': row[0] if row else 0,
-                'critical': row[1] if row else 0,
-                'warning': row[2] if row else 0
-            }
-            
-            conn.close()
-        except Exception as e:
-            print(f"Error querying doctor data: {e}")
-            doctor_outbreaks = {'total': 0, 'severe': 0, 'moderate': 0, 'mild': 0, 'total_patients': 0, 'hospitals': 0}
-            doctor_alerts = {'total': 0, 'critical': 0, 'warning': 0}
-        
-        # Combine ORM and doctor submission stats
-        total_outbreaks = (outbreak_row[0] or 0) + doctor_outbreaks['total']
-        total_severe = (outbreak_row[1] or 0) + doctor_outbreaks['severe']
-        total_moderate = (outbreak_row[2] or 0) + doctor_outbreaks['moderate']
-        total_mild = (outbreak_row[3] or 0) + doctor_outbreaks['mild']
-        total_patients = (outbreak_row[4] or 0) + doctor_outbreaks['total_patients']
-        
-        total_alerts = (alert_row[0] or 0) + doctor_alerts['total']
-        total_critical = (alert_row[1] or 0) + doctor_alerts['critical']
-        total_warning = (alert_row[2] or 0) + doctor_alerts['warning']
-        
-        total_hospitals = (hospital_row[0] or 0) + doctor_outbreaks['hospitals']
+        conn.close()
         
         return {
             "report_type": "comprehensive",
@@ -269,6 +210,8 @@ async def generate_comprehensive_report(
     except Exception as e:
         # Return fallback empty report to prevent 500 errors
         print(f"Error generating comprehensive report: {e}")
+        import traceback
+        traceback.print_exc()
         return {
             "report_type": "comprehensive",
             "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -278,6 +221,6 @@ async def generate_comprehensive_report(
                 "alerts": {"total": 0, "critical": 0, "warning": 0},
                 "hospitals": {"affected": 0}
             },
-            "error": "Report generation temporarily unavailable"
+            "error": f"Report generation error: {str(e)}"
         }
 
