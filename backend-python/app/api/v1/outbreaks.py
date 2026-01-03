@@ -8,8 +8,6 @@ from sqlalchemy import select, and_
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timedelta, timezone
-from geoalchemy2.shape import to_shape
-from shapely.geometry import Point
 
 from app.core.database import get_db
 from app.models.outbreak import Outbreak, Hospital
@@ -75,18 +73,12 @@ async def create_outbreak(
             
             if not hospital:
                 # Create new hospital on the fly - use lat/lng columns directly
-                try:
-                    from geoalchemy2.elements import WKTElement
-                    location_geom = WKTElement(f"POINT({lng} {lat})", srid=4326)
-                except Exception:
-                    location_geom = None  # Fall back if Geography not supported
-                
                 hospital = Hospital(
                     name=outbreak_data.hospital_name,
                     address="Manual Entry",
                     latitude=lat,
                     longitude=lng,
-                    location=location_geom,
+                    location=f"POINT({lng} {lat})",  # Store as WKT string
                     city=city,
                     state=state,
                     hospital_type="Manual Entry"
@@ -105,12 +97,6 @@ async def create_outbreak(
         lat = outbreak_data.location.get("lat", 0) if outbreak_data.location else (hospital.latitude or 0)
         lng = outbreak_data.location.get("lng", 0) if outbreak_data.location else (hospital.longitude or 0)
         
-        try:
-            from geoalchemy2.elements import WKTElement
-            outbreak_location = WKTElement(f"POINT({lng} {lat})", srid=4326)
-        except Exception:
-            outbreak_location = None
-        
         # Create outbreak
         outbreak = Outbreak(
             hospital_id=hospital.id,
@@ -125,7 +111,7 @@ async def create_outbreak(
             notes=outbreak_data.notes,
             latitude=lat,
             longitude=lng,
-            location=outbreak_location,
+            location=f"POINT({lng} {lat})",  # Store as WKT string
             verified=True  # Auto-verify for testing
         )
         
@@ -248,7 +234,6 @@ async def get_outbreak(
         )
     
     outbreak, hospital = row
-    point = to_shape(hospital.location)
     
     return {
         "id": str(outbreak.id),
@@ -256,7 +241,10 @@ async def get_outbreak(
             "id": str(hospital.id),
             "name": hospital.name,
             "address": hospital.address,
-            "location": {"lat": point.y, "lng": point.x},
+            "location": {
+                "lat": hospital.latitude if hospital.latitude else 0,
+                "lng": hospital.longitude if hospital.longitude else 0
+            },
             "phone": hospital.phone,
             "total_beds": hospital.total_beds,
             "available_beds": hospital.available_beds
@@ -335,13 +323,14 @@ async def get_outbreaks_geojson(
     
     features = []
     for outbreak, hospital in rows:
-        point = to_shape(hospital.location)
+        lng = hospital.longitude if hospital.longitude else 0
+        lat = hospital.latitude if hospital.latitude else 0
         
         features.append({
             "type": "Feature",
             "geometry": {
                 "type": "Point",
-                "coordinates": [point.x, point.y]
+                "coordinates": [lng, lat]
             },
             "properties": {
                 "outbreak_id": str(outbreak.id),

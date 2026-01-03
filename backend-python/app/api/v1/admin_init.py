@@ -7,7 +7,6 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime, timedelta, timezone
-from geoalchemy2 import WKTElement
 
 from app.core.database import get_db
 from app.models.outbreak import Hospital, Outbreak
@@ -63,6 +62,8 @@ async def initialize_demo_data(db: AsyncSession = Depends(get_db)):
         hospital = Hospital(
             name=data["name"],
             address=f"{data['name']}, {data['city']}",
+            latitude=data["lat"],
+            longitude=data["lng"],
             city=data["city"],
             state=data["state"],
             country="India",
@@ -74,7 +75,7 @@ async def initialize_demo_data(db: AsyncSession = Depends(get_db)):
             available_beds=150,
             hospital_type="private",
             registration_number=f"REG{hash(data['name']) % 100000}",
-            location=WKTElement(f"POINT({data['lng']} {data['lat']})", srid=4326)
+            location=f"POINT({data['lng']} {data['lat']})"
         )
         db.add(hospital)
         await db.flush()
@@ -93,7 +94,9 @@ async def initialize_demo_data(db: AsyncSession = Depends(get_db)):
             gender_distribution={"male": 52, "female": 48},
             symptoms=["Fever", "Fatigue", "Body Ache"],
             notes=f"{data['severity'].upper()} outbreak at {data['name']}",
-            location=WKTElement(f"POINT({data['lng']} {data['lat']})", srid=4326)
+            latitude=data["lat"],
+            longitude=data["lng"],
+            location=f"POINT({data['lng']} {data['lat']})"
         )
         db.add(outbreak)
         added_outbreaks.append({

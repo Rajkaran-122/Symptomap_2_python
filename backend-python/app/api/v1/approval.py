@@ -11,7 +11,6 @@ from app.api.v1.auth_doctor import verify_token
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.models.outbreak import Outbreak, Hospital
-from geoalchemy2.elements import WKTElement
 import sqlite3
 
 router = APIRouter(prefix="/admin", tags=["Admin Approval"])
