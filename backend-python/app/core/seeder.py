@@ -5,7 +5,6 @@ Populates the database with realistic outbreak data for testing and demonstratio
 
 import asyncio
 from datetime import datetime, timedelta, timezone
-from geoalchemy2.elements import WKTElement
 import random
 
 from app.core.database import AsyncSessionLocal, Base, engine
@@ -69,13 +68,15 @@ async def create_hospitals(db):
             lat_offset = random.uniform(-0.05, 0.05)
             lng_offset = random.uniform(-0.05, 0.05)
             
+            lat = city['lat'] + lat_offset
+            lng = city['lng'] + lng_offset
+            
             hospital = Hospital(
                 name=hospital_name,
                 address=f"Sector {random.randint(1, 50)}, {city['name']}, {city['state']}",
-                location=WKTElement(
-                    f"POINT({city['lng'] + lng_offset} {city['lat'] + lat_offset})",
-                    srid=4326
-                ),
+                latitude=lat,
+                longitude=lng,
+                location=f"POINT({lng} {lat})",  # Store as WKT string for SQLite compatibility
                 city=city['name'],
                 state=city['state'],
                 country="India",
@@ -166,7 +167,9 @@ async def create_outbreaks(db, hospitals, admin_user):
                 for _ in range(random.randint(2, 4))
             ],
             notes=f"Outbreak reported from {hospital.name}. Monitoring situation closely.",
-            location=hospital.location,
+            latitude=hospital.latitude,
+            longitude=hospital.longitude,
+            location=hospital.location,  # Already a string from hospital
             verified=random.choice([True, True, False])  # 66% verified
         )
         
