@@ -48,7 +48,8 @@ class SubmissionResponse(BaseModel):
 # Database helper
 def get_db_connection():
     """Get SQLite database connection"""
-    conn = sqlite3.connect('symptomap.db')
+    from app.core.config import get_sqlite_db_path
+    conn = sqlite3.connect(get_sqlite_db_path())
     conn.row_factory = sqlite3.Row
     return conn
 

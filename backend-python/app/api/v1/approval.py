@@ -41,10 +41,8 @@ class ApprovalResponse(BaseModel):
 
 def get_sqlite_connection():
     """Get SQLite database connection"""
-    import os
-    # Use same path as doctor_station.py
-    db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'symptomap.db')
-    conn = sqlite3.connect(db_path)
+    from app.core.config import get_sqlite_db_path
+    conn = sqlite3.connect(get_sqlite_db_path())
     conn.row_factory = sqlite3.Row
     return conn
 

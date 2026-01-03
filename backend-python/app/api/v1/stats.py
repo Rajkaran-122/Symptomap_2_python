@@ -42,7 +42,8 @@ async def get_dashboard_stats(
     
     # ADD: Query doctor_outbreaks table for doctor submissions
     try:
-        conn = sqlite3.connect('../symptomap.db')
+        from app.core.config import get_sqlite_db_path
+        conn = sqlite3.connect(get_sqlite_db_path())
         cursor = conn.cursor()
         
         # Count doctor outbreaks - FIXED: Store result before accessing
@@ -126,7 +127,8 @@ async def get_risk_zones(
     
     # SQLite Doctor Counts
     try:
-        conn = sqlite3.connect('../symptomap.db')
+        from app.core.config import get_sqlite_db_path
+        conn = sqlite3.connect(get_sqlite_db_path())
         cursor = conn.cursor()
         
         # Count severe doctor outbreaks (approved only)

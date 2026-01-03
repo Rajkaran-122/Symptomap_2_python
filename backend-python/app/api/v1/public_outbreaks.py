@@ -15,9 +15,8 @@ router = APIRouter(prefix="/outbreaks", tags=["Public Outbreaks"])
 
 def get_db_connection():
     """Get SQLite database connection"""
-    # Use correct path relative to app location
-    db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'symptomap.db')
-    conn = sqlite3.connect(db_path)
+    from app.core.config import get_sqlite_db_path
+    conn = sqlite3.connect(get_sqlite_db_path())
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -28,22 +27,12 @@ async def get_all_outbreaks():
     Get all outbreaks from both APPROVED doctor submissions and regular outbreaks
     """
     try:
-        # DB Path calculation
-        # Go up: v1 -> api -> app -> backend-python -> symptomap.db
-        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-        db_path = os.path.join(base_dir, 'symptomap.db')
-        
-        if not os.path.exists(db_path):
-            # Fallback for different environments
-            db_path = os.path.join(os.getcwd(), 'backend-python', 'symptomap.db')
-            if not os.path.exists(db_path):
-                # Another fallback
-                db_path = os.path.join(os.getcwd(), 'symptomap.db')
+        from app.core.config import get_sqlite_db_path
 
         outbreaks = []
         alerts = []
         
-        conn = sqlite3.connect(db_path)
+        conn = sqlite3.connect(get_sqlite_db_path())
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         

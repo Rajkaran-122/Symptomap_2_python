@@ -69,3 +69,24 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
+
+def get_sqlite_db_path() -> str:
+    """Get the SQLite database file path from DATABASE_URL"""
+    db_url = settings.DATABASE_URL
+    # Remove sqlite:/// prefix and handle both formats
+    if db_url.startswith("sqlite:///"):
+        path = db_url.replace("sqlite:///", "")
+    elif db_url.startswith("sqlite+aiosqlite:///"):
+        path = db_url.replace("sqlite+aiosqlite:///", "")
+    else:
+        # Default fallback
+        path = "./symptomap.db"
+    
+    # Convert relative paths to absolute
+    import os
+    if not os.path.isabs(path):
+        # Get the project root (where the database should be)
+        path = os.path.abspath(path)
+    
+    return path
+

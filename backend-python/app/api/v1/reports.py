@@ -182,7 +182,8 @@ async def generate_comprehensive_report(
     
     # ADD: Query doctor_outbreaks and doctor_alerts from SQLite
     try:
-        conn = sqlite3.connect('../symptomap.db')
+        from app.core.config import get_sqlite_db_path
+        conn = sqlite3.connect(get_sqlite_db_path())
         cursor = conn.cursor()
         
         # Count doctor outbreaks by severity
