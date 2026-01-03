@@ -39,21 +39,31 @@ export const ReportsPage: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [days, setDays] = useState(30);
     const [showEmailModal, setShowEmailModal] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     // Real-time WebSocket connection
     const { lastMessage } = useWebSocket(WS_URL);
 
     const generateReport = async () => {
         setLoading(true);
+        setError(null);
         try {
             const response = await fetch(
                 `${API_BASE_URL}/reports/comprehensive?days=${days}`
             );
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status}`);
+            }
             const data = await response.json();
             setReportData(data);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Failed to generate report:', error);
-            alert('Failed to generate report. Please try again.');
+            // Check if it's a CORS/Network error
+            if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
+                setError('Unable to connect to server. The backend may be updating. Please try again in a few minutes.');
+            } else {
+                setError(error.message || 'Failed to generate report. Please try again.');
+            }
         } finally {
             setLoading(false);
         }
@@ -203,6 +213,23 @@ export const ReportsPage: React.FC = () => {
                             </button>
                         )}
                     </div>
+
+                    {/* Error Display */}
+                    {error && (
+                        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
+                            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                            <div>
+                                <p className="text-amber-800 font-medium">Connection Issue</p>
+                                <p className="text-amber-700 text-sm">{error}</p>
+                                <button
+                                    onClick={generateReport}
+                                    className="mt-2 text-sm text-amber-800 underline hover:text-amber-900"
+                                >
+                                    Try Again
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Report Display */}
                     {reportData && (
