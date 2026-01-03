@@ -13,6 +13,8 @@ __all__ = [
     "Hospital",
     "Outbreak", 
     "Prediction", 
-    "Alert"
+    "Alert",
+    "DoctorOutbreak",
+    "DoctorAlert"
 ]
 

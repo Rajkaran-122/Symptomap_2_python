@@ -23,17 +23,31 @@ async def lifespan(app: FastAPI):
     # Startup
     print("🚀 Starting SymptoMap Backend...")
     
-    # Create database tables
+    # Import all models to ensure they're registered with Base.metadata
+    from app.models import (
+        User, Hospital, Outbreak, Prediction, Alert,
+        ChatbotConversation, AnonymousSymptomReport, DiseaseInfo,
+        DoctorOutbreak, DoctorAlert
+    )
+    
+    # Create database tables (including any new tables that don't exist)
     async with engine.begin() as conn:
+        print("📊 Creating/updating database tables...")
         await conn.run_sync(Base.metadata.create_all)
         
         # Check if we need to seed
-        result = await conn.execute(text("SELECT count(*) FROM hospitals"))
-        count = result.scalar()
+        try:
+            result = await conn.execute(text("SELECT count(*) FROM hospitals"))
+            count = result.scalar()
+        except Exception as e:
+            print(f"⚠️ Error checking hospitals table: {e}")
+            count = 0
         
     if count == 0:
         print("🌱 Seeding empty database...")
         await seed_database()
+    else:
+        print(f"✅ Database has {count} hospitals - skipping seed")
     
     # Connect to Redis
     await redis_client.connect()
