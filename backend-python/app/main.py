@@ -127,6 +127,53 @@ async def manual_seed():
             "traceback": traceback.format_exc()
         }
 
+
+@app.post("/force-seed")
+async def force_reseed():
+    """Force reseed: Clear all data and repopulate with comprehensive India data"""
+    try:
+        from sqlalchemy import text
+        from app.core.database import AsyncSessionLocal
+        from app.core.seeder import seed_database
+        
+        # Clear existing data
+        async with AsyncSessionLocal() as db:
+            # Delete in order to avoid foreign key issues
+            await db.execute(text("DELETE FROM outbreaks"))
+            await db.execute(text("DELETE FROM hospitals"))
+            await db.execute(text("DELETE FROM users WHERE email = 'admin@symptomap.com'"))
+            await db.commit()
+            print("🗑️ Cleared existing ORM data")
+        
+        # Clear SQLite doctor data
+        try:
+            import sqlite3
+            from app.core.config import get_sqlite_db_path
+            conn = sqlite3.connect(get_sqlite_db_path())
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM doctor_outbreaks")
+            cursor.execute("DELETE FROM doctor_alerts")
+            conn.commit()
+            conn.close()
+            print("🗑️ Cleared doctor SQLite data")
+        except Exception as e:
+            print(f"SQLite clear warning: {e}")
+        
+        # Reseed with comprehensive data
+        await seed_database()
+        
+        return {
+            "status": "success", 
+            "message": "Database force-reseeded with comprehensive India data (173 zones)"
+        }
+    except Exception as e:
+        import traceback
+        return {
+            "status": "error", 
+            "message": str(e),
+            "traceback": traceback.format_exc()
+        }
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
