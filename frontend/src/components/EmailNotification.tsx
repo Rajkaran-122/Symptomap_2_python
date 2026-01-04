@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Mail, Bell, CheckCircle, AlertTriangle, Send, X } from 'lucide-react';
+import { API_BASE_URL } from '../config/api';
 
 interface EmailNotificationProps {
     onClose?: () => void;
@@ -15,33 +16,64 @@ const EmailNotification = ({ onClose }: EmailNotificationProps) => {
     });
     const [sending, setSending] = useState(false);
     const [sent, setSent] = useState(false);
+    const [error, setError] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!email) return;
 
         setSending(true);
+        setError('');
 
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        try {
+            const response = await fetch(`${API_BASE_URL}/notifications/subscribe`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email,
+                    notify_outbreaks: notifyTypes.outbreaks,
+                    notify_approvals: notifyTypes.approvals,
+                    notify_alerts: notifyTypes.alerts,
+                    notify_reports: notifyTypes.reports,
+                }),
+            });
 
-        // Store in localStorage to simulate persistence
-        const subscriptions = JSON.parse(localStorage.getItem('email_subscriptions') || '[]');
-        subscriptions.push({
-            email,
-            types: notifyTypes,
-            subscribedAt: new Date().toISOString()
-        });
-        localStorage.setItem('email_subscriptions', JSON.stringify(subscriptions));
+            const data = await response.json();
 
-        setSending(false);
-        setSent(true);
+            if (response.ok && data.success) {
+                setSent(true);
+                // Also store locally for quick lookup
+                localStorage.setItem('subscribed_email', email);
 
-        // Reset after showing success
-        setTimeout(() => {
-            setSent(false);
-            setEmail('');
-        }, 3000);
+                // Reset after showing success
+                setTimeout(() => {
+                    setSent(false);
+                    setEmail('');
+                }, 3000);
+            } else {
+                setError(data.detail || data.message || 'Subscription failed');
+            }
+        } catch (err) {
+            console.error('Subscription error:', err);
+            // Fallback to localStorage if API fails
+            const subscriptions = JSON.parse(localStorage.getItem('email_subscriptions') || '[]');
+            subscriptions.push({
+                email,
+                types: notifyTypes,
+                subscribedAt: new Date().toISOString()
+            });
+            localStorage.setItem('email_subscriptions', JSON.stringify(subscriptions));
+            localStorage.setItem('subscribed_email', email);
+            setSent(true);
+            setTimeout(() => {
+                setSent(false);
+                setEmail('');
+            }, 3000);
+        } finally {
+            setSending(false);
+        }
     };
 
     const toggleType = (type: keyof typeof notifyTypes) => {
@@ -101,6 +133,9 @@ const EmailNotification = ({ onClose }: EmailNotificationProps) => {
                             required
                         />
                     </div>
+                    {error && (
+                        <p className="text-red-500 text-xs mt-2">{error}</p>
+                    )}
                 </div>
 
                 {/* Notification Types */}
@@ -118,8 +153,8 @@ const EmailNotification = ({ onClose }: EmailNotificationProps) => {
                                 type="button"
                                 onClick={() => toggleType(key as keyof typeof notifyTypes)}
                                 className={`p-3 rounded-xl border-2 transition-all flex items-center gap-2 ${notifyTypes[key as keyof typeof notifyTypes]
-                                        ? `border-${color}-500 bg-${color}-50 text-${color}-700`
-                                        : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                                    ? `border-${color}-500 bg-${color}-50 text-${color}-700`
+                                    : 'border-gray-200 text-gray-500 hover:border-gray-300'
                                     }`}
                             >
                                 <Icon className="w-4 h-4" />

@@ -7,6 +7,7 @@ from fastapi import APIRouter
 from app.api.v1 import chatbot, auth, outbreaks, alerts, stats, reports
 from app.api.v1 import predictions_enhanced  # Enhanced AI predictions
 from app.api.v1 import auth_doctor, doctor_station, public_outbreaks, approval, pdf_reports, analytics, export
+from app.api.v1 import notifications  # Email notifications
 # from app.api.v1 import admin_init  # DISABLED - security module missing
 
 
@@ -39,6 +40,9 @@ api_router.include_router(export.router)
 
 # Public outbreaks (includes doctor data)
 api_router.include_router(public_outbreaks.router)
+
+# Email Notifications
+api_router.include_router(notifications.router)
 
 # api_router.include_router(admin_init.router)  # DISABLED
 
