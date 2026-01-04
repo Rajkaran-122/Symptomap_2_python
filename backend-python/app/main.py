@@ -174,6 +174,74 @@ async def force_reseed():
             "traceback": traceback.format_exc()
         }
 
+
+@app.post("/seed-alerts")
+async def seed_alerts():
+    """Seed alerts for Alert Management page"""
+    try:
+        from sqlalchemy import text
+        from app.core.database import AsyncSessionLocal
+        from datetime import datetime, timezone, timedelta
+        import uuid
+        import json
+        
+        # Alert data
+        alerts = [
+            {"severity": "critical", "title": "Critical Dengue Outbreak Alert - Delhi", "zone_name": "Delhi", "message": "Severe dengue outbreak detected. All healthcare workers advised to take immediate precautions.", "type": "email", "recipients": ["admin@symptomap.com", "heath@delhi.gov.in", "doctor@example.com"]},
+            {"severity": "critical", "title": "Emergency: Vector Control Teams Deployed", "zone_name": "Delhi - Severe Zone", "message": "Emergency vector control teams deployed. Residents advised to use mosquito repellents.", "type": "email", "recipients": []},
+            {"severity": "critical", "title": "Critical Dengue Outbreak - Immediate Action Required", "zone_name": "Delhi - Severe Zone", "message": "Hospital capacity reaching critical levels. Public advised to avoid outdoor activities during peak mosquito hours.", "type": "email", "recipients": []},
+            {"severity": "warning", "title": "Moderate Viral Fever Cases - Pune", "zone_name": "Pune", "message": "Increasing viral fever cases reported. Citizens advised to maintain good hygiene.", "type": "email", "recipients": ["pune@health.gov.in", "docs@pune.com"]},
+            {"severity": "critical", "title": "Critical Alert: AIIMS Delhi Capacity Critical", "zone_name": "Delhi - Severe Zone", "message": "AIIMS Delhi reaching 95% capacity. Patients advised to visit nearby hospitals for non-emergency cases.", "type": "email", "recipients": []},
+            {"severity": "warning", "title": "COVID-19 Monitoring Alert - Bangalore", "zone_name": "Bangalore", "message": "Slight increase in COVID-19 cases in Bangalore tech corridors. Mask advisory in effect.", "type": "email", "recipients": ["blr@health.gov.in", "admin@blr.gov.in"]},
+            {"severity": "warning", "title": "Moderate Viral Fever Outbreak in Pune", "zone_name": "Pune - Moderate Zone", "message": "Moderate viral fever cases rising. Health department conducting awareness camps.", "type": "email", "recipients": []},
+            {"severity": "info", "title": "Flu Season Advisory - Uttarakhand", "zone_name": "Uttarakhand", "message": "Seasonal flu increase expected. Residents advised to get flu vaccinations.", "type": "email", "recipients": ["uk@health.gov.in", "uttarakhand@nha.gov.in"]},
+            {"severity": "warning", "title": "COVID-19 Cases Rising in Bangalore", "zone_name": "Bangalore - Moderate Zone", "message": "Continued rise in COVID-19 cases. Enhanced testing at key locations.", "type": "email", "recipients": []},
+            {"severity": "info", "title": "Disease Surveillance Update - Multi-Zone", "zone_name": "All Zones", "message": "Weekly disease surveillance report available. Overall situation stable.", "type": "email", "recipients": ["national@nha.gov.in", "surveillance@health.gov.in"]},
+            {"severity": "info", "title": "Seasonal Flu Outbreak - Uttarakhand", "zone_name": "Uttarakhand - Mild Zone", "message": "Mild seasonal flu outbreak in hill regions. Health centers stocked with medications.", "type": "email", "recipients": []},
+        ]
+        
+        async with AsyncSessionLocal() as db:
+            # Insert alerts directly into the alerts table
+            for i, alert in enumerate(alerts):
+                alert_id = str(uuid.uuid4())
+                sent_at = (datetime.now(timezone.utc) - timedelta(days=i)).isoformat()
+                recipients_json = json.dumps({"emails": alert["recipients"]})
+                delivery_status_json = json.dumps({"email": "sent"})
+                acknowledged_json = json.dumps([])
+                
+                await db.execute(text("""
+                    INSERT INTO alerts (id, alert_type, severity, title, message, zone_name, 
+                                       recipients, delivery_status, acknowledged_by, sent_at, created_at)
+                    VALUES (:id, :alert_type, :severity, :title, :message, :zone_name,
+                            :recipients, :delivery_status, :acknowledged_by, :sent_at, :created_at)
+                """), {
+                    "id": alert_id,
+                    "alert_type": alert["type"],
+                    "severity": alert["severity"],
+                    "title": alert["title"],
+                    "message": alert["message"],
+                    "zone_name": alert["zone_name"],
+                    "recipients": recipients_json,
+                    "delivery_status": delivery_status_json,
+                    "acknowledged_by": acknowledged_json,
+                    "sent_at": sent_at,
+                    "created_at": sent_at
+                })
+            
+            await db.commit()
+        
+        return {
+            "status": "success",
+            "message": f"Seeded {len(alerts)} alerts successfully"
+        }
+    except Exception as e:
+        import traceback
+        return {
+            "status": "error",
+            "message": str(e),
+            "traceback": traceback.format_exc()
+        }
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
