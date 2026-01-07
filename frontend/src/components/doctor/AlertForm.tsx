@@ -97,13 +97,15 @@ const AlertForm = ({ onSuccess }: AlertFormProps) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Alert Type */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label htmlFor="alert_type" className="block text-sm font-medium text-gray-700 mb-2">
                         <div className="flex items-center gap-2">
                             <AlertTriangle className="w-4 h-4" />
                             Alert Type *
                         </div>
                     </label>
                     <select
+                        id="alert_type"
+                        name="alert_type"
                         value={formData.alert_type}
                         onChange={(e) => setFormData(prev => ({ ...prev, alert_type: e.target.value }))}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -117,13 +119,15 @@ const AlertForm = ({ onSuccess }: AlertFormProps) => {
 
                 {/* Expiry Hours */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label htmlFor="expiry_hours" className="block text-sm font-medium text-gray-700 mb-2">
                         <div className="flex items-center gap-2">
                             <Clock className="w-4 h-4" />
                             Alert Duration (hours) *
                         </div>
                     </label>
                     <input
+                        id="expiry_hours"
+                        name="expiry_hours"
                         type="number"
                         min="1"
                         max="168"
@@ -138,10 +142,12 @@ const AlertForm = ({ onSuccess }: AlertFormProps) => {
 
             {/* Title */}
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="alert_title" className="block text-sm font-medium text-gray-700 mb-2">
                     Alert Title *
                 </label>
                 <input
+                    id="alert_title"
+                    name="title"
                     type="text"
                     value={formData.title}
                     onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
@@ -153,10 +159,12 @@ const AlertForm = ({ onSuccess }: AlertFormProps) => {
 
             {/* Message */}
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="alert_message" className="block text-sm font-medium text-gray-700 mb-2">
                     Alert Message *
                 </label>
                 <textarea
+                    id="alert_message"
+                    name="message"
                     value={formData.message}
                     onChange={(e) => setFormData(prev => ({ ...prev, message: e.target.value }))}
                     rows={4}
@@ -168,13 +176,15 @@ const AlertForm = ({ onSuccess }: AlertFormProps) => {
 
             {/* Affected Area */}
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="affected_area" className="block text-sm font-medium text-gray-700 mb-2">
                     <div className="flex items-center gap-2">
                         <MapPin className="w-4 h-4" />
                         Affected Area *
                     </div>
                 </label>
                 <input
+                    id="affected_area"
+                    name="affected_area"
                     type="text"
                     value={formData.affected_area}
                     onChange={(e) => setFormData(prev => ({ ...prev, affected_area: e.target.value }))}

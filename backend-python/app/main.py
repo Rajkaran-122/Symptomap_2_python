@@ -49,6 +49,57 @@ async def lifespan(app: FastAPI):
     else:
         print(f"✅ Database has {count} hospitals - skipping seed")
     
+    # Initialize SQLite tables for doctor station (Render ephemeral filesystem fix)
+    try:
+        from app.core.config import get_sqlite_db_path
+        import sqlite3
+        sqlite_path = get_sqlite_db_path()
+        conn = sqlite3.connect(sqlite_path)
+        cursor = conn.cursor()
+        
+        # Create doctor_outbreaks table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS doctor_outbreaks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                disease_type TEXT NOT NULL,
+                patient_count INTEGER NOT NULL,
+                severity TEXT NOT NULL,
+                latitude REAL NOT NULL,
+                longitude REAL NOT NULL,
+                location_name TEXT,
+                city TEXT,
+                state TEXT,
+                description TEXT,
+                date_reported TEXT,
+                submitted_by TEXT,
+                created_at TEXT,
+                status TEXT DEFAULT 'pending'
+            )
+        ''')
+        
+        # Create doctor_alerts table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS doctor_alerts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                alert_type TEXT NOT NULL,
+                title TEXT NOT NULL,
+                message TEXT NOT NULL,
+                latitude REAL NOT NULL,
+                longitude REAL NOT NULL,
+                affected_area TEXT,
+                expiry_date TEXT,
+                submitted_by TEXT,
+                created_at TEXT,
+                status TEXT DEFAULT 'active'
+            )
+        ''')
+        
+        conn.commit()
+        conn.close()
+        print(f"✅ SQLite tables initialized at {sqlite_path}")
+    except Exception as e:
+        print(f"⚠️ SQLite init warning: {e}")
+    
     # Connect to Redis
     await redis_client.connect()
     

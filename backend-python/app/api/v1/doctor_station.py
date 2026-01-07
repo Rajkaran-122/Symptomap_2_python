@@ -116,25 +116,28 @@ async def submit_outbreak(
         conn.commit()
         conn.close()
         
-        # BROADCAST TO ALL CONNECTED CLIENTS
-        await manager.broadcast({
-            "type": "NEW_OUTBREAK",
-            "data": {
-                "id": outbreak_id,
-                "disease": outbreak.disease_type,
-                "cases": outbreak.patient_count,
-                "severity": outbreak.severity,
-                "location": {
-                    "name": outbreak.location_name,
-                    "city": outbreak.city,
-                    "state": outbreak.state,
-                    "latitude": outbreak.latitude,
-                    "longitude": outbreak.longitude
-                },
-                "description": outbreak.description,
-                "date_reported": date_reported
-            }
-        })
+        # BROADCAST TO ALL CONNECTED CLIENTS (non-blocking)
+        try:
+            await manager.broadcast({
+                "type": "NEW_OUTBREAK",
+                "data": {
+                    "id": outbreak_id,
+                    "disease": outbreak.disease_type,
+                    "cases": outbreak.patient_count,
+                    "severity": outbreak.severity,
+                    "location": {
+                        "name": outbreak.location_name,
+                        "city": outbreak.city,
+                        "state": outbreak.state,
+                        "latitude": outbreak.latitude,
+                        "longitude": outbreak.longitude
+                    },
+                    "description": outbreak.description,
+                    "date_reported": date_reported
+                }
+            })
+        except Exception as ws_err:
+            print(f"WebSocket broadcast warning (non-fatal): {ws_err}")
         
         return SubmissionResponse(
             success=True,
@@ -143,6 +146,8 @@ async def submit_outbreak(
         )
     
     except Exception as e:
+        import traceback
+        print(f"ERROR in submit_outbreak: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Failed to submit outbreak: {str(e)}")
 
 
@@ -204,22 +209,25 @@ async def submit_alert(
         conn.commit()
         conn.close()
         
-        # BROADCAST TO ALL CONNECTED CLIENTS
-        await manager.broadcast({
-            "type": "NEW_ALERT",
-            "data": {
-                "id": alert_id,
-                "alert_type": alert.alert_type,
-                "title": alert.title,
-                "message": alert.message,
-                "location": {
-                    "latitude": alert.latitude,
-                    "longitude": alert.longitude,
-                    "area": alert.affected_area
-                },
-                "expiry": expiry_date
-            }
-        })
+        # BROADCAST TO ALL CONNECTED CLIENTS (non-blocking)
+        try:
+            await manager.broadcast({
+                "type": "NEW_ALERT",
+                "data": {
+                    "id": alert_id,
+                    "alert_type": alert.alert_type,
+                    "title": alert.title,
+                    "message": alert.message,
+                    "location": {
+                        "latitude": alert.latitude,
+                        "longitude": alert.longitude,
+                        "area": alert.affected_area
+                    },
+                    "expiry": expiry_date
+                }
+            })
+        except Exception as ws_err:
+            print(f"WebSocket broadcast warning (non-fatal): {ws_err}")
         
         return SubmissionResponse(
             success=True,
@@ -228,6 +236,8 @@ async def submit_alert(
         )
     
     except Exception as e:
+        import traceback
+        print(f"ERROR in submit_alert: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Failed to create alert: {str(e)}")
 
 

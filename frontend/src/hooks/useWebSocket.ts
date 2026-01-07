@@ -25,6 +25,8 @@ interface UseWebSocketReturn {
 export const useWebSocket = (url: string): UseWebSocketReturn => {
     const ws = useRef<WebSocket | null>(null);
     const reconnectTimeout = useRef<NodeJS.Timeout>();
+    const reconnectDelay = useRef(3000);
+    const MAX_RECONNECT_DELAY = 30000;  // 30 seconds max
     const [isConnected, setIsConnected] = useState(false);
     const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
     const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
@@ -41,6 +43,7 @@ export const useWebSocket = (url: string): UseWebSocketReturn => {
             console.log('✅ WebSocket Connected');
             setIsConnected(true);
             setConnectionStatus('connected');
+            reconnectDelay.current = 3000;  // Reset delay on successful connection
 
             // Clear any existing reconnect timeout
             if (reconnectTimeout.current) {
@@ -63,15 +66,17 @@ export const useWebSocket = (url: string): UseWebSocketReturn => {
             setIsConnected(false);
             setConnectionStatus('disconnected');
 
-            // Auto-reconnect after 3 seconds
+            // Auto-reconnect with exponential backoff
             reconnectTimeout.current = setTimeout(() => {
-                console.log('🔄 Attempting to reconnect...');
+                console.log(`🔄 Attempting to reconnect (delay: ${reconnectDelay.current}ms)...`);
                 connect();
-            }, 3000);
+                // Increase delay for next time, up to max
+                reconnectDelay.current = Math.min(reconnectDelay.current * 1.5, MAX_RECONNECT_DELAY);
+            }, reconnectDelay.current);
         };
 
         ws.current.onerror = (error) => {
-            console.error('⚠️ WebSocket Error:', error);
+            console.warn('⚠️ WebSocket Error (will reconnect):', error);
             setConnectionStatus('error');
         };
     }, [url]);
