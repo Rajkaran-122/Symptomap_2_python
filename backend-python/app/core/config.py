@@ -88,5 +88,8 @@ def get_sqlite_db_path() -> str:
         # Get the project root (where the database should be)
         path = os.path.abspath(path)
     
+        path = os.path.abspath(path)
+    
+    print(f"DEBUG: Resolved SQLite DB path: {path}")
     return path
 

@@ -49,7 +49,8 @@ class SubmissionResponse(BaseModel):
 def get_db_connection():
     """Get SQLite database connection"""
     from app.core.config import get_sqlite_db_path
-    conn = sqlite3.connect(get_sqlite_db_path())
+    path = get_sqlite_db_path()
+    conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -214,6 +215,7 @@ async def submit_alert(
             import json
             
             # Map valid severity from alert_type
+
             severity = alert.alert_type.lower()
             if severity not in ['critical', 'warning', 'info']:
                 severity = 'info'
@@ -237,15 +239,14 @@ async def submit_alert(
                     sent_at TEXT,
                     delivery_status TEXT,
                     acknowledged_by TEXT,
-                    expires_at TEXT,
-                    created_at TEXT
+                    expires_at TEXT
                 )
             ''')
             
             cursor.execute('''
                 INSERT INTO alerts (id, alert_type, severity, title, message, zone_name, 
-                                   recipients, delivery_status, acknowledged_by, sent_at, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                   recipients, delivery_status, acknowledged_by, sent_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 alert_uuid,
                 alert.alert_type,
@@ -256,10 +257,10 @@ async def submit_alert(
                 recipients_json,
                 delivery_status_json,
                 acknowledged_json,
-                datetime.now(timezone.utc).isoformat(),
                 datetime.now(timezone.utc).isoformat()
             ))
             conn.commit()
+            print(f"DEBUG: Successfully synced alert {alert_uuid} to main 'alerts' table")
         except Exception as sync_err:
             print(f"⚠️ Failed to sync alert to main table: {sync_err}")
 

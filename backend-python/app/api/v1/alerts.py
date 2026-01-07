@@ -112,6 +112,7 @@ async def list_alerts(
     import json as json_lib
     
     # Use raw SQL to avoid ORM mapping issues
+    print(f"DEBUG: Fetching alerts list from DB...")
     sql = """
         SELECT id, alert_type, severity, title, zone_name, sent_at, 
                recipients, delivery_status, acknowledged_by
