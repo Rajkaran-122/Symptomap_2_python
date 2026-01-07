@@ -152,6 +152,53 @@ def seed_historical_outbreaks():
     print(f"✅ Submitted {success_count}/{len(historical_data)} historical records")
     return success_count > 0
 
+def seed_active_outbreaks():
+    """Seed 50 active outbreaks for the current timeframe (Live Map)"""
+    print("\n" + "=" * 50)
+    print("STEP 2.5: Seeding 50 Active Outbreaks (Live Map)")
+    print("=" * 50)
+    
+    login_resp = requests.post(f"{API_URL}/api/v1/doctor/login", json={"password": "Doctor@SymptoMap2025"})
+    token = login_resp.json().get("access_token")
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    
+    active_data = []
+    severities = ["mild", "moderate", "critical"]
+    
+    print("Generating 50 active outbreaks...")
+    for _ in range(50):
+        city = random.choice(CITIES)
+        disease = random.choice(DISEASES)
+        
+        # Random location offset within city
+        lat_offset = random.uniform(-0.08, 0.08)
+        lng_offset = random.uniform(-0.08, 0.08)
+        
+        active_data.append({
+            "disease_type": disease["name"],
+            "patient_count": random.randint(5, 50),
+            "severity": random.choices(severities, weights=disease["severity_weights"])[0],
+            "latitude": city["lat"] + lat_offset,
+            "longitude": city["lng"] + lng_offset,
+            "location_name": f"{city['city']} {random.choice(['North', 'South', 'East', 'West', 'Central'])}",
+            "city": city["city"],
+            "state": city["state"],
+            "description": f"Active {disease['name']} outbreak reported by local clinic",
+            "date_reported": datetime.now(timezone.utc).isoformat(),
+            "status": "pending" 
+        })
+        
+    success_count = 0
+    for i, outbreak in enumerate(active_data):
+        resp = requests.post(f"{API_URL}/api/v1/doctor/outbreak", headers=headers, json=outbreak)
+        if resp.status_code == 200:
+            success_count += 1
+            if (i + 1) % 10 == 0:
+                print(f"Status: {i+1}/50 seeded...")
+                
+    print(f"✅ Submitted {success_count}/50 active outbreaks")
+
+
 def auto_approve_historical():
     """Auto-approve all historical data for predictions"""
     print("\n" + "=" * 50)
@@ -214,6 +261,9 @@ if __name__ == "__main__":
     
     # Step 2: Seed historical data
     seed_historical_outbreaks()
+    
+    # Step 2.5: Seed active data
+    seed_active_outbreaks()
     
     # Step 3: Approve for predictions
     auto_approve_historical()
