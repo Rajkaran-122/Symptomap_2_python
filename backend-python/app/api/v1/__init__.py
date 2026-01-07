@@ -6,7 +6,7 @@ from fastapi import APIRouter
 
 from app.api.v1 import chatbot, auth, outbreaks, alerts, stats, reports
 from app.api.v1 import predictions_enhanced  # Enhanced AI predictions
-from app.api.v1 import auth_doctor, doctor_station, public_outbreaks, approval, pdf_reports, analytics, export
+from app.api.v1 import auth_doctor, doctor_station, public_outbreaks, approval, pdf_reports, analytics, export, monitoring
 from app.api.v1 import notifications  # Email notifications
 # from app.api.v1 import admin_init  # DISABLED - security module missing
 
@@ -18,8 +18,9 @@ api_router.include_router(chatbot.router)
 api_router.include_router(auth.router)
 # api_router.include_router(outbreaks.router)
 api_router.include_router(predictions_enhanced.router)  # Enhanced predictions
-api_router.include_router(alerts.router)
-api_router.include_router(stats.router)
+api_router.include_router(export.router)
+api_router.include_router(monitoring.router)
+api_router.include_router(notifications.router)
 api_router.include_router(reports.router)
 
 # Doctor Station
