@@ -11,6 +11,8 @@ from app.api.v1.auth_doctor import verify_token
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.models.outbreak import Outbreak, Hospital
+from app.core.audit import log_audit_event
+from fastapi import Request
 import sqlite3
 
 router = APIRouter(prefix="/admin", tags=["Admin Approval"])
@@ -134,6 +136,7 @@ async def get_pending_requests(payload: dict = Depends(verify_token)):
 
 @router.post("/approve/{request_id}", response_model=ApprovalResponse)
 async def approve_request(
+    request: Request,
     request_id: int,
     payload: dict = Depends(verify_token)
 ):
@@ -174,6 +177,16 @@ async def approve_request(
         conn.commit()
         conn.close()
         
+        # AUDIT LOG
+        log_audit_event(
+            event="OUTBREAK_APPROVED",
+            actor_id=str(payload.get("sub")),
+            actor_role="admin",
+            ip_address=request.client.host if request.client else "unknown",
+            status="SUCCESS",
+            metadata={"request_id": request_id, "disease": row['disease_type']}
+        )
+        
         return ApprovalResponse(
             success=True,
             message=f"Request approved! Outbreak data will appear in dashboard.",
@@ -188,6 +201,7 @@ async def approve_request(
 
 @router.post("/reject/{request_id}", response_model=ApprovalResponse)
 async def reject_request(
+    request: Request,
     request_id: int,
     payload: dict = Depends(verify_token)
 ):
@@ -204,7 +218,7 @@ async def reject_request(
         cursor = conn.cursor()
         
         # Check if exists
-        cursor.execute('SELECT status FROM doctor_outbreaks WHERE id = ?', (request_id,))
+        cursor.execute('SELECT status, disease_type FROM doctor_outbreaks WHERE id = ?', (request_id,))
         row = cursor.fetchone()
         
         if not row:
@@ -222,6 +236,16 @@ async def reject_request(
         )
         conn.commit()
         conn.close()
+        
+        # AUDIT LOG
+        log_audit_event(
+            event="OUTBREAK_REJECTED",
+            actor_id=str(payload.get("sub")),
+            actor_role="admin",
+            ip_address=request.client.host if request.client else "unknown",
+            status="SUCCESS",
+            metadata={"request_id": request_id, "disease": row['disease_type']}
+        )
         
         return ApprovalResponse(
             success=True,

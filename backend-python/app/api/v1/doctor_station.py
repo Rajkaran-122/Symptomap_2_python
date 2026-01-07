@@ -9,6 +9,8 @@ from typing import Optional, List
 from app.api.v1.auth_doctor import verify_token
 from app.websocket.manager import manager
 from app.utils.sanitizer import sanitize_html
+from app.core.audit import log_audit_event
+from fastapi import Request
 import sqlite3
 import json
 
@@ -68,6 +70,7 @@ def get_db_connection():
 
 @router.post("/outbreak", response_model=SubmissionResponse)
 async def submit_outbreak(
+    request: Request,
     outbreak: OutbreakSubmission,
     payload: dict = Depends(verify_token)
 ):
@@ -150,6 +153,16 @@ async def submit_outbreak(
             })
         except Exception as ws_err:
             print(f"WebSocket broadcast warning (non-fatal): {ws_err}")
+            
+        # AUDIT LOG
+        log_audit_event(
+            event="OUTBREAK_SUBMITTED",
+            actor_id=str(payload.get("sub")),
+            actor_role="doctor",
+            ip_address=request.client.host if request.client else "unknown",
+            status="SUCCESS",
+            metadata={"outbreak_id": outbreak_id, "disease": outbreak.disease_type, "severity": outbreak.severity}
+        )
         
         return SubmissionResponse(
             success=True,
@@ -165,6 +178,7 @@ async def submit_outbreak(
 
 @router.post("/alert", response_model=SubmissionResponse)
 async def submit_alert(
+    request: Request,
     alert: AlertSubmission,
     payload: dict = Depends(verify_token)
 ):
@@ -296,6 +310,16 @@ async def submit_alert(
             })
         except Exception as ws_err:
             print(f"WebSocket broadcast warning (non-fatal): {ws_err}")
+            
+        # AUDIT LOG
+        log_audit_event(
+            event="ALERT_SUBMITTED",
+            actor_id=str(payload.get("sub")),
+            actor_role="doctor",
+            ip_address=request.client.host if request.client else "unknown",
+            status="SUCCESS",
+            metadata={"alert_id": alert_id, "type": alert.alert_type, "title": alert.title}
+        )
         
         return SubmissionResponse(
             success=True,

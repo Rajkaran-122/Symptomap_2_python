@@ -16,6 +16,7 @@ from app.core.config import settings
 from app.core.security import get_password_hash, verify_password
 from app.models.user import User
 from app.core.limiter import limiter
+from app.core.audit import log_audit_event
 from fastapi import Request
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -126,7 +127,17 @@ async def login(
     result = await db.execute(select(User).where(User.email == form_data.username))
     user = result.scalar_one_or_none()
     
+    client_ip = request.client.host if request.client else "unknown"
+
     if not user or not verify_password(form_data.password, user.password_hash):
+        log_audit_event(
+            event="LOGIN_FAILURE",
+            actor_id=form_data.username, # Log email as ID for failure
+            actor_role="unknown",
+            ip_address=client_ip,
+            status="FAILURE",
+            metadata={"reason": "Invalid credentials"}
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -138,6 +149,14 @@ async def login(
     
     # Create access token
     access_token = create_access_token(data={"sub": str(user.id)})
+    
+    log_audit_event(
+        event="LOGIN_SUCCESS",
+        actor_id=str(user.id),
+        actor_role=user.role,
+        ip_address=client_ip,
+        status="SUCCESS"
+    )
     
     return {
         "access_token": access_token,
