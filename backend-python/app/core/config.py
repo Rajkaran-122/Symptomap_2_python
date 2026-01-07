@@ -60,6 +60,13 @@ class Settings(BaseSettings):
     
     # Sentry (optional)
     SENTRY_DSN: str = ""
+
+    def model_post_init(self, __context):
+        if self.ENVIRONMENT == "production":
+            if self.JWT_SECRET_KEY == "change-this-secret-key-in-production":
+                raise ValueError("FATAL: JWT_SECRET_KEY must be set in production environment!")
+            if self.DOCTOR_PASSWORD == "Doctor@SymptoMap2025":
+                print("WARNING: Using default DOCTOR_PASSWORD in production!")
     
     class Config:
         env_file = ".env"

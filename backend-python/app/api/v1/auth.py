@@ -15,7 +15,8 @@ from app.core.database import get_db
 from app.core.config import settings
 from app.core.security import get_password_hash, verify_password
 from app.models.user import User
-
+from app.core.limiter import limiter
+from fastapi import Request
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -114,11 +115,13 @@ async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/login", response_model=Token)
+@limiter.limit("5/minute")
 async def login(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db)
 ):
-    """Login and get access token"""
+    """Login and get access token (Rate Limit: 5/min)"""
     
     result = await db.execute(select(User).where(User.email == form_data.username))
     user = result.scalar_one_or_none()

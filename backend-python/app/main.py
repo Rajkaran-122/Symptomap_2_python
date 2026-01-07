@@ -17,6 +17,12 @@ from sqlalchemy import text
 from app.core.seeder import seed_database
 from app.api.v1.websocket import router as websocket_router
 
+# Rate Limiting
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from app.core.limiter import limiter
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
@@ -114,12 +120,15 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="SymptoMap API",
-    description="AI-Powered Disease Surveillance & Patient Triage Platform",
+    description="Disease Surveillance & Outbreak Prediction API",
     version="2.0.0",
-    docs_url="/api/docs",
-    redoc_url="/api/redoc",
     lifespan=lifespan
 )
+
+# Apply Global Rate Limiter
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 # CORS Middleware
 app.add_middleware(

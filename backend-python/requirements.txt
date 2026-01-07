@@ -48,4 +48,8 @@ openai>=1.0.0
 sendgrid>=6.10.0
 twilio>=8.0.0
 
+# Security Hardening
+slowapi>=0.1.9
+bleach>=6.1.0
+
 

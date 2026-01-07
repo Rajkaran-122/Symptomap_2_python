@@ -4,11 +4,11 @@ Allows doctors to manually submit outbreak data and alerts
 """
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
-from datetime import datetime, timezone
-from typing import List, Optional
+from pydantic import BaseModel, field_validator
+from typing import Optional, List
 from app.api.v1.auth_doctor import verify_token
 from app.websocket.manager import manager
+from app.utils.sanitizer import sanitize_html
 import sqlite3
 import json
 
@@ -27,6 +27,11 @@ class OutbreakSubmission(BaseModel):
     state: str
     description: Optional[str] = ""
     date_reported: Optional[str] = None
+    
+    @field_validator('description')
+    @classmethod
+    def sanitize_description(cls, v: Optional[str]) -> Optional[str]:
+        return sanitize_html(v)
 
 
 class AlertSubmission(BaseModel):
@@ -37,6 +42,12 @@ class AlertSubmission(BaseModel):
     longitude: float
     affected_area: str
     expiry_hours: int = 24
+    
+    @field_validator('title', 'message', 'affected_area')
+    @classmethod
+    def sanitize_text(cls, v: str) -> str:
+        return sanitize_html(v)
+
 
 
 class SubmissionResponse(BaseModel):
