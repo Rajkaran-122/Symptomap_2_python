@@ -57,9 +57,10 @@ async def lifespan(app: FastAPI):
         conn = sqlite3.connect(sqlite_path)
         cursor = conn.cursor()
         
-        # Create doctor_outbreaks table
+        # Drop and recreate doctor_outbreaks table to ensure correct schema
+        cursor.execute('DROP TABLE IF EXISTS doctor_outbreaks')
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS doctor_outbreaks (
+            CREATE TABLE doctor_outbreaks (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 disease_type TEXT NOT NULL,
                 patient_count INTEGER NOT NULL,
@@ -77,9 +78,10 @@ async def lifespan(app: FastAPI):
             )
         ''')
         
-        # Create doctor_alerts table
+        # Drop and recreate doctor_alerts table to ensure correct schema
+        cursor.execute('DROP TABLE IF EXISTS doctor_alerts')
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS doctor_alerts (
+            CREATE TABLE doctor_alerts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 alert_type TEXT NOT NULL,
                 title TEXT NOT NULL,
@@ -96,7 +98,7 @@ async def lifespan(app: FastAPI):
         
         conn.commit()
         conn.close()
-        print(f"✅ SQLite tables initialized at {sqlite_path}")
+        print(f"✅ SQLite tables recreated at {sqlite_path}")
     except Exception as e:
         print(f"⚠️ SQLite init warning: {e}")
     
