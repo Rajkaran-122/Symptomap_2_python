@@ -237,7 +237,11 @@ async def seed_alerts():
         import json
         
         async with AsyncSessionLocal() as db:
-            # First, ensure alerts table exists with SQLite-compatible schema
+            # Drop and recreate alerts table to ensure correct schema
+            await db.execute(text("DROP TABLE IF EXISTS alerts"))
+            await db.commit()
+            
+            # Create alerts table with SQLite-compatible schema
             await db.execute(text("""
                 CREATE TABLE IF NOT EXISTS alerts (
                     id TEXT PRIMARY KEY,
