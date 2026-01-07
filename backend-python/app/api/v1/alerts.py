@@ -130,8 +130,20 @@ async def list_alerts(
     
     alerts_list = []
     for row in rows:
-        recipients_data = json_lib.loads(row[6]) if row[6] else {"emails": []}
-        acknowledged_data = json_lib.loads(row[8]) if row[8] else []
+        try:
+            recipients_data = json_lib.loads(row[6]) if row[6] else {"emails": []}
+        except:
+            recipients_data = {"emails": []}
+            
+        try:
+            acknowledged_data = json_lib.loads(row[8]) if row[8] else []
+        except:
+            acknowledged_data = []
+
+        try:
+            delivery_status = json_lib.loads(row[7]) if row[7] else {"email": "sent"}
+        except:
+            delivery_status = {"email": "sent"}
         
         alerts_list.append({
             "id": str(row[0]),
@@ -141,7 +153,7 @@ async def list_alerts(
             "zone_name": row[4],
             "sent_at": row[5],
             "recipients_count": len(recipients_data.get("emails", [])) if isinstance(recipients_data, dict) else 0,
-            "delivery_status": json_lib.loads(row[7]) if row[7] else {"email": "sent"},
+            "delivery_status": delivery_status,
             "acknowledged_count": len(acknowledged_data) if isinstance(acknowledged_data, list) else 0
         })
     
