@@ -329,66 +329,6 @@ async def seed_alerts():
         }
 
 
-@app.post("/seed-historical-outbreaks")
-async def seed_historical_outbreaks(data: dict):
-    """Seed historical outbreak data for ML training"""
-    try:
-        from sqlalchemy import text
-        from app.core.database import AsyncSessionLocal
-        from datetime import datetime, timezone
-        import uuid
-        
-        outbreaks = data.get("outbreaks", [])
-        if not outbreaks:
-            return {"status": "error", "message": "No outbreaks provided"}
-        
-        async with AsyncSessionLocal() as db:
-            inserted = 0
-            for outbreak in outbreaks:
-                outbreak_id = str(uuid.uuid4())
-                now = datetime.now(timezone.utc).isoformat()
-                
-                # Insert directly into outbreaks table
-                await db.execute(text("""
-                    INSERT INTO outbreaks (id, disease_type, patient_count, severity, 
-                                          latitude, longitude, location_name, city, state,
-                                          description, date_reported, status, created_at, updated_at)
-                    VALUES (:id, :disease_type, :patient_count, :severity,
-                            :latitude, :longitude, :location_name, :city, :state,
-                            :description, :date_reported, :status, :created_at, :updated_at)
-                """), {
-                    "id": outbreak_id,
-                    "disease_type": outbreak.get("disease_type"),
-                    "patient_count": outbreak.get("patient_count", 0),
-                    "severity": outbreak.get("severity", "moderate"),
-                    "latitude": outbreak.get("latitude"),
-                    "longitude": outbreak.get("longitude"),
-                    "location_name": outbreak.get("location_name", ""),
-                    "city": outbreak.get("city", ""),
-                    "state": outbreak.get("state", ""),
-                    "description": outbreak.get("description", ""),
-                    "date_reported": outbreak.get("date_reported", now),
-                    "status": outbreak.get("status", "approved"),
-                    "created_at": now,
-                    "updated_at": now
-                })
-                inserted += 1
-            
-            await db.commit()
-        
-        return {
-            "status": "success",
-            "message": f"Seeded {inserted} historical outbreaks for ML training"
-        }
-    except Exception as e:
-        import traceback
-        return {
-            "status": "error",
-            "message": str(e),
-            "traceback": traceback.format_exc()
-        }
-
-
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(

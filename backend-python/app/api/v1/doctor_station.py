@@ -207,6 +207,62 @@ async def submit_alert(
         
         alert_id = cursor.lastrowid
         conn.commit()
+        
+        # Also insert into main alerts table for Alert Management Page visibility
+        try:
+            import uuid
+            import json
+            
+            # Map valid severity from alert_type
+            severity = alert.alert_type.lower()
+            if severity not in ['critical', 'warning', 'info']:
+                severity = 'info'
+                
+            alert_uuid = str(uuid.uuid4())
+            recipients_json = json.dumps({"emails": ["admin@symptomap.com"]}) # Default recipient
+            delivery_status_json = json.dumps({"email": "pending"})
+            acknowledged_json = json.dumps([])
+            
+            # Ensure alerts table exists (it should, but just in case)
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS alerts (
+                    id TEXT PRIMARY KEY,
+                    prediction_id TEXT,
+                    alert_type TEXT NOT NULL,
+                    severity TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    message TEXT NOT NULL,
+                    zone_name TEXT,
+                    recipients TEXT,
+                    sent_at TEXT,
+                    delivery_status TEXT,
+                    acknowledged_by TEXT,
+                    expires_at TEXT,
+                    created_at TEXT
+                )
+            ''')
+            
+            cursor.execute('''
+                INSERT INTO alerts (id, alert_type, severity, title, message, zone_name, 
+                                   recipients, delivery_status, acknowledged_by, sent_at, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                alert_uuid,
+                alert.alert_type,
+                severity,
+                alert.title,
+                alert.message,
+                alert.affected_area,
+                recipients_json,
+                delivery_status_json,
+                acknowledged_json,
+                datetime.now(timezone.utc).isoformat(),
+                datetime.now(timezone.utc).isoformat()
+            ))
+            conn.commit()
+        except Exception as sync_err:
+            print(f"⚠️ Failed to sync alert to main table: {sync_err}")
+
         conn.close()
         
         # BROADCAST TO ALL CONNECTED CLIENTS (non-blocking)
