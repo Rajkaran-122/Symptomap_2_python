@@ -139,6 +139,7 @@ async def create_outbreak(
 
 
 @router.get("/", response_model=List[dict])
+@router.get("/all", response_model=List[dict])
 async def list_outbreaks(
     disease_type: Optional[str] = None,
     start_date: Optional[datetime] = None,
