@@ -219,7 +219,7 @@ async def get_pending_outbreak_count(
     db: AsyncSession = Depends(get_db)
 ):
     """Get count of pending outbreaks"""
-    from app.models.doctor_outbreak import DoctorOutbreak
+    from app.models.doctor import DoctorOutbreak
     result = await db.execute(
         select(func.count()).select_from(DoctorOutbreak).where(DoctorOutbreak.status == 'pending')
     )
