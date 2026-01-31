@@ -214,6 +214,19 @@ async def list_outbreaks(
     return outbreaks
 
 
+@router.get("/pending-count")
+async def get_pending_outbreak_count(
+    db: AsyncSession = Depends(get_db)
+):
+    """Get count of pending outbreaks"""
+    from app.models.doctor_outbreak import DoctorOutbreak
+    result = await db.execute(
+        select(func.count()).select_from(DoctorOutbreak).where(DoctorOutbreak.status == 'pending')
+    )
+    count = result.scalar_one()
+    return {"count": count}
+
+
 @router.get("/{outbreak_id}")
 async def get_outbreak(
     outbreak_id: str,
