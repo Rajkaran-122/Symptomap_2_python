@@ -38,7 +38,7 @@ const AlertForm = ({ onSuccess }: AlertFormProps) => {
         setLoading(true);
 
         try {
-            const token = localStorage.getItem('doctor_token');
+            const token = localStorage.getItem('symptomap_access_token');
 
             const response = await fetch(`${API_BASE_URL}/doctor/alert`, {
                 method: 'POST',

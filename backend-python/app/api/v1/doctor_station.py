@@ -3,15 +3,20 @@ Doctor Station API Endpoints
 Allows doctors to manually submit outbreak data and alerts
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, field_validator
 from typing import Optional, List
-from app.api.v1.auth_doctor import verify_token
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func, desc
+
+from app.core.database import get_db
+from app.api.v1.auth import get_current_user
+from app.models.user import User
+from app.models.doctor import DoctorOutbreak, DoctorAlert, DoctorOutbreak as DoctorOutbreakModel, DoctorAlert as DoctorAlertModel
 from app.websocket.manager import manager
 from app.utils.sanitizer import sanitize_html
 from app.core.audit import log_audit_event
-from fastapi import Request
-import sqlite3
+from datetime import datetime, timezone, timedelta
 import json
 
 router = APIRouter(prefix="/doctor", tags=["Doctor Station"])
@@ -58,21 +63,15 @@ class SubmissionResponse(BaseModel):
     id: Optional[int] = None
 
 
-# Database helper
-def get_db_connection():
-    """Get SQLite database connection"""
-    from app.core.config import get_sqlite_db_path
-    path = get_sqlite_db_path()
-    conn = sqlite3.connect(path)
-    conn.row_factory = sqlite3.Row
-    return conn
+
 
 
 @router.post("/outbreak", response_model=SubmissionResponse)
 async def submit_outbreak(
     request: Request,
     outbreak: OutbreakSubmission,
-    payload: dict = Depends(verify_token)
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Submit new outbreak report
@@ -81,55 +80,36 @@ async def submit_outbreak(
     """
     
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        # Create outbreak record
+        date_reported = None
+        if outbreak.date_reported:
+             try:
+                 date_reported = datetime.fromisoformat(outbreak.date_reported.replace('Z', '+00:00'))
+             except:
+                 date_reported = datetime.now(timezone.utc)
+        else:
+             date_reported = datetime.now(timezone.utc)
+
+        new_outbreak = DoctorOutbreakModel(
+            disease_type=outbreak.disease_type,
+            patient_count=outbreak.patient_count,
+            severity=outbreak.severity,
+            latitude=outbreak.latitude,
+            longitude=outbreak.longitude,
+            location_name=outbreak.location_name,
+            city=outbreak.city,
+            state=outbreak.state,
+            description=outbreak.description,
+            date_reported=date_reported,
+            submitted_by=str(current_user.id),
+            status='pending'
+        )
         
-        # Create table if not exists
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS doctor_outbreaks (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                disease_type TEXT NOT NULL,
-                patient_count INTEGER NOT NULL,
-                severity TEXT NOT NULL,
-                latitude REAL NOT NULL,
-                longitude REAL NOT NULL,
-                location_name TEXT,
-                city TEXT,
-                state TEXT,
-                description TEXT,
-                date_reported TEXT,
-                submitted_by TEXT,
-                created_at TEXT
-            )
-        ''')
+        db.add(new_outbreak)
+        await db.commit()
+        await db.refresh(new_outbreak)
         
-        # Insert outbreak
-        date_reported = outbreak.date_reported or datetime.now(timezone.utc).isoformat()
-        
-        cursor.execute('''
-            INSERT INTO doctor_outbreaks 
-            (disease_type, patient_count, severity, latitude, longitude,
-             location_name, city, state, description, date_reported, submitted_by, created_at, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            outbreak.disease_type,
-            outbreak.patient_count,
-            outbreak.severity,
-            outbreak.latitude,
-            outbreak.longitude,
-            outbreak.location_name,
-            outbreak.city,
-            outbreak.state,
-            outbreak.description,
-            date_reported,
-            payload.get("sub", "doctor"),
-            datetime.now(timezone.utc).isoformat(),
-            'pending'  # New submissions require admin approval
-        ))
-        
-        outbreak_id = cursor.lastrowid
-        conn.commit()
-        conn.close()
+        outbreak_id = new_outbreak.id
         
         # BROADCAST TO ALL CONNECTED CLIENTS (non-blocking)
         try:
@@ -148,7 +128,7 @@ async def submit_outbreak(
                         "longitude": outbreak.longitude
                     },
                     "description": outbreak.description,
-                    "date_reported": date_reported
+                    "date_reported": date_reported.isoformat()
                 }
             })
         except Exception as ws_err:
@@ -157,8 +137,8 @@ async def submit_outbreak(
         # AUDIT LOG
         log_audit_event(
             event="OUTBREAK_SUBMITTED",
-            actor_id=str(payload.get("sub")),
-            actor_role="doctor",
+            actor_id=str(current_user.id),
+            actor_role=current_user.role,
             ip_address=request.client.host if request.client else "unknown",
             status="SUCCESS",
             metadata={"outbreak_id": outbreak_id, "disease": outbreak.disease_type, "severity": outbreak.severity}
@@ -180,7 +160,8 @@ async def submit_outbreak(
 async def submit_alert(
     request: Request,
     alert: AlertSubmission,
-    payload: dict = Depends(verify_token)
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Submit new alert
@@ -189,108 +170,62 @@ async def submit_alert(
     """
     
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Create table if not exists
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS doctor_alerts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                alert_type TEXT NOT NULL,
-                title TEXT NOT NULL,
-                message TEXT NOT NULL,
-                latitude REAL NOT NULL,
-                longitude REAL NOT NULL,
-                affected_area TEXT,
-                expiry_date TEXT,
-                submitted_by TEXT,
-                created_at TEXT,
-                status TEXT DEFAULT 'active'
-            )
-        ''')
-        
         # Calculate expiry
-        from datetime import timedelta
-        expiry_date = (datetime.now(timezone.utc) + timedelta(hours=alert.expiry_hours)).isoformat()
+        expiry_date = datetime.now(timezone.utc) + timedelta(hours=alert.expiry_hours)
         
-        # Insert alert
-        cursor.execute('''
-            INSERT INTO doctor_alerts 
-            (alert_type, title, message, latitude, longitude, affected_area,
-             expiry_date, submitted_by, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            alert.alert_type,
-            alert.title,
-            alert.message,
-            alert.latitude,
-            alert.longitude,
-            alert.affected_area,
-            expiry_date,
-            payload.get("sub", "doctor"),
-            datetime.now(timezone.utc).isoformat()
-        ))
+        new_alert = DoctorAlertModel(
+            alert_type=alert.alert_type,
+            title=alert.title,
+            message=alert.message,
+            latitude=alert.latitude,
+            longitude=alert.longitude,
+            affected_area=alert.affected_area,
+            expiry_date=expiry_date,
+            created_at=datetime.now(timezone.utc),
+            status='active'
+        )
         
-        alert_id = cursor.lastrowid
-        conn.commit()
+        db.add(new_alert)
+        await db.commit()
+        await db.refresh(new_alert)
+        
+        alert_id = new_alert.id
         
         # Also insert into main alerts table for Alert Management Page visibility
         try:
             import uuid
-            import json
+            from app.models.outbreak import Alert
             
             # Map valid severity from alert_type
-
             severity = alert.alert_type.lower()
             if severity not in ['critical', 'warning', 'info']:
                 severity = 'info'
+            
+            # Map alert_type to a valid severity for the main alerts table if needed
+            # The Alert model expects severity to be one of info, warning, critical. 
+            # alert_type in DoctorAlert is essentially severity.
                 
-            alert_uuid = str(uuid.uuid4())
-            recipients_json = json.dumps({"emails": ["admin@symptomap.com"]}) # Default recipient
-            delivery_status_json = json.dumps({"email": "pending"})
-            acknowledged_json = json.dumps([])
+            main_alert = Alert(
+                id=uuid.uuid4(),
+                alert_type=alert.alert_type, 
+                severity=severity,
+                title=alert.title,
+                message=alert.message,
+                zone_name=alert.affected_area,
+                recipients=["admin@symptomap.com"], # JSONB list
+                delivery_status={"email": "pending"},
+                acknowledged_by=[],
+                sent_at=datetime.now(timezone.utc)
+            )
             
-            # Ensure alerts table exists (it should, but just in case)
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS alerts (
-                    id TEXT PRIMARY KEY,
-                    prediction_id TEXT,
-                    alert_type TEXT NOT NULL,
-                    severity TEXT NOT NULL,
-                    title TEXT NOT NULL,
-                    message TEXT NOT NULL,
-                    zone_name TEXT,
-                    recipients TEXT,
-                    sent_at TEXT,
-                    delivery_status TEXT,
-                    acknowledged_by TEXT,
-                    expires_at TEXT
-                )
-            ''')
-            
-            cursor.execute('''
-                INSERT INTO alerts (id, alert_type, severity, title, message, zone_name, 
-                                   recipients, delivery_status, acknowledged_by, sent_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                alert_uuid,
-                alert.alert_type,
-                severity,
-                alert.title,
-                alert.message,
-                alert.affected_area,
-                recipients_json,
-                delivery_status_json,
-                acknowledged_json,
-                datetime.now(timezone.utc).isoformat()
-            ))
-            conn.commit()
-            print(f"DEBUG: Successfully synced alert {alert_uuid} to main 'alerts' table")
+            db.add(main_alert)
+            await db.commit()
+            print(f"DEBUG: Successfully synced alert {main_alert.id} to main 'alerts' table")
         except Exception as sync_err:
+            import traceback
             print(f"⚠️ Failed to sync alert to main table: {sync_err}")
+            print(traceback.format_exc())
 
-        conn.close()
-        
         # BROADCAST TO ALL CONNECTED CLIENTS (non-blocking)
         try:
             await manager.broadcast({
@@ -305,7 +240,7 @@ async def submit_alert(
                         "longitude": alert.longitude,
                         "area": alert.affected_area
                     },
-                    "expiry": expiry_date
+                    "expiry": expiry_date.isoformat()
                 }
             })
         except Exception as ws_err:
@@ -314,8 +249,8 @@ async def submit_alert(
         # AUDIT LOG
         log_audit_event(
             event="ALERT_SUBMITTED",
-            actor_id=str(payload.get("sub")),
-            actor_role="doctor",
+            actor_id=str(current_user.id),
+            actor_role=current_user.role,
             ip_address=request.client.host if request.client else "unknown",
             status="SUCCESS",
             metadata={"alert_id": alert_id, "type": alert.alert_type, "title": alert.title}
@@ -336,7 +271,8 @@ async def submit_alert(
 @router.get("/submissions")
 async def get_submissions(
     limit: int = 50,
-    payload: dict = Depends(verify_token)
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Get list of doctor submissions
@@ -345,33 +281,22 @@ async def get_submissions(
     """
     
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
         # Get outbreaks
-        cursor.execute('''
-            SELECT * FROM doctor_outbreaks 
-            ORDER BY created_at DESC 
-            LIMIT ?
-        ''', (limit,))
-        
-        outbreaks = []
-        for row in cursor.fetchall():
-            outbreaks.append(dict(row))
+        outbreaks_result = await db.execute(
+            select(DoctorOutbreakModel)
+            .order_by(desc(DoctorOutbreakModel.created_at))
+            .limit(limit)
+        )
+        outbreaks = [o.__dict__ for o in outbreaks_result.scalars().all()]
         
         # Get alerts
-        cursor.execute('''
-            SELECT * FROM doctor_alerts 
-            WHERE status = 'active'
-            ORDER BY created_at DESC 
-            LIMIT ?
-        ''', (limit,))
-        
-        alerts = []
-        for row in cursor.fetchall():
-            alerts.append(dict(row))
-        
-        conn.close()
+        alerts_result = await db.execute(
+            select(DoctorAlertModel)
+            .where(DoctorAlertModel.status == 'active')
+            .order_by(desc(DoctorAlertModel.created_at))
+            .limit(limit)
+        )
+        alerts = [a.__dict__ for a in alerts_result.scalars().all()]
         
         return {
             "outbreaks": outbreaks,
@@ -381,6 +306,8 @@ async def get_submissions(
         }
     
     except Exception as e:
+        import traceback
+        print(f"ERROR in get_submissions: {traceback.format_exc()}")
         # If tables don't exist yet, return empty
         return {
             "outbreaks": [],
@@ -391,28 +318,28 @@ async def get_submissions(
 
 
 @router.get("/stats")
-async def get_doctor_stats(payload: dict = Depends(verify_token)):
+async def get_doctor_stats(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
     """
     Get statistics for doctor dashboard
     """
     
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        # Count outbreaks
+        outbreak_result = await db.execute(select(func.count()).select_from(DoctorOutbreakModel))
+        outbreak_count = outbreak_result.scalar() or 0
         
-        # Count outbreaks - FIX: Store fetchone() result before accessing
-        cursor.execute('SELECT COUNT(*) as count FROM doctor_outbreaks')
-        outbreak_row = cursor.fetchone()
-        outbreak_count = outbreak_row['count'] if outbreak_row else 0
+        # Count alerts
+        alert_result = await db.execute(
+             select(func.count())
+             .select_from(DoctorAlertModel)
+             .where(DoctorAlertModel.status == 'active')
+        )
+        alert_count = alert_result.scalar() or 0
         
-        # Count alerts - FIX: Store fetchone() result before accessing
-        cursor.execute('SELECT COUNT(*) as count FROM doctor_alerts WHERE status = "active"')
-        alert_row = cursor.fetchone()
-        alert_count = alert_row['count'] if alert_row else 0
-        
-        conn.close()
-        
-        print(f"DEBUG: Outbreak count: {outbreak_count}, Alert count: {alert_count}")  # Debug logging
+        print(f"DEBUG: Outbreak count: {outbreak_count}, Alert count: {alert_count}")
         
         return {
             "total_submissions": outbreak_count + alert_count,
@@ -421,7 +348,7 @@ async def get_doctor_stats(payload: dict = Depends(verify_token)):
         }
     
     except Exception as e:
-        print(f"ERROR in get_doctor_stats: {e}")  # Error logging
+        print(f"ERROR in get_doctor_stats: {e}")
         return {
             "total_submissions": 0,
             "outbreak_reports": 0,

@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.core.database import get_db
-from app.api.v1.auth_doctor import verify_token
+from app.api.v1.auth import get_admin_user
 import time
 import os
 import psutil
@@ -47,7 +47,7 @@ async def readiness_probe(db: AsyncSession = Depends(get_db)):
         )
 
 @router.get("/metrics")
-async def system_metrics(payload: dict = Depends(verify_token)):
+async def system_metrics(current_user: dict = Depends(get_admin_user)):
     """
     Get system metrics (Admin/Doctor only).
     """

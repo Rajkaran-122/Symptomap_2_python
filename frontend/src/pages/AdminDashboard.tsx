@@ -3,6 +3,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../config/api';
 
@@ -91,7 +92,7 @@ export const AdminDashboard: React.FC = () => {
         e.preventDefault();
         try {
             // Get token if configured, assuming simple setup for now or public endpoint if verified
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('symptomap_access_token');
             const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
             await axios.post(`${API_BASE_URL}/outbreaks/`, {
@@ -123,12 +124,12 @@ export const AdminDashboard: React.FC = () => {
                         <p className="text-gray-600">Manage outbreaks, verify reports, and monitor system activity</p>
                     </div>
                     <div className="flex gap-3">
-                        <a
-                            href="/admin/approvals"
+                        <Link
+                            to="/admin/approvals"
                             className="bg-amber-500 text-white px-4 py-2 rounded-lg hover:bg-amber-600 font-medium flex items-center shadow-sm"
                         >
                             <span className="mr-2">📋</span> Doctor Requests
-                        </a>
+                        </Link>
                         <button
                             onClick={() => setShowReportModal(true)}
                             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium flex items-center shadow-sm"

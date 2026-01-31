@@ -36,14 +36,14 @@ const ApprovalRequestsPage = () => {
 
     // Check authentication
     useEffect(() => {
-        const token = localStorage.getItem('doctor_token');
+        const token = localStorage.getItem('symptomap_access_token');
         if (!token) {
-            navigate('/doctor');
+            navigate('/login'); // Redirect to main login
         }
     }, [navigate]);
 
     const getAuthHeaders = () => {
-        const token = localStorage.getItem('doctor_token');
+        const token = localStorage.getItem('symptomap_access_token');
         return {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -53,6 +53,7 @@ const ApprovalRequestsPage = () => {
     const fetchRequests = async () => {
         setLoading(true);
         try {
+            // Updated endpoints to match backend-python/app/api/v1/approval.py
             const endpoint = filter === 'pending'
                 ? `${API_BASE_URL}/admin/pending`
                 : `${API_BASE_URL}/admin/all-requests`;
@@ -63,8 +64,8 @@ const ApprovalRequestsPage = () => {
 
             if (response.status === 401) {
                 // Token expired or invalid
-                localStorage.removeItem('doctor_token');
-                navigate('/doctor');
+                localStorage.removeItem('symptomap_access_token');
+                navigate('/login');
                 return;
             }
 

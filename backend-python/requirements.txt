@@ -53,4 +53,14 @@ slowapi>=0.1.9
 bleach>=6.1.0
 psutil>=5.9.0
 
+# MFA / TOTP
+pyotp>=2.9.0
+qrcode>=7.4.0
 
+# Email (Resend - free tier)
+resend>=0.7.0
+
+
+
+# AI Services
+google-generativeai>=0.3.0

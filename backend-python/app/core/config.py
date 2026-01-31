@@ -16,11 +16,11 @@ class Settings(BaseSettings):
     # Redis (optional - app uses mock if not provided)
     REDIS_URL: Optional[str] = None
     
-    # JWT
+    # JWT Configuration
     JWT_SECRET_KEY: str = "change-this-secret-key-in-production"
     JWT_ALGORITHM: str = "HS256"
-    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
-    JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60  # 1 hour for access token
+    JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7  # 7 days for refresh token
     
     # Doctor Password
     DOCTOR_PASSWORD: str = "Doctor@SymptoMap2025"
@@ -28,12 +28,17 @@ class Settings(BaseSettings):
     # OpenAI (optional)
     OPENAI_API_KEY: str = ""
     
-    # SendGrid (optional)
+    # Email Service (Resend - Free Tier: 3K/month)
+    RESEND_API_KEY: str = ""
+    EMAIL_FROM: str = "noreply@symptomap.com"
+    EMAIL_FROM_NAME: str = "SymptoMap"
+    
+    # Legacy SendGrid (optional fallback)
     SENDGRID_API_KEY: str = ""
     SENDGRID_FROM_EMAIL: str = "alerts@symptomap.com"
     SENDGRID_FROM_NAME: str = "SymptoMap"
     
-    # Twilio (optional)
+    # Twilio (optional SMS)
     TWILIO_ACCOUNT_SID: str = ""
     TWILIO_AUTH_TOKEN: str = ""
     TWILIO_PHONE_NUMBER: str = ""
@@ -58,8 +63,14 @@ class Settings(BaseSettings):
     # ML Service (optional)
     ML_SERVICE_URL: str = "http://localhost:8001"
     
-    # Sentry (optional)
+    # Sentry Error Tracking (Free Tier: 5K errors/month)
     SENTRY_DSN: str = ""
+    
+    # Security Settings
+    BCRYPT_COST_FACTOR: int = 12
+    PASSWORD_MIN_LENGTH: int = 12
+    ACCOUNT_LOCKOUT_ATTEMPTS: int = 5
+    ACCOUNT_LOCKOUT_MINUTES: int = 15
 
     def model_post_init(self, __context):
         if self.ENVIRONMENT == "production":

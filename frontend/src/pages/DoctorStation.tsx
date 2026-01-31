@@ -1,50 +1,42 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Activity, MapPin, AlertTriangle, FileText, LogOut, CheckCircle } from 'lucide-react';
+import { Activity, MapPin, AlertTriangle, FileText, LogOut, CheckCircle, Loader2 } from 'lucide-react';
 import OutbreakForm from '../components/doctor/OutbreakForm';
 import AlertForm from '../components/doctor/AlertForm';
-import { API_BASE_URL } from '../config/api';
+import { authClient } from '../services/auth';
+import { useAuthStore } from '../store/authStore';
 
 type Tab = 'outbreak' | 'alert' | 'submissions';
 
 const DoctorStation = () => {
     const navigate = useNavigate();
+    const { logout, user } = useAuthStore();
+
     const [activeTab, setActiveTab] = useState<Tab>('outbreak');
     const [stats, setStats] = useState({ total_submissions: 0, outbreak_reports: 0, active_alerts: 0 });
     const [submissions, setSubmissions] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Check authentication
-        const token = localStorage.getItem('doctor_token');
-        const expiry = localStorage.getItem('doctor_token_expiry');
+        loadData();
+    }, [activeTab]);
 
-        if (!token || !expiry || Date.now() > parseInt(expiry)) {
-            navigate('/doctor');
-            return;
+    const loadData = async () => {
+        setLoading(true);
+        try {
+            await Promise.all([
+                loadStats(),
+                activeTab === 'submissions' ? loadSubmissions() : Promise.resolve()
+            ]);
+        } finally {
+            setLoading(false);
         }
-
-        // Load stats
-        loadStats();
-        if (activeTab === 'submissions') {
-            loadSubmissions();
-        }
-    }, [activeTab, navigate]);
-
-    const getAuthHeaders = () => {
-        const token = localStorage.getItem('doctor_token');
-        return {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        };
     };
 
     const loadStats = async () => {
         try {
-            const response = await fetch(`${API_BASE_URL}/doctor/stats`, {
-                headers: getAuthHeaders()
-            });
-            const data = await response.json();
-            setStats(data);
+            const response = await authClient.get('/doctor/stats');
+            setStats(response.data);
         } catch (err) {
             console.error('Failed to load stats:', err);
         }
@@ -52,20 +44,16 @@ const DoctorStation = () => {
 
     const loadSubmissions = async () => {
         try {
-            const response = await fetch(`${API_BASE_URL}/doctor/submissions`, {
-                headers: getAuthHeaders()
-            });
-            const data = await response.json();
-            setSubmissions(data);
+            const response = await authClient.get('/doctor/submissions');
+            setSubmissions(response.data);
         } catch (err) {
             console.error('Failed to load submissions:', err);
         }
     };
 
-    const handleLogout = () => {
-        localStorage.removeItem('doctor_token');
-        localStorage.removeItem('doctor_token_expiry');
-        navigate('/doctor');
+    const handleLogout = async () => {
+        await logout();
+        navigate('/login');
     };
 
     const handleSubmissionSuccess = () => {
@@ -87,7 +75,11 @@ const DoctorStation = () => {
                             </div>
                             <div>
                                 <h1 className="text-xl font-bold text-gray-900">Doctor Station</h1>
-                                <p className="text-sm text-gray-500">Submit outbreak reports & alerts</p>
+                                <div className="flex items-center gap-2 text-sm text-gray-500">
+                                    <span>Welcome, Dr. {user?.full_name?.split(' ')[0]}</span>
+                                    <span className="w-1 h-1 bg-gray-300 rounded-full" />
+                                    <span>{user?.email}</span>
+                                </div>
                             </div>
                         </div>
 
@@ -183,67 +175,84 @@ const DoctorStation = () => {
 
                     {/* Tab Content */}
                     <div className="p-6">
-                        {activeTab === 'outbreak' && <OutbreakForm onSuccess={handleSubmissionSuccess} />}
-                        {activeTab === 'alert' && <AlertForm onSuccess={handleSubmissionSuccess} />}
-                        {activeTab === 'submissions' && (
-                            <div className="space-y-4">
-                                {!submissions ? (
-                                    <p className="text-gray-500 text-center py-8">Loading...</p>
-                                ) : (
-                                    <>
-                                        <h3 className="text-lg font-semibold text-gray-900">Recent Outbreaks</h3>
-                                        {submissions.outbreaks.length === 0 ? (
-                                            <p className="text-gray-500 py-4">No outbreaks submitted yet.</p>
-                                        ) : (
-                                            <div className="space-y-2">
-                                                {submissions.outbreaks.map((outbreak: any) => (
-                                                    <div key={outbreak.id} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                                                        <div className="flex items-start justify-between">
-                                                            <div>
-                                                                <h4 className="font-medium text-gray-900">{outbreak.disease_type}</h4>
-                                                                <p className="text-sm text-gray-600 mt-1">
-                                                                    {outbreak.location_name} - {outbreak.patient_count} cases ({outbreak.severity})
-                                                                </p>
-                                                                <p className="text-xs text-gray-500 mt-1">
-                                                                    {new Date(outbreak.created_at).toLocaleString()}
-                                                                </p>
-                                                            </div>
-                                                            <CheckCircle className="w-5 h-5 text-green-500" />
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-
-                                        <h3 className="text-lg font-semibold text-gray-900 mt-6">Active Alerts</h3>
-                                        {submissions.alerts.length === 0 ? (
-                                            <p className="text-gray-500 py-4">No alerts created yet.</p>
-                                        ) : (
-                                            <div className="space-y-2">
-                                                {submissions.alerts.map((alert: any) => (
-                                                    <div key={alert.id} className="p-4 bg-orange-50 rounded-lg border border-orange-200">
-                                                        <div className="flex items-start justify-between">
-                                                            <div>
-                                                                <h4 className="font-medium text-gray-900">{alert.title}</h4>
-                                                                <p className="text-sm text-gray-600 mt-1">{alert.message}</p>
-                                                                <p className="text-xs text-gray-500 mt-1">
-                                                                    {new Date(alert.created_at).toLocaleString()}
-                                                                </p>
-                                                            </div>
-                                                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${alert.alert_type === 'critical' ? 'bg-red-100 text-red-700' :
-                                                                alert.alert_type === 'warning' ? 'bg-orange-100 text-orange-700' :
-                                                                    'bg-blue-100 text-blue-700'
-                                                                }`}>
-                                                                {alert.alert_type}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </>
-                                )}
+                        {loading && activeTab === 'submissions' ? (
+                            <div className="flex justify-center py-8">
+                                <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
                             </div>
+                        ) : (
+                            <>
+                                {activeTab === 'outbreak' && <OutbreakForm onSuccess={handleSubmissionSuccess} />}
+                                {activeTab === 'alert' && <AlertForm onSuccess={handleSubmissionSuccess} />}
+                                {activeTab === 'submissions' && (
+                                    <div className="space-y-4">
+                                        {!submissions ? (
+                                            <p className="text-gray-500 text-center py-8">No submissions found</p>
+                                        ) : (
+                                            <>
+                                                {/* Outbreaks List */}
+                                                <h3 className="text-lg font-semibold text-gray-900">Recent Outbreaks</h3>
+                                                {submissions.outbreaks?.length === 0 ? (
+                                                    <p className="text-gray-500 py-4">No outbreaks submitted yet.</p>
+                                                ) : (
+                                                    <div className="space-y-2">
+                                                        {submissions.outbreaks?.map((outbreak: any) => (
+                                                            <div key={outbreak.id} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                                                <div className="flex items-start justify-between">
+                                                                    <div>
+                                                                        <h4 className="font-medium text-gray-900">{outbreak.disease_type}</h4>
+                                                                        <p className="text-sm text-gray-600 mt-1">
+                                                                            {outbreak.location_name} - {outbreak.patient_count} cases ({outbreak.severity})
+                                                                        </p>
+                                                                        <p className="text-xs text-gray-500 mt-1">
+                                                                            {new Date(outbreak.created_at).toLocaleString()}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className={`px-2 py-1 text-xs rounded-full ${outbreak.status === 'approved' ? 'bg-green-100 text-green-700' :
+                                                                                outbreak.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                                                                    'bg-yellow-100 text-yellow-700'
+                                                                            }`}>
+                                                                            {outbreak.status.toUpperCase()}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+
+                                                {/* Alerts List */}
+                                                <h3 className="text-lg font-semibold text-gray-900 mt-6">Active Alerts</h3>
+                                                {submissions.alerts?.length === 0 ? (
+                                                    <p className="text-gray-500 py-4">No alerts created yet.</p>
+                                                ) : (
+                                                    <div className="space-y-2">
+                                                        {submissions.alerts?.map((alert: any) => (
+                                                            <div key={alert.id} className="p-4 bg-orange-50 rounded-lg border border-orange-200">
+                                                                <div className="flex items-start justify-between">
+                                                                    <div>
+                                                                        <h4 className="font-medium text-gray-900">{alert.title}</h4>
+                                                                        <p className="text-sm text-gray-600 mt-1">{alert.message}</p>
+                                                                        <p className="text-xs text-gray-500 mt-1">
+                                                                            {new Date(alert.created_at).toLocaleString()}
+                                                                        </p>
+                                                                    </div>
+                                                                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${alert.alert_type === 'critical' ? 'bg-red-100 text-red-700' :
+                                                                            alert.alert_type === 'warning' ? 'bg-orange-100 text-orange-700' :
+                                                                                'bg-blue-100 text-blue-700'
+                                                                        }`}>
+                                                                        {alert.alert_type}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                )}
+                            </>
                         )}
                     </div>
                 </div>

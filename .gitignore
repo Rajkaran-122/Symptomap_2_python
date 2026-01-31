@@ -113,3 +113,12 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
+
+# ============================================
+# Simulation & Verification Scripts
+# ============================================
+simulate_*.py
+verify_*.py
+check_*.py
+seed_large_data.py
+add_*.py
