@@ -126,3 +126,6 @@ debug_*.py
 register_*.py
 verify_*.py
 approve_*.py
+
+seed_prod_data.py
+seed_specific_zones.py
