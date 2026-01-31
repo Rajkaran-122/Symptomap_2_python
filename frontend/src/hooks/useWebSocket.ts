@@ -89,7 +89,15 @@ export const useWebSocket = (url: string): UseWebSocketReturn => {
                 clearTimeout(reconnectTimeout.current);
             }
             if (ws.current) {
-                ws.current.close();
+                // Remove listeners to prevent "onclose" from triggering reconnect
+                // when we mistakenly close the connection (e.g. Strict Mode or unmount)
+                ws.current.onclose = null;
+                ws.current.onerror = null;
+                ws.current.onmessage = null;
+                ws.current.onopen = null;
+                if (ws.current.readyState === WebSocket.OPEN || ws.current.readyState === WebSocket.CONNECTING) {
+                    ws.current.close();
+                }
             }
         };
     }, [connect]);

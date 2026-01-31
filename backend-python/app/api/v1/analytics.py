@@ -114,10 +114,10 @@ async def get_trend_data():
         
         # Get all outbreaks with dates
         cursor.execute('''
-            SELECT date(created_at) as date, COUNT(*) as count, SUM(patient_count) as cases
-            FROM doctor_outbreaks
-            WHERE created_at IS NOT NULL
-            GROUP BY date(created_at)
+            SELECT date(date_reported) as date, COUNT(*) as count, SUM(patient_count) as cases
+            FROM outbreaks
+            WHERE date_reported IS NOT NULL
+            GROUP BY date(date_reported)
             ORDER BY date DESC
             LIMIT 30
         ''')
@@ -155,8 +155,7 @@ async def get_disease_distribution():
         
         cursor.execute('''
             SELECT disease_type, COUNT(*) as count, SUM(patient_count) as cases
-            FROM doctor_outbreaks
-            WHERE status = 'approved'
+            FROM outbreaks
             GROUP BY disease_type
             ORDER BY count DESC
         ''')
@@ -190,8 +189,7 @@ async def get_severity_breakdown():
         
         cursor.execute('''
             SELECT severity, COUNT(*) as count, SUM(patient_count) as cases
-            FROM doctor_outbreaks
-            WHERE status = 'approved'
+            FROM outbreaks
             GROUP BY severity
         ''')
         
@@ -230,8 +228,9 @@ async def get_regional_stats():
         cursor.execute('''
             SELECT state, COUNT(*) as outbreaks, SUM(patient_count) as cases,
                    COUNT(CASE WHEN severity = 'severe' THEN 1 END) as severe_count
-            FROM doctor_outbreaks
-            WHERE status = 'approved' AND state IS NOT NULL
+            FROM outbreaks
+            JOIN hospitals ON outbreaks.hospital_id = hospitals.id
+            WHERE state IS NOT NULL
             GROUP BY state
             ORDER BY outbreaks DESC
         ''')
@@ -274,16 +273,16 @@ async def get_week_comparison():
         # This week
         cursor.execute('''
             SELECT COUNT(*) as count, COALESCE(SUM(patient_count), 0) as cases
-            FROM doctor_outbreaks
-            WHERE created_at >= ?
+            FROM outbreaks
+            WHERE date_reported >= ?
         ''', (this_week_start,))
         this_week = cursor.fetchone()
         
         # Last week
         cursor.execute('''
             SELECT COUNT(*) as count, COALESCE(SUM(patient_count), 0) as cases
-            FROM doctor_outbreaks
-            WHERE created_at >= ? AND created_at < ?
+            FROM outbreaks
+            WHERE date_reported >= ? AND date_reported < ?
         ''', (last_week_start, last_week_end))
         last_week = cursor.fetchone()
         
