@@ -123,3 +123,6 @@ check_*.py
 seed_large_data.py
 add_*.py
 debug_*.py
+register_*.py
+verify_*.py
+approve_*.py
