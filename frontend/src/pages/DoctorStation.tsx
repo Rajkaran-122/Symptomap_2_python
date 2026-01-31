@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Activity, MapPin, AlertTriangle, FileText, LogOut, CheckCircle, Loader2 } from 'lucide-react';
+import { Activity, MapPin, AlertTriangle, FileText, LogOut, Loader2 } from 'lucide-react';
 import OutbreakForm from '../components/doctor/OutbreakForm';
 import AlertForm from '../components/doctor/AlertForm';
 import { authClient } from '../services/auth';
@@ -209,8 +209,8 @@ const DoctorStation = () => {
                                                                     </div>
                                                                     <div className="flex items-center gap-2">
                                                                         <span className={`px-2 py-1 text-xs rounded-full ${outbreak.status === 'approved' ? 'bg-green-100 text-green-700' :
-                                                                                outbreak.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                                                                                    'bg-yellow-100 text-yellow-700'
+                                                                            outbreak.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                                                                'bg-yellow-100 text-yellow-700'
                                                                             }`}>
                                                                             {outbreak.status.toUpperCase()}
                                                                         </span>
@@ -238,8 +238,8 @@ const DoctorStation = () => {
                                                                         </p>
                                                                     </div>
                                                                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${alert.alert_type === 'critical' ? 'bg-red-100 text-red-700' :
-                                                                            alert.alert_type === 'warning' ? 'bg-orange-100 text-orange-700' :
-                                                                                'bg-blue-100 text-blue-700'
+                                                                        alert.alert_type === 'warning' ? 'bg-orange-100 text-orange-700' :
+                                                                            'bg-blue-100 text-blue-700'
                                                                         }`}>
                                                                         {alert.alert_type}
                                                                     </span>
