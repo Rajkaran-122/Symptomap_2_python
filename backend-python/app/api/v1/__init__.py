@@ -18,7 +18,7 @@ api_router = APIRouter()
 # Include all route modules
 api_router.include_router(chatbot.router)
 api_router.include_router(auth.router)
-# api_router.include_router(outbreaks.router)
+api_router.include_router(outbreaks.router)
 api_router.include_router(alerts.router) 
 api_router.include_router(predictions_enhanced.router)  # Enhanced predictions
 api_router.include_router(export.router)
