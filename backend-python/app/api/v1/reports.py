@@ -138,51 +138,71 @@ async def generate_comprehensive_report(
     days: int = 30,
     db: AsyncSession = Depends(get_db)
 ):
-    """Generate comprehensive system report from doctor submissions"""
+    """Generate comprehensive system report combining all data sources"""
     
     try:
-        from app.core.config import get_sqlite_db_path
-        
-        conn = sqlite3.connect(get_sqlite_db_path())
-        cursor = conn.cursor()
-        
-        # Get outbreak stats from doctor_outbreaks (approved only)
-        cursor.execute('''
+        # Query main outbreaks table (PostgreSQL/SQLite via SQLAlchemy)
+        sql = """
             SELECT 
                 COUNT(*) as total,
-                SUM(CASE WHEN severity = 'severe' THEN 1 ELSE 0 END) as severe,
+                SUM(CASE WHEN severity = 'severe' OR severity = 'critical' THEN 1 ELSE 0 END) as severe,
                 SUM(CASE WHEN severity = 'moderate' THEN 1 ELSE 0 END) as moderate,
                 SUM(CASE WHEN severity = 'mild' THEN 1 ELSE 0 END) as mild,
                 COALESCE(SUM(patient_count), 0) as total_patients,
-                COUNT(DISTINCT location_name) as hospitals
-            FROM doctor_outbreaks
-            WHERE status = 'approved'
-        ''')
-        row = cursor.fetchone()
+                COUNT(DISTINCT hospital_id) as hospitals
+            FROM outbreaks
+            WHERE verified = 1 OR verified = true
+        """
+        result = await db.execute(text(sql))
+        row = result.fetchone()
         
-        total_outbreaks = row[0] if row else 0
-        total_severe = row[1] if row else 0
-        total_moderate = row[2] if row else 0
-        total_mild = row[3] if row else 0
-        total_patients = row[4] if row else 0
-        total_hospitals = row[5] if row else 0
+        total_outbreaks = row[0] if row and row[0] else 0
+        total_severe = row[1] if row and row[1] else 0
+        total_moderate = row[2] if row and row[2] else 0
+        total_mild = row[3] if row and row[3] else 0
+        total_patients = row[4] if row and row[4] else 0
+        total_hospitals = row[5] if row and row[5] else 0
         
-        # Get alert stats from doctor_alerts
-        cursor.execute('''
+        # Query alerts table
+        alert_sql = """
             SELECT 
                 COUNT(*) as total,
-                SUM(CASE WHEN alert_type = 'critical' THEN 1 ELSE 0 END) as critical,
-                SUM(CASE WHEN alert_type = 'warning' THEN 1 ELSE 0 END) as warning
-            FROM doctor_alerts
-            WHERE status = 'active'
-        ''')
-        alert_row = cursor.fetchone()
+                SUM(CASE WHEN severity = 'critical' THEN 1 ELSE 0 END) as critical,
+                SUM(CASE WHEN severity = 'warning' THEN 1 ELSE 0 END) as warning
+            FROM alerts
+        """
+        alert_result = await db.execute(text(alert_sql))
+        alert_row = alert_result.fetchone()
         
-        total_alerts = alert_row[0] if alert_row else 0
-        total_critical = alert_row[1] if alert_row else 0
-        total_warning = alert_row[2] if alert_row else 0
+        total_alerts = alert_row[0] if alert_row and alert_row[0] else 0
+        total_critical = alert_row[1] if alert_row and alert_row[1] else 0
+        total_warning = alert_row[2] if alert_row and alert_row[2] else 0
         
-        conn.close()
+        # Also try to add doctor_outbreaks data from SQLite
+        try:
+            from app.core.config import get_sqlite_db_path
+            import sqlite3
+            
+            conn = sqlite3.connect(get_sqlite_db_path())
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                SELECT 
+                    COUNT(*) as total,
+                    COALESCE(SUM(patient_count), 0) as patients
+                FROM doctor_outbreaks
+                WHERE status = 'approved'
+            ''')
+            doc_row = cursor.fetchone()
+            
+            # Add doctor submissions to totals
+            if doc_row and doc_row[0]:
+                total_outbreaks += doc_row[0]
+                total_patients += doc_row[1] if doc_row[1] else 0
+            
+            conn.close()
+        except Exception as e:
+            print(f"Doctor outbreaks query failed (non-critical): {e}")
         
         return {
             "report_type": "comprehensive",
@@ -208,7 +228,6 @@ async def generate_comprehensive_report(
         }
     
     except Exception as e:
-        # Return fallback empty report to prevent 500 errors
         print(f"Error generating comprehensive report: {e}")
         import traceback
         traceback.print_exc()
@@ -223,4 +242,5 @@ async def generate_comprehensive_report(
             },
             "error": f"Report generation error: {str(e)}"
         }
+
 
