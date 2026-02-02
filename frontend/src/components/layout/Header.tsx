@@ -1,11 +1,38 @@
 import { useState, useEffect } from 'react';
-import { Bell, Search, User } from 'lucide-react';
+import { Bell, Search, User, Stethoscope } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../../config/api';
 
 const Header = () => {
     const [pendingCount, setPendingCount] = useState(0);
+    const [userRole, setUserRole] = useState<'admin' | 'doctor' | 'guest'>('guest');
+    const [userName, setUserName] = useState('Guest');
     const navigate = useNavigate();
+
+    useEffect(() => {
+        // Check for user role from localStorage
+        const doctorToken = localStorage.getItem('doctor_token');
+        const adminToken = localStorage.getItem('admin_token') || localStorage.getItem('auth_token');
+
+        if (adminToken) {
+            try {
+                // Decode JWT to get role
+                const payload = JSON.parse(atob(adminToken.split('.')[1]));
+                if (payload.role === 'admin') {
+                    setUserRole('admin');
+                    setUserName(payload.full_name || payload.name || 'Administrator');
+                } else if (payload.role === 'doctor') {
+                    setUserRole('doctor');
+                    setUserName(payload.full_name || payload.name || 'Doctor');
+                }
+            } catch {
+                // Token decode failed
+            }
+        } else if (doctorToken) {
+            setUserRole('doctor');
+            setUserName('Dr. User');
+        }
+    }, []);
 
     useEffect(() => {
         const fetchPendingCount = async () => {
@@ -31,6 +58,15 @@ const Header = () => {
         } else {
             navigate('/doctor');
         }
+    };
+
+    const getRoleBadge = () => {
+        if (userRole === 'admin') {
+            return <span className="px-2 py-0.5 bg-red-500/80 text-white text-[10px] font-bold rounded-full uppercase">Admin</span>;
+        } else if (userRole === 'doctor') {
+            return <span className="px-2 py-0.5 bg-green-500/80 text-white text-[10px] font-bold rounded-full uppercase">Dr</span>;
+        }
+        return null;
     };
 
     return (
@@ -62,6 +98,16 @@ const Header = () => {
 
             {/* Right: Actions */}
             <div className="flex items-center space-x-4">
+                {/* Doctor Station Quick Access */}
+                <button
+                    onClick={() => navigate('/doctor-station')}
+                    className="p-2 rounded-lg bg-green-600/80 hover:bg-green-500 transition-colors flex items-center gap-2 text-sm font-medium"
+                    title="Doctor Station - Submit Outbreak Data"
+                >
+                    <Stethoscope className="w-4 h-4" />
+                    <span className="hidden lg:inline">Doctor Station</span>
+                </button>
+
                 {/* Notification Bell with Live Count */}
                 <button
                     onClick={handleNotificationClick}
@@ -80,11 +126,20 @@ const Header = () => {
 
                 <button className="flex items-center space-x-3 hover:bg-white/10 p-2 rounded-lg transition-colors">
                     <div className="text-right hidden md:block">
-                        <p className="text-sm font-medium text-white">Dr. User</p>
-                        <p className="text-xs text-primary-300">Admin</p>
+                        <p className="text-sm font-medium text-white">{userName}</p>
+                        <div className="flex items-center justify-end gap-1">
+                            {getRoleBadge()}
+                        </div>
                     </div>
-                    <div className="w-9 h-9 rounded-full bg-primary-200 flex items-center justify-center text-primary-900 ring-2 ring-white/20">
+                    <div className="w-9 h-9 rounded-full bg-primary-200 flex items-center justify-center text-primary-900 ring-2 ring-white/20 relative">
                         <User className="w-5 h-5" />
+                        {/* Role indicator dot */}
+                        {userRole === 'admin' && (
+                            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-red-500 rounded-full border-2 border-primary-800"></span>
+                        )}
+                        {userRole === 'doctor' && (
+                            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-primary-800"></span>
+                        )}
                     </div>
                 </button>
             </div>

@@ -197,3 +197,64 @@ async def acknowledge_alert(
         "alert_id": str(alert.id),
         "acknowledged_by": current_user.full_name
     }
+
+
+@router.post("/generate")
+async def generate_auto_alerts(
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Auto-generate alerts based on current outbreak data and predictions
+    Can be called manually or via scheduled task
+    """
+    from app.services.alert_generator import run_auto_alert_generation
+    
+    try:
+        result = await run_auto_alert_generation(db)
+        return {
+            "success": True,
+            "message": f"Generated {result['total_generated']} new alerts",
+            "alerts": result
+        }
+    except Exception as e:
+        import traceback
+        print(f"Error generating alerts: {traceback.format_exc()}")
+        return {
+            "success": False,
+            "message": f"Error: {str(e)}",
+            "alerts": {"outbreak_alerts": [], "growth_alerts": [], "total_generated": 0}
+        }
+
+
+@router.get("/active")
+async def get_active_alerts(
+    limit: int = 50,
+    db: AsyncSession = Depends(get_db)
+):
+    """Get currently active alerts"""
+    from sqlalchemy import text
+    import json as json_lib
+    
+    sql = """
+        SELECT id, alert_type, severity, title, zone_name, sent_at, message
+        FROM alerts
+        WHERE (acknowledged_by IS NULL OR acknowledged_by = '[]')
+        ORDER BY sent_at DESC
+        LIMIT :limit
+    """
+    
+    result = await db.execute(text(sql), {"limit": limit})
+    rows = result.fetchall()
+    
+    return [
+        {
+            "id": str(row[0]),
+            "alert_type": row[1],
+            "severity": row[2],
+            "title": row[3],
+            "zone_name": row[4],
+            "sent_at": row[5],
+            "message": row[6]
+        }
+        for row in rows
+    ]
