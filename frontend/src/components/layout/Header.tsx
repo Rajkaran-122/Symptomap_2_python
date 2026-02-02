@@ -100,7 +100,7 @@ const Header = () => {
             <div className="flex items-center space-x-4">
                 {/* Doctor Station Quick Access */}
                 <button
-                    onClick={() => navigate('/doctor-station')}
+                    onClick={() => navigate('/doctor/station')}
                     className="p-2 rounded-lg bg-green-600/80 hover:bg-green-500 transition-colors flex items-center gap-2 text-sm font-medium"
                     title="Doctor Station - Submit Outbreak Data"
                 >

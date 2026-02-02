@@ -232,9 +232,15 @@ async def _get_outbreaks(
                 "name": hospital.name,
                 "location": {
                     "lat": hospital.latitude if hospital.latitude else 0,
-                    "lng": hospital.longitude if hospital.longitude else 0
+                    "lng": hospital.longitude if hospital.longitude else 0,
+                    "latitude": hospital.latitude if hospital.latitude else 0,
+                    "longitude": hospital.longitude if hospital.longitude else 0,
+                    "city": hospital.city,
+                    "state": hospital.state
                 }
             },
+            "city": hospital.city,  # Direct access for map
+            "state": hospital.state,  # Direct access for map
             "disease": outbreak.disease_type,  # Alias for AdminDashboard
             "disease_type": outbreak.disease_type,
             "cases": outbreak.patient_count,  # Alias for AdminDashboard
