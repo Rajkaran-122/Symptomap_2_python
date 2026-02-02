@@ -139,8 +139,7 @@ async def create_outbreak(
 
 
 @router.get("/", response_model=List[dict])
-@router.get("/all", response_model=List[dict])
-async def list_outbreaks(
+async def list_outbreaks_array(
     disease_type: Optional[str] = None,
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
@@ -150,8 +149,45 @@ async def list_outbreaks(
     offset: int = 0,
     db: AsyncSession = Depends(get_db)
 ):
-    """List outbreaks with filters - using lat/lng instead of Geography"""
+    """List outbreaks with filters - returns raw array"""
+    result = await _get_outbreaks(db, disease_type, start_date, end_date, severity, verified, None, limit, offset)
+    return result
+
+
+@router.get("/all")
+async def list_outbreaks_wrapped(
+    disease_type: Optional[str] = None,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    severity: Optional[str] = None,
+    verified: Optional[bool] = None,
+    days: int = Query(default=30, ge=1, le=365),
+    limit: int = Query(default=100, le=1000),
+    offset: int = 0,
+    db: AsyncSession = Depends(get_db)
+):
+    """List outbreaks with filters - returns wrapped response for Admin Dashboard"""
+    result = await _get_outbreaks(db, disease_type, start_date, end_date, severity, verified, days, limit, offset)
+    return {
+        "outbreaks": result,
+        "count": len(result)
+    }
+
+
+async def _get_outbreaks(
+    db: AsyncSession,
+    disease_type: Optional[str] = None,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    severity: Optional[str] = None,
+    verified: Optional[bool] = None,
+    days: Optional[int] = None,
+    limit: int = 100,
+    offset: int = 0
+):
+    """Internal helper to get outbreaks with filters"""
     from sqlalchemy.orm import defer
+    from datetime import timedelta, timezone
     
     # Build query - defer loading the location Geography field to avoid deserialization errors
     query = select(Outbreak, Hospital).join(
@@ -173,6 +209,9 @@ async def list_outbreaks(
         filters.append(Outbreak.severity == severity)
     if verified is not None:
         filters.append(Outbreak.verified == verified)
+    if days:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        filters.append(Outbreak.date_reported >= cutoff)
     
     if filters:
         query = query.where(and_(*filters))
@@ -196,9 +235,12 @@ async def list_outbreaks(
                     "lng": hospital.longitude if hospital.longitude else 0
                 }
             },
+            "disease": outbreak.disease_type,  # Alias for AdminDashboard
             "disease_type": outbreak.disease_type,
+            "cases": outbreak.patient_count,  # Alias for AdminDashboard
             "patient_count": outbreak.patient_count,
             "date_started": outbreak.date_started.isoformat(),
+            "reported_date": outbreak.date_reported.isoformat() if outbreak.date_reported else None,  # Alias
             "date_reported": outbreak.date_reported.isoformat() if outbreak.date_reported else None,
             "severity": outbreak.severity,
             "age_distribution": outbreak.age_distribution,
@@ -206,6 +248,11 @@ async def list_outbreaks(
             "symptoms": outbreak.symptoms,
             "notes": outbreak.notes,
             "verified": outbreak.verified,
+            "location": {
+                "name": hospital.name,
+                "latitude": hospital.latitude,
+                "longitude": hospital.longitude
+            },
             "created_at": outbreak.created_at.isoformat() if outbreak.created_at else None,
             "updated_at": outbreak.updated_at.isoformat() if outbreak.updated_at else None
         }

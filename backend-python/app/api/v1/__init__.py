@@ -9,6 +9,7 @@ from app.api.v1 import predictions_enhanced  # Enhanced AI predictions
 from app.api.v1 import doctor_station, public_outbreaks, approval, pdf_reports, analytics, export, monitoring
 from app.api.v1 import notifications  # Email notifications
 from app.api.v1 import websocket # WebSocket
+from app.api.v1 import hospitals  # Hospitals API
 
 # ...
 
@@ -45,6 +46,9 @@ api_router.include_router(analytics.router)
 
 # Public outbreaks (includes doctor data)
 api_router.include_router(public_outbreaks.router)
+
+# Hospitals API
+api_router.include_router(hospitals.router)
 
 # Email Notifications
 # api_router.include_router(notifications.router) # Redundant
