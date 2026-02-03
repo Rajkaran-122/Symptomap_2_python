@@ -3,7 +3,6 @@
 @tailwind utilities;
 
 /* SymptoMap Medical Design System - Optimized for pandemic detection interface */
-
 @layer base {
   :root {
     /* Medical Blue Palette */
@@ -32,11 +31,15 @@
     --accent-foreground: 208 82% 35%;
 
     /* Alert System Colors */
-    --normal: 142 76% 36%;          /* Green - Normal levels */
-    --unusual: 48 96% 53%;          /* Yellow - Unusual activity */
-    --concerning: 25 95% 53%;       /* Orange - Concerning pattern */
-    --critical: 0 84% 60%;          /* Red - Critical outbreak */
-    
+    --normal: 142 76% 36%;
+    /* Green - Normal levels */
+    --unusual: 48 96% 53%;
+    /* Yellow - Unusual activity */
+    --concerning: 25 95% 53%;
+    /* Orange - Concerning pattern */
+    --critical: 0 84% 60%;
+    /* Red - Critical outbreak */
+
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
@@ -155,6 +158,7 @@
 }
 
 @layer components {
+
   /* Medical Status Indicators */
   .status-normal {
     @apply bg-green-500/20 text-green-600 border-green-500/30;
@@ -173,17 +177,31 @@
   }
 
   /* Heat map colors */
-  .heat-normal { background: hsl(var(--normal) / 0.8); }
-  .heat-unusual { background: hsl(var(--unusual) / 0.8); }
-  .heat-concerning { background: hsl(var(--concerning) / 0.8); }
-  .heat-critical { background: hsl(var(--critical) / 0.8); }
+  .heat-normal {
+    background: hsl(var(--normal) / 0.8);
+  }
+
+  .heat-unusual {
+    background: hsl(var(--unusual) / 0.8);
+  }
+
+  .heat-concerning {
+    background: hsl(var(--concerning) / 0.8);
+  }
+
+  .heat-critical {
+    background: hsl(var(--critical) / 0.8);
+  }
 }
 
 @keyframes pulse-medical {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
     transform: scale(1);
   }
+
   50% {
     opacity: 0.7;
     transform: scale(1.05);
@@ -195,6 +213,7 @@
     transform: scale(1);
     opacity: 0.8;
   }
+
   100% {
     transform: scale(1.2);
     opacity: 0.4;
