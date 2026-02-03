@@ -66,8 +66,11 @@ async def create_outbreak(
             )
             hospital = result.scalar_one_or_none()
             
-            lat = float(outbreak_data.location.get("lat", 0))
-            lng = float(outbreak_data.location.get("lng", 0))
+            # Support both lat/lng and latitude/longitude keys
+            lat_val = outbreak_data.location.get("lat") or outbreak_data.location.get("latitude") or 0
+            lng_val = outbreak_data.location.get("lng") or outbreak_data.location.get("longitude") or 0
+            lat = float(lat_val)
+            lng = float(lng_val)
             city = outbreak_data.location.get("city", "Unknown")
             state = outbreak_data.location.get("state", "Unknown")
             
@@ -94,8 +97,18 @@ async def create_outbreak(
             )
         
         # Get location for outbreak
-        lat = outbreak_data.location.get("lat", 0) if outbreak_data.location else (hospital.latitude or 0)
-        lng = outbreak_data.location.get("lng", 0) if outbreak_data.location else (hospital.longitude or 0)
+        lat_val = 0
+        lng_val = 0
+        
+        if outbreak_data.location:
+             lat_val = outbreak_data.location.get("lat") or outbreak_data.location.get("latitude") or 0
+             lng_val = outbreak_data.location.get("lng") or outbreak_data.location.get("longitude") or 0
+        else:
+             lat_val = hospital.latitude or 0
+             lng_val = hospital.longitude or 0
+             
+        lat = float(lat_val)
+        lng = float(lng_val)
         
         # Create outbreak
         outbreak = Outbreak(
