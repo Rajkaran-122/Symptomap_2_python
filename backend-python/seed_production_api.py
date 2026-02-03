@@ -26,7 +26,7 @@ PRODUCTION_API_URL = "https://symptomap-2-python-1.onrender.com/api/v1"
 # PRODUCTION_API_URL = "http://localhost:8000/api/v1"
 
 # Doctor credentials for authentication
-DOCTOR_EMAIL = "doctor@symptomap.com"
+DOCTOR_EMAIL = "doctor_demo@symptomap.com"
 DOCTOR_PASSWORD = "Doctor@SymptoMap2025"
 
 # Admin credentials for admin actions
@@ -252,9 +252,9 @@ class ProductionSeeder:
         
         patient_count = random.randint(10, 150)
         
-        # Recent dates for pending approvals
-        days_ago = random.randint(0, 14)
-        date_reported = datetime.now() - timedelta(days=days_ago, hours=random.randint(0, 23))
+        # Recent dates for pending approvals (Force recent for visibility)
+        days_ago = 0 # random.randint(0, 14)
+        date_reported = datetime.now() - timedelta(hours=random.randint(0, 23))
         
         return {
             "disease_type": disease,
@@ -292,7 +292,7 @@ class ProductionSeeder:
         """Submit outbreak report via doctor station (creates pending approval)"""
         try:
             response = self.session.post(
-                f"{self.base_url}/doctor/submit-outbreak",
+                f"{self.base_url}/doctor/outbreak",
                 json=data,
                 timeout=30
             )
@@ -387,7 +387,7 @@ class ProductionSeeder:
             
             try:
                 response = self.session.post(
-                    f"{self.base_url}/doctor/submit-alert",
+                    f"{self.base_url}/doctor/alert",
                     json=alert_data,
                     timeout=30
                 )
