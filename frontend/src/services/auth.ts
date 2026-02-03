@@ -89,11 +89,17 @@ const createAuthenticatedClient = (): AxiosInstance => {
                 originalRequest._retry = true;
                 originalRequest._retryCount = (originalRequest._retryCount || 0) + 1;
 
+                // Check if already on login page to prevent redirect loop
+                const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+                const isOnAuthPage = currentPath === '/login' || currentPath === '/register';
+
                 // Max 2 retry attempts
                 if (originalRequest._retryCount > 2) {
                     console.warn('Max retry attempts reached, logging out');
                     AuthService.logout();
-                    window.location.href = '/login';
+                    if (!isOnAuthPage) {
+                        window.location.href = '/login';
+                    }
                     return Promise.reject(error);
                 }
 
@@ -111,13 +117,17 @@ const createAuthenticatedClient = (): AxiosInstance => {
                         // Refresh returned false, token invalid
                         console.warn('Token refresh failed, redirecting to login');
                         AuthService.logout();
-                        window.location.href = '/login';
+                        if (!isOnAuthPage) {
+                            window.location.href = '/login';
+                        }
                     }
                 } catch (refreshError) {
                     // Refresh failed, logout user
                     console.error('Token refresh error:', refreshError);
                     AuthService.logout();
-                    window.location.href = '/login';
+                    if (!isOnAuthPage) {
+                        window.location.href = '/login';
+                    }
                 }
             }
 
