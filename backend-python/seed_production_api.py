@@ -234,8 +234,8 @@ class ProductionSeeder:
             "notes": f"Outbreak of {disease} reported in {city_data['city']}. {patient_count} cases confirmed.",
             "hospital_name": f"{city_data['city']} {random.choice(HOSPITALS)}",
             "location": {
-                "latitude": lat,
-                "longitude": lng,
+                "lat": lat,
+                "lng": lng,
                 "city": city_data["city"],
                 "state": city_data["state"]
             }

@@ -45,7 +45,7 @@ def check_pending():
             if len(pending) > 0:
                 print("First 5 dates:")
                 for p in pending[:5]:
-                    print(f" - ID: {p.get('id')} | Reported: {p.get('date_reported')} | Created: {p.get('created_at')}")
+                    print(f" - ID: {p.get('id')} | Reported: {p.get('date_reported')} | Lat: {p.get('latitude')}, Lng: {p.get('longitude')} | Created: {p.get('created_at')}")
         else:
             print(f"⚠️ /admin/pending failed: {resp.status_code}")
             
