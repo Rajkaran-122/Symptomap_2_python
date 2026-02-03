@@ -140,7 +140,9 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
       const lng = loc.lng || loc.longitude;
       const city = loc.city || outbreak.city || outbreak.location_name || 'Unknown Zone';
 
-      if (!lat || !lng) return;
+      // Strict validation: must be numbers and non-zero (unless actually 0,0 which is likely invalid for India but technically a coord)
+      // Actually 0,0 is off coast of Africa. Let's filter out invalid/missing.
+      if (lat === undefined || lng === undefined || lat === null || lng === null) return;
 
       if (!cityZones[city]) {
         cityZones[city] = {
@@ -397,7 +399,7 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
         const lat = loc.lat || loc.latitude;
         const lng = loc.lng || loc.longitude;
 
-        if (lat && lng) {
+        if (typeof lat === 'number' && typeof lng === 'number') {
           bounds.extend([lng, lat]);
         }
       });
