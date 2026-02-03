@@ -25,19 +25,30 @@ interface UseWebSocketReturn {
 export const useWebSocket = (url: string): UseWebSocketReturn => {
     const ws = useRef<WebSocket | null>(null);
     const reconnectTimeout = useRef<NodeJS.Timeout>();
-    const reconnectDelay = useRef(3000);
-    const MAX_RECONNECT_DELAY = 30000;  // 30 seconds max
+    const reconnectDelay = useRef(5000);  // Start with 5s for cold starts
+    const MAX_RECONNECT_DELAY = 60000;  // 60 seconds max (Render cold starts can take time)
     const [isConnected, setIsConnected] = useState(false);
     const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
     const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
 
     const connect = useCallback(() => {
-        if (ws.current?.readyState === WebSocket.OPEN) {
+        if (ws.current?.readyState === WebSocket.OPEN || ws.current?.readyState === WebSocket.CONNECTING) {
             return;
         }
 
         setConnectionStatus('connecting');
-        ws.current = new WebSocket(url);
+
+        try {
+            ws.current = new WebSocket(url);
+        } catch (err) {
+            // Silently fail and schedule reconnect
+            console.warn('WebSocket connection failed, will retry...');
+            setConnectionStatus('disconnected');
+            reconnectTimeout.current = setTimeout(() => {
+                connect();
+            }, reconnectDelay.current);
+            return;
+        }
 
         ws.current.onopen = () => {
             console.log('✅ WebSocket Connected');
@@ -82,15 +93,34 @@ export const useWebSocket = (url: string): UseWebSocketReturn => {
     }, [url]);
 
     useEffect(() => {
-        connect();
+        // Only connect if the page is visible
+        if (document.visibilityState === 'visible') {
+            connect();
+        }
+
+        // Handle visibility change - reconnect when user returns to tab
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                // Tab became visible, check connection
+                if (!ws.current || ws.current.readyState === WebSocket.CLOSED) {
+                    console.log('🔄 Tab visible, reconnecting WebSocket...');
+                    reconnectDelay.current = 1000; // Quick reconnect when returning
+                    connect();
+                }
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
 
         return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+
             if (reconnectTimeout.current) {
                 clearTimeout(reconnectTimeout.current);
             }
             if (ws.current) {
                 // Remove listeners to prevent "onclose" from triggering reconnect
-                // when we mistakenly close the connection (e.g. Strict Mode or unmount)
+                // when we intentionally close the connection (e.g. Strict Mode or unmount)
                 ws.current.onclose = null;
                 ws.current.onerror = null;
                 ws.current.onmessage = null;

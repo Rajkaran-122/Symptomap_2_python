@@ -79,7 +79,7 @@ class Token(BaseModel):
 
 
 class RefreshTokenRequest(BaseModel):
-    refresh_token: str
+    refresh_token: Optional[str] = None
 
 
 class PasswordResetRequest(BaseModel):
@@ -357,12 +357,13 @@ async def login(
     )
     
     # Set refresh token as HTTP-only cookie
+    # Use samesite="none" for cross-origin (Vercel frontend -> Render backend)
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=settings.ENVIRONMENT == "production",
-        samesite="strict",
+        secure=True,  # Required when samesite="none"
+        samesite="none",  # Allow cross-origin cookie
         max_age=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
     )
     
@@ -396,17 +397,38 @@ async def refresh_token(
     body: Optional[RefreshTokenRequest] = None,
     db: AsyncSession = Depends(get_db)
 ):
-    """Refresh access token using refresh token"""
-    # Get refresh token from cookie or body
-    token = request.cookies.get("refresh_token")
-    if body and body.refresh_token:
+    """Refresh access token using refresh token from cookie, body, or header"""
+    
+    # Try multiple sources for refresh token (for cross-origin compatibility)
+    token = None
+    token_source = None
+    
+    # 1. Try cookie first
+    cookie_token = request.cookies.get("refresh_token")
+    if cookie_token:
+        token = cookie_token
+        token_source = "cookie"
+    
+    # 2. Try request body (sent by frontend when cookies don't work)
+    if not token and body and body.refresh_token:
         token = body.refresh_token
+        token_source = "body"
+    
+    # 3. Try Authorization header as last resort
+    if not token:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Refresh "):
+            token = auth_header.replace("Refresh ", "")
+            token_source = "header"
     
     if not token:
+        print(f"DEBUG: Refresh token not found. Cookie present: {bool(cookie_token)}, Body: {body}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Refresh token required"
+            detail="Refresh token required. Please log in again."
         )
+    
+    print(f"DEBUG: Refresh token found from {token_source}")
     
     # Verify refresh token
     is_valid, payload, error = verify_token(
@@ -417,9 +439,10 @@ async def refresh_token(
     )
     
     if not is_valid:
+        print(f"DEBUG: Refresh token validation failed: {error}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=error
+            detail=f"Invalid refresh token: {error}"
         )
     
     user_id = payload.get("sub")
@@ -456,12 +479,13 @@ async def refresh_token(
     )
     
     # Update cookie
+    # Use samesite="none" for cross-origin (Vercel frontend -> Render backend)
     response.set_cookie(
         key="refresh_token",
         value=new_refresh_token,
         httponly=True,
-        secure=settings.ENVIRONMENT == "production",
-        samesite="strict",
+        secure=True,  # Required when samesite="none"
+        samesite="none",  # Allow cross-origin cookie
         max_age=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
     )
     

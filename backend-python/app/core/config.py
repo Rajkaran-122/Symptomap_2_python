@@ -48,13 +48,15 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     API_V1_PREFIX: str = "/api/v1"
     
-    # CORS
+    # CORS - Include all Vercel preview URLs and production domains
     CORS_ORIGINS: List[str] = [
         "http://localhost:3000", 
-        "http://localhost:5173", 
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
         "https://symptomap-2-python.vercel.app",
-        "https://symptomap-2-python.vercel.app/",
-        "https://symptomap-2-python-1.onrender.com"
+        "https://symptomap-2-python-git-main.vercel.app",
+        "https://symptomap-2-python-1.onrender.com",
+        # Vercel preview URLs pattern (handled in middleware)
     ]
     
     # Rate Limiting

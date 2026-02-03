@@ -9,6 +9,7 @@ const API_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:8000/
 
 // Token storage keys
 const ACCESS_TOKEN_KEY = 'symptomap_access_token';
+const REFRESH_TOKEN_KEY = 'symptomap_refresh_token';
 const USER_KEY = 'symptomap_user';
 
 // Types
@@ -75,11 +76,26 @@ const createAuthenticatedClient = (): AxiosInstance => {
     client.interceptors.response.use(
         (response) => response,
         async (error: AxiosError) => {
-            const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+            const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean; _retryCount?: number };
+
+            // Skip refresh for login/register endpoints
+            const url = originalRequest.url || '';
+            if (url.includes('/auth/login') || url.includes('/auth/register') || url.includes('/auth/refresh')) {
+                return Promise.reject(error);
+            }
 
             // If 401 and not already retrying
             if (error.response?.status === 401 && !originalRequest._retry) {
                 originalRequest._retry = true;
+                originalRequest._retryCount = (originalRequest._retryCount || 0) + 1;
+
+                // Max 2 retry attempts
+                if (originalRequest._retryCount > 2) {
+                    console.warn('Max retry attempts reached, logging out');
+                    AuthService.logout();
+                    window.location.href = '/login';
+                    return Promise.reject(error);
+                }
 
                 try {
                     // Try to refresh the token
@@ -91,12 +107,26 @@ const createAuthenticatedClient = (): AxiosInstance => {
                             originalRequest.headers.Authorization = `Bearer ${token}`;
                         }
                         return client(originalRequest);
+                    } else {
+                        // Refresh returned false, token invalid
+                        console.warn('Token refresh failed, redirecting to login');
+                        AuthService.logout();
+                        window.location.href = '/login';
                     }
                 } catch (refreshError) {
                     // Refresh failed, logout user
+                    console.error('Token refresh error:', refreshError);
                     AuthService.logout();
                     window.location.href = '/login';
                 }
+            }
+
+            // Handle rate limiting with retry
+            if (error.response?.status === 429) {
+                const retryAfter = parseInt(error.response.headers['retry-after'] || '5', 10);
+                console.warn(`Rate limited, retrying after ${retryAfter}s`);
+                await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+                return client(originalRequest);
             }
 
             return Promise.reject(error);
@@ -145,6 +175,9 @@ export const AuthService = {
 
             // Store tokens and user
             localStorage.setItem(ACCESS_TOKEN_KEY, authData.access_token);
+            if (authData.refresh_token) {
+                localStorage.setItem(REFRESH_TOKEN_KEY, authData.refresh_token);
+            }
             localStorage.setItem(USER_KEY, JSON.stringify(authData.user));
 
             return authData;
@@ -164,14 +197,20 @@ export const AuthService = {
      */
     refreshToken: async (): Promise<boolean> => {
         try {
+            // Get refresh token from localStorage as backup for cross-origin
+            const storedRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+
             const response = await axios.post(
                 `${API_URL}/auth/refresh`,
-                {},
+                { refresh_token: storedRefreshToken },
                 { withCredentials: true }
             );
 
             const authData: AuthResponse = response.data;
             localStorage.setItem(ACCESS_TOKEN_KEY, authData.access_token);
+            if (authData.refresh_token) {
+                localStorage.setItem(REFRESH_TOKEN_KEY, authData.refresh_token);
+            }
             localStorage.setItem(USER_KEY, JSON.stringify(authData.user));
 
             return true;
@@ -190,6 +229,7 @@ export const AuthService = {
             // Ignore logout errors
         } finally {
             localStorage.removeItem(ACCESS_TOKEN_KEY);
+            localStorage.removeItem(REFRESH_TOKEN_KEY);
             localStorage.removeItem(USER_KEY);
         }
     },

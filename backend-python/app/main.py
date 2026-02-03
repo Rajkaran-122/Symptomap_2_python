@@ -82,13 +82,20 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 
-# CORS Middleware
+# CORS Middleware - Support cross-origin credentials and Vercel preview URLs
+def get_allowed_origins():
+    """Include static origins + dynamic Vercel preview URL pattern"""
+    origins = list(settings.CORS_ORIGINS)
+    return origins
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=get_allowed_origins(),
+    allow_origin_regex=r"https://.*\.vercel\.app$",  # Allow all Vercel preview deployments
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-MFA-Required", "Set-Cookie"],  # Expose auth-related headers
 )
 
 # GZip compression
