@@ -20,11 +20,19 @@ const ProtectedRoute = ({ children, roles }: ProtectedRouteProps) => {
     }
 
     if (!isAuthenticated) {
-        return <Navigate to="/login" state={{ from: location }} replace />;
+        // Role-aware login redirect: user paths → /user/login, others → /login
+        const isUserPath = location.pathname.startsWith('/user');
+        const loginPath = isUserPath ? '/user/login' : '/login';
+        return <Navigate to={loginPath} state={{ from: location }} replace />;
     }
 
     if (roles && user && !roles.includes(user.role)) {
-        return <Navigate to="/unauthorized" replace />;
+        // If a 'user' tries to access doctor/admin pages, send them to their dashboard
+        if (user.role === 'user') {
+            return <Navigate to="/user/dashboard" replace />;
+        }
+        // If a doctor/admin tries to access user pages, send them to main dashboard
+        return <Navigate to="/dashboard" replace />;
     }
 
     return <>{children}</>;

@@ -1,0 +1,224 @@
+﻿python : Traceback 
+(most recent call 
+last):
+At line:1 char:1
++ python -c "import 
+uvicorn; uvicorn.run(
+'app.main:app', 
+host='0.0.0.0' ...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (Traceba   
+ ck (most recent     
+call last)::Stri    
+ng) [], RemoteEx    
+ception
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+  File "<string>", 
+line 1, in <module>
+  File 
+"C:\Users\digital met
+ro\AppData\Roaming\Py
+thon\Python312\site-p
+ackages\uvicorn\main.
+py", line 587, in run
+    server.run()
+  File 
+"C:\Users\digital met
+ro\AppData\Roaming\Py
+thon\Python312\site-p
+ackages\uvicorn\serve
+r.py", line 61, in 
+run
+    return asyncio.ru
+n(self.serve(sockets=
+sockets))
+           ^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^
+  File "C:\Program Fi
+les\Python312\Lib\asy
+ncio\runners.py", 
+line 194, in run
+    return 
+runner.run(main)
+           
+^^^^^^^^^^^^^^^^
+  File "C:\Program Fi
+les\Python312\Lib\asy
+ncio\runners.py", 
+line 118, in run
+    return self._loop
+.run_until_complete(t
+ask)
+           ^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^
+^^^^
+  File "C:\Program Fi
+les\Python312\Lib\asy
+ncio\base_events.py",
+ line 687, in 
+run_until_complete
+    return 
+future.result()
+           
+^^^^^^^^^^^^^^^
+  File 
+"C:\Users\digital met
+ro\AppData\Roaming\Py
+thon\Python312\site-p
+ackages\uvicorn\serve
+r.py", line 68, in 
+serve
+    config.load()
+  File 
+"C:\Users\digital met
+ro\AppData\Roaming\Py
+thon\Python312\site-p
+ackages\uvicorn\confi
+g.py", line 467, in 
+load
+    self.loaded_app 
+= import_from_string(
+self.app)
+                     
+ ^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^
+  File 
+"C:\Users\digital met
+ro\AppData\Roaming\Py
+thon\Python312\site-p
+ackages\uvicorn\impor
+ter.py", line 21, in 
+import_from_string
+    module = importli
+b.import_module(modul
+e_str)
+             ^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^
+^^^^^^
+  File "C:\Program Fi
+les\Python312\Lib\imp
+ortlib\__init__.py", 
+line 90, in 
+import_module
+    return _bootstrap
+._gcd_import(name[lev
+el:], package, level)
+           ^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen impor
+tlib._bootstrap>", 
+line 1387, in 
+_gcd_import
+  File "<frozen impor
+tlib._bootstrap>", 
+line 1360, in 
+_find_and_load
+  File "<frozen impor
+tlib._bootstrap>", 
+line 1331, in _find_a
+nd_load_unlocked
+  File "<frozen impor
+tlib._bootstrap>", 
+line 935, in 
+_load_unlocked
+  File "<frozen impor
+tlib._bootstrap_exter
+nal>", line 995, in 
+exec_module
+  File "<frozen impor
+tlib._bootstrap>", 
+line 488, in _call_wi
+th_frames_removed
+  File 
+"C:\Users\digital met
+ro\Documents\sympto-p
+ulse-map-main\backend
+-python\app\main.py",
+ line 13, in <module>
+    from app.api.v1 
+import api_router
+  File 
+"C:\Users\digital met
+ro\Documents\sympto-p
+ulse-map-main\backend
+-python\app\api\v1\__
+init__.py", line 7, 
+in <module>
+    from app.api.v1 
+import chatbot, 
+auth, outbreaks, 
+alerts, stats, 
+reports
+  File 
+"C:\Users\digital met
+ro\Documents\sympto-p
+ulse-map-main\backend
+-python\app\api\v1\ch
+atbot.py", line 49, 
+in <module>
+    from app.services
+.chatbot_service 
+import ChatbotService
+  File 
+"C:\Users\digital met
+ro\Documents\sympto-p
+ulse-map-main\backend
+-python\app\services\
+chatbot_service.py", 
+line 14, in <module>
+    from 
+app.models.chatbot 
+import 
+ChatbotConversation, 
+AnonymousSymptomRepor
+t, DiseaseInfo
+  File 
+"C:\Users\digital met
+ro\Documents\sympto-p
+ulse-map-main\backend
+-python\app\models\__
+init__.py", line 7, 
+in <module>
+    from 
+app.models.broadcast 
+import Broadcast
+  File 
+"C:\Users\digital met
+ro\Documents\sympto-p
+ulse-map-main\backend
+-python\app\models\br
+oadcast.py", line 
+68, in <module>
+    print("\u2705 
+Loaded Broadcast 
+model (renamed 
+schema)")
+  File "C:\Program Fi
+les\Python312\Lib\enc
+odings\cp1252.py", 
+line 19, in encode
+    return codecs.cha
+rmap_encode(input,sel
+f.errors,encoding_tab
+le)[0]
+           ^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^
+^^^
+UnicodeEncodeError: 
+'charmap' codec 
+can't encode 
+character '\u2705' 
+in position 0: 
+character maps to 
+<undefined>

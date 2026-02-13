@@ -27,11 +27,6 @@ from app.core.security import (
     create_refresh_token,
     verify_token,
     blacklist_token,
-    generate_mfa_secret,
-    get_mfa_provisioning_uri,
-    verify_mfa_code,
-    generate_backup_codes,
-    hash_backup_code,
     LoginAttemptTracker
 )
 from app.models.user import User
@@ -42,6 +37,10 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 # OAuth2 scheme
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_PREFIX}/auth/login")
+oauth2_scheme_optional = OAuth2PasswordBearer(
+    tokenUrl=f"{settings.API_V1_PREFIX}/auth/login",
+    auto_error=False
+)
 
 
 # =============================================================================
@@ -67,7 +66,6 @@ class UserRegister(BaseModel):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
-    mfa_code: Optional[str] = Field(None, pattern=r'^\d{6}$')
 
 
 class Token(BaseModel):
@@ -112,14 +110,7 @@ class ChangePassword(BaseModel):
         return v
 
 
-class MFASetupResponse(BaseModel):
-    secret: str
-    qr_uri: str
-    backup_codes: List[str]
-
-
-class MFAVerify(BaseModel):
-    code: str = Field(..., pattern=r'^\d{6}$')
+# Models for MFA removed
 
 
 # =============================================================================
@@ -166,6 +157,20 @@ async def get_current_user(
         raise credentials_exception
     
     return user
+
+
+async def get_current_user_optional(
+    token: Optional[str] = Depends(oauth2_scheme_optional),
+    db: AsyncSession = Depends(get_db)
+) -> Optional[User]:
+    """Get current user if token is valid, else return None"""
+    if not token:
+        return None
+    
+    try:
+        return await get_current_user(token, db)
+    except HTTPException:
+        return None
 
 
 async def get_admin_user(current_user: User = Depends(get_current_user)) -> User:
@@ -222,14 +227,14 @@ async def register(
             detail="Email already registered"
         )
     
-    # Create new user
     new_user = User(
         email=user_data.email,
         password_hash=get_password_hash(user_data.password),
         full_name=user_data.full_name,
         phone=user_data.phone,
         role=user_data.role,
-        verification_status="pending",
+        verification_status="verified",
+        is_verified=True,
         is_active=True
     )
     
@@ -259,7 +264,7 @@ async def register(
 async def login(
     request: Request,
     response: Response,
-    form_data: OAuth2PasswordRequestForm = Depends(),
+    login_data: UserLogin,
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -268,7 +273,7 @@ async def login(
     - Account lockout after 5 failed attempts for 15 minutes
     """
     client_ip = get_client_ip(request)
-    email = form_data.username
+    email = login_data.email
     
     # Check if account is locked
     is_locked, seconds_remaining = LoginAttemptTracker.is_locked(email)
@@ -284,7 +289,7 @@ async def login(
     user = result.scalar_one_or_none()
     
     # Verify credentials
-    if not user or not verify_password(form_data.password, user.password_hash):
+    if not user or not verify_password(login_data.password, user.password_hash):
         remaining, is_now_locked = LoginAttemptTracker.record_failure(email)
         
         log_audit_event(
@@ -318,20 +323,7 @@ async def login(
             detail="Account is disabled"
         )
     
-    # Check MFA if enabled
-    if hasattr(user, 'mfa_enabled') and user.mfa_enabled:
-        mfa_code = form_data.scopes[0] if form_data.scopes else None
-        if not mfa_code:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="MFA code required",
-                headers={"X-MFA-Required": "true"}
-            )
-        if not verify_mfa_code(user.mfa_secret, mfa_code):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid MFA code"
-            )
+    # MFA check removed for simple login
     
     # Clear login attempts on success
     LoginAttemptTracker.clear(email)
@@ -356,14 +348,15 @@ async def login(
         expires_delta=timedelta(days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS)
     )
     
-    # Set refresh token as HTTP-only cookie
-    # Use samesite="none" for cross-origin (Vercel frontend -> Render backend)
+    # Update cookie
+    is_production = settings.ENVIRONMENT == "production"
+    
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=True,  # Required when samesite="none"
-        samesite="none",  # Allow cross-origin cookie
+        secure=True if is_production else False,
+        samesite="none" if is_production else "lax",
         max_age=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
     )
     
@@ -447,14 +440,25 @@ async def refresh_token(
     
     user_id = payload.get("sub")
     
-    # Get user
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    
-    if not user or not user.is_active:
+    try:
+        # Validate UUID format
+        user_uuid = uuid.UUID(user_id)
+        
+        # Get user
+        result = await db.execute(select(User).where(User.id == user_uuid))
+        user = result.scalar_one_or_none()
+        
+        if not user or not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found or inactive"
+            )
+            
+    except (ValueError, Exception) as e:
+        print(f"DEBUG: Error during user lookup for refresh: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found or inactive"
+            detail="Invalid token data"
         )
     
     # Blacklist old refresh token
@@ -479,13 +483,14 @@ async def refresh_token(
     )
     
     # Update cookie
-    # Use samesite="none" for cross-origin (Vercel frontend -> Render backend)
+    is_production = settings.ENVIRONMENT == "production"
+    
     response.set_cookie(
         key="refresh_token",
         value=new_refresh_token,
         httponly=True,
-        secure=True,  # Required when samesite="none"
-        samesite="none",  # Allow cross-origin cookie
+        secure=True if is_production else False,
+        samesite="none" if is_production else "lax",
         max_age=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
     )
     
@@ -507,18 +512,32 @@ async def refresh_token(
 async def logout(
     request: Request,
     response: Response,
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db)
 ):
     """Logout and invalidate tokens"""
     client_ip = get_client_ip(request)
     
-    # Clear refresh token cookie
+    # Clear refresh token cookie immediately
     response.delete_cookie("refresh_token")
     
+    # Try to blacklist if possible (best effort)
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.replace("Bearer ", "")
+        try:
+             # Just decode to get JTI, ignore expiration for logout
+             payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM], options={"verify_exp": False})
+             jti = payload.get("jti")
+             if jti:
+                 from app.core.security import blacklist_token
+                 blacklist_token(jti, datetime.now(timezone.utc) + timedelta(minutes=15))
+        except Exception as e:
+            print(f"Logout warning: Could not blacklist token: {e}")
+
     log_audit_event(
         event="LOGOUT",
-        actor_id=str(current_user.id),
-        actor_role=current_user.role,
+        actor_id="unknown",
+        actor_role="unknown",
         ip_address=client_ip,
         status="SUCCESS"
     )
@@ -579,110 +598,4 @@ async def change_password(
     return {"message": "Password changed successfully"}
 
 
-# =============================================================================
-# MFA ROUTES
-# =============================================================================
-
-@router.post("/mfa/setup", response_model=MFASetupResponse)
-async def setup_mfa(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Setup MFA for current user"""
-    if getattr(current_user, 'mfa_enabled', False):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="MFA is already enabled"
-        )
-    
-    # Generate secret
-    secret = generate_mfa_secret()
-    qr_uri = get_mfa_provisioning_uri(secret, current_user.email)
-    backup_codes = generate_backup_codes()
-    
-    # Store secret temporarily (user must verify to enable)
-    current_user.mfa_secret = secret
-    current_user.mfa_backup_codes = [hash_backup_code(c) for c in backup_codes]
-    await db.commit()
-    
-    return {
-        "secret": secret,
-        "qr_uri": qr_uri,
-        "backup_codes": backup_codes
-    }
-
-
-@router.post("/mfa/verify")
-async def verify_mfa_setup(
-    request: Request,
-    data: MFAVerify,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Verify MFA setup with TOTP code"""
-    client_ip = get_client_ip(request)
-    
-    if not current_user.mfa_secret:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="MFA setup not initiated"
-        )
-    
-    if not verify_mfa_code(current_user.mfa_secret, data.code):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid verification code"
-        )
-    
-    # Enable MFA
-    current_user.mfa_enabled = True
-    await db.commit()
-    
-    log_audit_event(
-        event="MFA_ENABLED",
-        actor_id=str(current_user.id),
-        actor_role=current_user.role,
-        ip_address=client_ip,
-        status="SUCCESS"
-    )
-    
-    return {"message": "MFA enabled successfully"}
-
-
-@router.post("/mfa/disable")
-async def disable_mfa(
-    request: Request,
-    data: MFAVerify,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Disable MFA (requires current TOTP code)"""
-    client_ip = get_client_ip(request)
-    
-    if not getattr(current_user, 'mfa_enabled', False):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="MFA is not enabled"
-        )
-    
-    if not verify_mfa_code(current_user.mfa_secret, data.code):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid verification code"
-        )
-    
-    # Disable MFA
-    current_user.mfa_enabled = False
-    current_user.mfa_secret = None
-    current_user.mfa_backup_codes = None
-    await db.commit()
-    
-    log_audit_event(
-        event="MFA_DISABLED",
-        actor_id=str(current_user.id),
-        actor_role=current_user.role,
-        ip_address=client_ip,
-        status="SUCCESS"
-    )
-    
-    return {"message": "MFA disabled successfully"}
+# MFA Routes Removed

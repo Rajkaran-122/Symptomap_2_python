@@ -5,7 +5,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TrendingUp, AlertTriangle, Activity, MapPin, BarChart3, FileText, Shield, Zap } from 'lucide-react';
+import { TrendingUp, AlertTriangle, Activity, MapPin, BarChart3, FileText, Shield, Zap, Heart, Stethoscope } from 'lucide-react';
 
 export const LandingPage: React.FC = () => {
     const navigate = useNavigate();
@@ -92,7 +92,7 @@ export const LandingPage: React.FC = () => {
                             Real-time monitoring, AI-powered predictions, and intelligent alert systems for proactive health management
                         </p>
 
-                        <div className="flex flex-wrap items-center justify-center gap-4 mb-16">
+                        <div className="flex flex-wrap items-center justify-center gap-4 mb-8">
                             <button
                                 onClick={() => navigate('/dashboard')}
                                 className="bg-white text-primary-900 px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-100 transition-all shadow-xl flex items-center gap-2"
@@ -106,6 +106,34 @@ export const LandingPage: React.FC = () => {
                             >
                                 <TrendingUp className="w-5 h-5" />
                                 AI Predictions
+                            </button>
+                        </div>
+
+                        {/* Login Options — Distinct Portals */}
+                        <div className="flex flex-wrap items-center justify-center gap-4 mb-16">
+                            <button
+                                onClick={() => navigate('/user/dashboard')}
+                                className="group bg-emerald-600/90 backdrop-blur-sm text-white px-8 py-4 rounded-xl font-semibold hover:bg-emerald-500 transition-all border border-emerald-400/30 flex items-center gap-3 shadow-lg shadow-emerald-900/30"
+                            >
+                                <div className="w-10 h-10 rounded-lg bg-white/15 flex items-center justify-center group-hover:bg-white/25 transition-colors">
+                                    <Heart className="w-5 h-5" />
+                                </div>
+                                <div className="text-left">
+                                    <p className="text-base font-bold">I'm a Patient</p>
+                                    <p className="text-xs text-emerald-200">Check alerts & outbreaks</p>
+                                </div>
+                            </button>
+                            <button
+                                onClick={() => navigate('/login')}
+                                className="group bg-blue-600/90 backdrop-blur-sm text-white px-8 py-4 rounded-xl font-semibold hover:bg-blue-500 transition-all border border-blue-400/30 flex items-center gap-3 shadow-lg shadow-blue-900/30"
+                            >
+                                <div className="w-10 h-10 rounded-lg bg-white/15 flex items-center justify-center group-hover:bg-white/25 transition-colors">
+                                    <Stethoscope className="w-5 h-5" />
+                                </div>
+                                <div className="text-left">
+                                    <p className="text-base font-bold">Healthcare Professional</p>
+                                    <p className="text-xs text-blue-200">Doctor & Admin portal</p>
+                                </div>
                             </button>
                         </div>
 

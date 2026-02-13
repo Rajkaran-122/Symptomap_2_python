@@ -5,7 +5,7 @@ import {
     RefreshCw, MapPin, Users, Activity
 } from 'lucide-react';
 import ApprovalDetailModal from '../components/ApprovalDetailModal';
-import { API_BASE_URL } from '../config/api';
+import { authClient } from '../services/auth';
 
 interface PendingRequest {
     id: number;
@@ -42,38 +42,16 @@ const ApprovalRequestsPage = () => {
         }
     }, [navigate]);
 
-    const getAuthHeaders = () => {
-        const token = localStorage.getItem('symptomap_access_token');
-        return {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-        };
-    };
-
     const fetchRequests = async () => {
         setLoading(true);
         try {
             // Updated endpoints to match backend-python/app/api/v1/approval.py
             const endpoint = filter === 'pending'
-                ? `${API_BASE_URL}/admin/pending`
-                : `${API_BASE_URL}/admin/all-requests`;
+                ? '/admin/pending'
+                : '/admin/all-requests';
 
-            const response = await fetch(endpoint, {
-                headers: getAuthHeaders()
-            });
-
-            if (response.status === 401) {
-                // Token expired or invalid
-                localStorage.removeItem('symptomap_access_token');
-                navigate('/login');
-                return;
-            }
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch requests');
-            }
-
-            const data = await response.json();
+            const response = await authClient.get(endpoint);
+            const data = response.data;
 
             if (filter === 'pending') {
                 setRequests(data);
@@ -100,15 +78,7 @@ const ApprovalRequestsPage = () => {
         setErrorMessage('');
 
         try {
-            const response = await fetch(`${API_BASE_URL}/admin/approve/${id}`, {
-                method: 'POST',
-                headers: getAuthHeaders()
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.detail || 'Failed to approve');
-            }
+            await authClient.post(`/admin/approve/${id}`);
 
             setSuccessMessage('Request approved and added to official dashboard!');
             fetchRequests();
@@ -128,15 +98,7 @@ const ApprovalRequestsPage = () => {
         setErrorMessage('');
 
         try {
-            const response = await fetch(`${API_BASE_URL}/admin/reject/${id}`, {
-                method: 'POST',
-                headers: getAuthHeaders()
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.detail || 'Failed to reject');
-            }
+            await authClient.post(`/admin/reject/${id}`);
 
             setSuccessMessage('Request rejected');
             fetchRequests();

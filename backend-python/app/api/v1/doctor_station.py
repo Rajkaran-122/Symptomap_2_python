@@ -59,8 +59,60 @@ class AlertSubmission(BaseModel):
 
 class SubmissionResponse(BaseModel):
     success: bool
-    message: str
-    id: Optional[int] = None
+class DoctorLoginRequest(BaseModel):
+    password: str
+
+
+@router.post("/login", response_model=dict)
+async def doctor_login(
+    login_data: DoctorLoginRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Doctor station login with shared password
+    """
+    from app.core.config import settings
+    from app.core.security import create_access_token
+    from datetime import timedelta
+    
+    # 1. Verify password
+    if login_data.password != settings.DOCTOR_PASSWORD:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid doctor station password"
+        )
+        
+    # 2. Get doctor user
+    result = await db.execute(select(User).where(User.email == "doctor@symptomap.com"))
+    doctor = result.scalar_one_or_none()
+    
+    if not doctor:
+        # Fallback if not seeded yet - create temporary session? 
+        # Ideally seeder should run. Return error to prompt contact admin.
+        raise HTTPException(
+            status_code=500,
+            detail="Doctor account not configured. Please contact administrator."
+        )
+        
+    # 3. Create token
+    access_token_expires = timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 12) # 12 hours for station
+    access_token = create_access_token(
+        data={"sub": str(doctor.id), "role": doctor.role, "email": doctor.email},
+        secret_key=settings.JWT_SECRET_KEY,
+        algorithm=settings.JWT_ALGORITHM,
+        expires_delta=access_token_expires
+    )
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "expires_in": int(access_token_expires.total_seconds()),
+        "user": {
+            "email": doctor.email,
+            "full_name": doctor.full_name,
+            "role": doctor.role
+        }
+    }
 
 
 

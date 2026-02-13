@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, AlertCircle, Activity } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
+import { useAuthStore } from '../store/authStore';
 
 const DoctorLogin = () => {
     const navigate = useNavigate();
@@ -30,8 +31,11 @@ const DoctorLogin = () => {
             const data = await response.json();
 
             // Store token
-            localStorage.setItem('doctor_token', data.access_token);
-            localStorage.setItem('doctor_token_expiry', String(Date.now() + data.expires_in * 1000));
+            localStorage.setItem('symptomap_access_token', data.access_token);
+            localStorage.setItem('symptomap_token_expiry', String(Date.now() + data.expires_in * 1000));
+
+            // Sync with auth store
+            await useAuthStore.getState().checkAuth();
 
             // Navigate to doctor station
             navigate('/doctor/station');

@@ -161,6 +161,60 @@ async def list_alerts(
     return alerts_list
 
 
+@router.get("/{alert_id}")
+async def get_alert_detail(
+    alert_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Get single alert details for View modal"""
+    from sqlalchemy import text
+    import json as json_lib
+    
+    sql = """
+        SELECT id, alert_type, severity, title, message, zone_name, sent_at, 
+               recipients, delivery_status, acknowledged_by
+        FROM alerts
+        WHERE id = :alert_id
+    """
+    
+    result = await db.execute(text(sql), {"alert_id": alert_id})
+    row = result.fetchone()
+    
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Alert not found"
+        )
+    
+    try:
+        recipients_data = json_lib.loads(row[7]) if row[7] else {"emails": []}
+    except:
+        recipients_data = {"emails": []}
+        
+    try:
+        acknowledged_data = json_lib.loads(row[9]) if row[9] else []
+    except:
+        acknowledged_data = []
+
+    try:
+        delivery_status = json_lib.loads(row[8]) if row[8] else {"email": "sent"}
+    except:
+        delivery_status = {"email": "sent"}
+    
+    return {
+        "id": str(row[0]),
+        "alert_type": row[1],
+        "severity": row[2],
+        "title": row[3],
+        "message": row[4],
+        "zone_name": row[5],
+        "sent_at": row[6],
+        "recipients": recipients_data.get("emails", []) if isinstance(recipients_data, dict) else [],
+        "delivery_status": delivery_status,
+        "acknowledged_by": acknowledged_data
+    }
+
+
 @router.post("/{alert_id}/acknowledge")
 async def acknowledge_alert(
     alert_id: str,
@@ -196,6 +250,53 @@ async def acknowledge_alert(
         "message": "Alert acknowledged successfully",
         "alert_id": str(alert.id),
         "acknowledged_by": current_user.full_name
+    }
+
+
+@router.post("/{alert_id}/acknowledge-public")
+async def acknowledge_alert_public(
+    alert_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Acknowledge an alert - public endpoint (no auth required)"""
+    from sqlalchemy import text
+    import json as json_lib
+    
+    # Get current acknowledgments
+    sql = "SELECT acknowledged_by FROM alerts WHERE id = :alert_id"
+    result = await db.execute(text(sql), {"alert_id": alert_id})
+    row = result.fetchone()
+    
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Alert not found"
+        )
+    
+    try:
+        acknowledged_list = json_lib.loads(row[0]) if row[0] else []
+    except:
+        acknowledged_list = []
+    
+    # Add new acknowledgment
+    acknowledged_list.append({
+        "user_id": "dashboard_user",
+        "user_name": "Dashboard User",
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    })
+    
+    # Update in database
+    update_sql = "UPDATE alerts SET acknowledged_by = :acknowledged WHERE id = :alert_id"
+    await db.execute(text(update_sql), {
+        "acknowledged": json_lib.dumps(acknowledged_list),
+        "alert_id": alert_id
+    })
+    await db.commit()
+    
+    return {
+        "message": "Alert acknowledged successfully",
+        "alert_id": alert_id,
+        "acknowledged": True
     }
 
 

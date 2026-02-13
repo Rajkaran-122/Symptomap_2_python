@@ -4,8 +4,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { TrendingUp, AlertTriangle, Activity, Calendar, Users, Hospital, Target, BarChart3 } from 'lucide-react';
+import { AreaChart, Area, LineChart, Line, Bar, ComposedChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { TrendingUp, AlertTriangle, Activity, Calendar, Users, Hospital, Target, BarChart3, Layers, Zap } from 'lucide-react';
 
 interface PredictionData {
     generated_at: string;
@@ -57,17 +57,38 @@ interface PredictionData {
 
 export const PredictionDashboard: React.FC = () => {
     const [prediction, setPrediction] = useState<PredictionData | null>(null);
+    const [comparisonData, setComparisonData] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [days, setDays] = useState(30);
     const [scenario, setScenario] = useState('likely');
+    const [viewMode, setViewMode] = useState<'single' | 'pulse' | 'comparison'>('single');
 
     const loadPrediction = async () => {
         setLoading(true);
         try {
             const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8000/api/v1';
-            const response = await fetch(`${API_URL}/predictions/forecast?days=${days}&scenario=${scenario}`);
-            const data = await response.json();
-            setPrediction(data);
+
+            // If in comparison mode, fetch all three
+            if (viewMode === 'comparison') {
+                const scenarios = ['best', 'likely', 'worst'];
+                const results = await Promise.all(
+                    scenarios.map(s => fetch(`${API_URL}/predictions/forecast?days=${days}&scenario=${s}`).then(r => r.json()))
+                );
+
+                // Align time series for comparison
+                const aligned = results[0].time_series.map((point: any, idx: number) => ({
+                    day: point.day,
+                    best: results[0].time_series[idx].infected.value,
+                    likely: results[1].time_series[idx].infected.value,
+                    worst: results[2].time_series[idx].infected.value,
+                }));
+                setComparisonData(aligned);
+                setPrediction(results[1]); // Use 'likely' as default for metrics
+            } else {
+                const response = await fetch(`${API_URL}/predictions/forecast?days=${days}&scenario=${scenario}`);
+                const data = await response.json();
+                setPrediction(data);
+            }
         } catch (error) {
             console.error('Failed to load prediction:', error);
             alert('Failed to load predictions. Please try again.');
@@ -78,7 +99,7 @@ export const PredictionDashboard: React.FC = () => {
 
     useEffect(() => {
         loadPrediction();
-    }, []);
+    }, [days, scenario, viewMode]);
 
     if (loading && !prediction) {
         return (
@@ -111,18 +132,44 @@ export const PredictionDashboard: React.FC = () => {
             <div className="max-w-7xl mx-auto space-y-6">
                 {/* Header with Controls */}
                 <div className="bg-white rounded-2xl shadow-lg p-6">
-                    <div className="flex items-center justify-between">
-                        <div>
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                        <div className="flex-1">
                             <h1 className="text-3xl font-bold text-gray-900 mb-2">AI Outbreak Predictions</h1>
                             <p className="text-gray-600">Advanced SEIR model forecasting with real-time data analysis</p>
                         </div>
-                        <div className="flex items-center gap-4">
-                            <div>
+
+                        {/* View Mode Switcher */}
+                        <div className="flex bg-gray-100 p-1 rounded-xl w-full md:w-auto">
+                            <button
+                                onClick={() => setViewMode('single')}
+                                className={`flex-1 md:w-32 py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-all ${viewMode === 'single' ? 'bg-white shadow-sm text-primary-600' : 'text-gray-500 hover:text-gray-700'
+                                    }`}
+                            >
+                                <Activity className="w-4 h-4" /> Standard
+                            </button>
+                            <button
+                                onClick={() => setViewMode('pulse')}
+                                className={`flex-1 md:w-32 py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-all ${viewMode === 'pulse' ? 'bg-white shadow-sm text-primary-600' : 'text-gray-500 hover:text-gray-700'
+                                    }`}
+                            >
+                                <Zap className="w-4 h-4" /> Pulse
+                            </button>
+                            <button
+                                onClick={() => setViewMode('comparison')}
+                                className={`flex-1 md:w-32 py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-all ${viewMode === 'comparison' ? 'bg-white shadow-sm text-primary-600' : 'text-gray-500 hover:text-gray-700'
+                                    }`}
+                            >
+                                <Layers className="w-4 h-4" /> Scenarios
+                            </button>
+                        </div>
+
+                        <div className="flex items-center gap-4 w-full md:w-auto">
+                            <div className="flex-1">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Forecast Period</label>
                                 <select
                                     value={days}
                                     onChange={(e) => setDays(Number(e.target.value))}
-                                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                                 >
                                     <option value={7}>7 Days</option>
                                     <option value={14}>14 Days</option>
@@ -130,25 +177,20 @@ export const PredictionDashboard: React.FC = () => {
                                     <option value={60}>60 Days</option>
                                 </select>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Scenario</label>
-                                <select
-                                    value={scenario}
-                                    onChange={(e) => setScenario(e.target.value)}
-                                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-                                >
-                                    <option value="best">Best Case</option>
-                                    <option value="likely">Most Likely</option>
-                                    <option value="worst">Worst Case</option>
-                                </select>
-                            </div>
-                            <button
-                                onClick={loadPrediction}
-                                disabled={loading}
-                                className="mt-6 bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg font-semibold flex items-center gap-2 disabled:opacity-50"
-                            >
-                                {loading ? 'Updating...' : 'Update Forecast'}
-                            </button>
+                            {viewMode !== 'comparison' && (
+                                <div className="flex-1">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Scenario</label>
+                                    <select
+                                        value={scenario}
+                                        onChange={(e) => setScenario(e.target.value)}
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                                    >
+                                        <option value="best">Best Case</option>
+                                        <option value="likely">Most Likely</option>
+                                        <option value="worst">Worst Case</option>
+                                    </select>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -228,33 +270,66 @@ export const PredictionDashboard: React.FC = () => {
 
                 {/* Main Chart - Infection Forecast */}
                 <div className="bg-white rounded-2xl shadow-lg p-6">
-                    <h3 className="text-xl font-bold text-gray-900 mb-4">Infection Forecast - {days} Day Projection</h3>
-                    <ResponsiveContainer width="100%" height={400}>
-                        <AreaChart data={chartData}>
-                            <defs>
-                                <linearGradient id="colorInfected" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#EF4444" stopOpacity={0.8} />
-                                    <stop offset="95%" stopColor="#EF4444" stopOpacity={0.1} />
-                                </linearGradient>
-                                <linearGradient id="colorExposed" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.8} />
-                                    <stop offset="95%" stopColor="#F59E0B" stopOpacity={0.1} />
-                                </linearGradient>
-                                <linearGradient id="colorRecovered" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.8} />
-                                    <stop offset="95%" stopColor="#10B981" stopOpacity={0.1} />
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                            <XAxis dataKey="day" stroke="#6B7280" label={{ value: 'Days', position: 'insideBottom', offset: -5 }} />
-                            <YAxis stroke="#6B7280" label={{ value: 'Cases', angle: -90, position: 'insideLeft' }} />
-                            <Tooltip />
-                            <Legend />
-                            <Area type="monotone" dataKey="infected" stroke="#EF4444" fillOpacity={1} fill="url(#colorInfected)" name="Infected" />
-                            <Area type="monotone" dataKey="exposed" stroke="#F59E0B" fillOpacity={1} fill="url(#colorExposed)" name="Exposed" />
-                            <Area type="monotone" dataKey="recovered" stroke="#10B981" fillOpacity={1} fill="url(#colorRecovered)" name="Recovered" />
-                        </AreaChart>
-                    </ResponsiveContainer>
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-xl font-bold text-gray-900">
+                            {viewMode === 'comparison' ? 'Scenario Comparison: Best vs Likely vs Worst' :
+                                viewMode === 'pulse' ? 'Viral Pulse Intensity Analysis' :
+                                    `Infection Forecast - ${days} Day Projection`}
+                        </h3>
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <div className="w-3 h-3 rounded-full bg-red-400"></div> Infected
+                            <div className="w-3 h-3 rounded-full bg-blue-400 ml-2"></div> R₀ Intensity
+                        </div>
+                    </div>
+
+                    <div className="h-[450px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            {viewMode === 'comparison' ? (
+                                <LineChart data={comparisonData}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                    <XAxis dataKey="day" label={{ value: 'Days Ahead', position: 'insideBottom', offset: -10 }} />
+                                    <YAxis label={{ value: 'Active Cases', angle: -90, position: 'insideLeft' }} />
+                                    <Tooltip />
+                                    <Legend />
+                                    <Line type="monotone" dataKey="best" stroke="#10b981" strokeWidth={3} dot={false} name="Best Case (Low R₀)" />
+                                    <Line type="monotone" dataKey="likely" stroke="#3b82f6" strokeWidth={3} dot={false} name="Most Likely" />
+                                    <Line type="monotone" dataKey="worst" stroke="#ef4444" strokeWidth={3} dot={false} name="Worst Case (High R₀)" />
+                                </LineChart>
+                            ) : viewMode === 'pulse' ? (
+                                <ComposedChart data={chartData}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                                    <XAxis dataKey="day" />
+                                    <YAxis yAxisId="left" orientation="left" label={{ value: 'New Cases', angle: -90, position: 'insideLeft' }} />
+                                    <YAxis yAxisId="right" orientation="right" label={{ value: 'R₀ Intensity (%)', angle: 90, position: 'insideRight' }} />
+                                    <Tooltip />
+                                    <Legend />
+                                    <Bar yAxisId="left" dataKey="new_cases" fill="#fee2e2" radius={[4, 4, 0, 0]} name="Case Volume" />
+                                    <Area yAxisId="left" type="monotone" dataKey="infected" fill="#fee2e2" stroke="#ef4444" name="Total Infected" />
+                                    <Line yAxisId="right" type="step" dataKey="infected" stroke="#3b82f6" strokeWidth={2} dot={false} name="Viral Pulse (Velocity)" />
+                                </ComposedChart>
+                            ) : (
+                                <AreaChart data={chartData}>
+                                    <defs>
+                                        <linearGradient id="colorInfected" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#EF4444" stopOpacity={0.8} />
+                                            <stop offset="95%" stopColor="#EF4444" stopOpacity={0.1} />
+                                        </linearGradient>
+                                        <linearGradient id="colorExposed" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.8} />
+                                            <stop offset="95%" stopColor="#F59E0B" stopOpacity={0.1} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                                    <XAxis dataKey="day" />
+                                    <YAxis />
+                                    <Tooltip />
+                                    <Legend />
+                                    <Area type="monotone" dataKey="infected" stroke="#EF4444" fillOpacity={1} fill="url(#colorInfected)" name="Infected" />
+                                    <Area type="monotone" dataKey="exposed" stroke="#F59E0B" fillOpacity={1} fill="url(#colorExposed)" name="Exposed" />
+                                </AreaChart>
+                            )}
+                        </ResponsiveContainer>
+                    </div>
                 </div>
 
                 {/* Hospital Capacity & Geographic Spread */}

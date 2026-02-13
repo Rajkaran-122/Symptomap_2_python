@@ -308,195 +308,222 @@ def generate_sample_predictions(days: int, scenario: str) -> Dict:
 @router.get("/forecast")
 async def get_outbreak_forecast(
     days: int = Query(default=30, ge=7, le=90),
-    scenario: str = Query(default='likely', regex='^(best|likely|worst)$')
+    scenario: str = Query(default='likely', regex='^(best|likely|worst|realtime_check)$')
 ):
     """
     Generate comprehensive outbreak forecast with AI predictions
     Uses SEIR model trained on India state-level data
     """
     
-    # Fetch real outbreak data
-    outbreak_data = get_outbreak_data_from_sqlite()
-    
-    if outbreak_data:
-        total_cases = outbreak_data['total_cases']
-        primary_disease = outbreak_data['primary_disease']
-        avg_severity = outbreak_data['avg_severity']
-        disease_counts = outbreak_data['disease_counts']
-        state_counts = outbreak_data['state_counts']
+    try:
+        with open("debug_progress.log", "w") as f:
+            f.write("Starting execution...\n")
+            
+        # Fetch real outbreak data
+        with open("debug_progress.log", "a") as f:
+            f.write("Fetching outbreak data...\n")
+            
+        outbreak_data = get_outbreak_data_from_sqlite()
         
-        # Determine affected population from states
-        affected_population = 0
-        affected_beds = 0
-        for state_name in state_counts.keys():
-            if state_name in INDIA_STATES:
-                affected_population += INDIA_STATES[state_name]['population']
-                affected_beds += INDIA_STATES[state_name]['hospital_beds']
+        with open("debug_progress.log", "a") as f:
+            f.write(f"Outbreak data: {outbreak_data is not None}\n")
         
-        if affected_population == 0:
-            affected_population = 50000000  # Default 50M
-            affected_beds = 75000
-        
-        # Get disease-specific parameters
-        disease_params = DISEASE_PARAMS.get(primary_disease, DISEASE_PARAMS['Other'])
-        
-        # Scenario adjustments
-        if scenario == 'best':
-            intervention = 0.6
-        elif scenario == 'worst':
-            intervention = 1.2
+        if outbreak_data:
+            total_cases = outbreak_data['total_cases']
+            primary_disease = outbreak_data['primary_disease']
+            avg_severity = outbreak_data['avg_severity']
+            disease_counts = outbreak_data['disease_counts']
+            state_counts = outbreak_data['state_counts']
+            
+            # Determine affected population from states
+            affected_population = 0
+            affected_beds = 0
+            for state_name in state_counts.keys():
+                if state_name in INDIA_STATES:
+                    affected_population += INDIA_STATES[state_name]['population']
+                    affected_beds += INDIA_STATES[state_name]['hospital_beds']
+            
+            if affected_population == 0:
+                affected_population = 50000000  # Default 50M
+                affected_beds = 75000
+            
+            # Get disease-specific parameters
+            disease_params = DISEASE_PARAMS.get(primary_disease, DISEASE_PARAMS['Other'])
+            
+            # Scenario adjustments
+            if scenario == 'best':
+                intervention = 0.6
+            elif scenario == 'worst':
+                intervention = 1.2
+            else:
+                intervention = 1.0
+            
+            # Run enhanced SEIR model
+            model = EnhancedSEIRModel(
+                population=affected_population,
+                initial_infected=total_cases,
+                beta=disease_params['beta'],
+                sigma=disease_params['sigma'],
+                gamma=disease_params['gamma'],
+                intervention_factor=intervention
+            )
+            
+            forecast = model.simulate(days)
+            r0 = model.calculate_R0()
+            peak_point = max(forecast, key=lambda x: x['infected'])
+            
         else:
-            intervention = 1.0
-        
-        # Run enhanced SEIR model
-        model = EnhancedSEIRModel(
-            population=affected_population,
-            initial_infected=total_cases,
-            beta=disease_params['beta'],
-            sigma=disease_params['sigma'],
-            gamma=disease_params['gamma'],
-            intervention_factor=intervention
-        )
-        
-        forecast = model.simulate(days)
-        r0 = model.calculate_R0()
-        peak_point = max(forecast, key=lambda x: x['infected'])
-        
-    else:
-        # Use sample data
-        sample = generate_sample_predictions(days, scenario)
-        forecast = sample['forecast']
-        r0 = sample['r0']
-        peak_point = sample['peak_point']
-        total_cases = sample['total_cases']
-        avg_severity = sample['avg_severity']
-        affected_population = sample['population']
-        affected_beds = 75000
-        primary_disease = sample['primary_disease']
-        disease_counts = {primary_disease: {'count': 5, 'cases': total_cases}}
-        state_counts = {'Maharashtra': {'count': 2, 'cases': 80}, 'Delhi': {'count': 3, 'cases': 70}}
+            with open("debug_progress.log", "a") as f:
+                f.write("Using sample data generation...\n")
+                
+            # Use sample data
+            sample = generate_sample_predictions(days, scenario)
+            forecast = sample['forecast']
+            r0 = sample['r0']
+            peak_point = sample['peak_point']
+            total_cases = sample['total_cases']
+            avg_severity = sample['avg_severity']
+            affected_population = sample['population']
+            affected_beds = 75000
+            primary_disease = sample['primary_disease']
+            disease_counts = {primary_disease: {'count': 5, 'cases': total_cases}}
+            state_counts = {'Maharashtra': {'count': 2, 'cases': 80}, 'Delhi': {'count': 3, 'cases': 70}}
     
-    # Get disease hospitalization rate
-    hosp_rate = DISEASE_PARAMS.get(primary_disease, DISEASE_PARAMS['Other'])['hospitalization_rate']
-    
-    # Risk assessment
-    risk = calculate_risk_assessment(r0, total_cases, affected_population, avg_severity)
-    
-    # Prepare time series with confidence intervals
-    time_series = []
-    for i, point in enumerate(forecast):
-        if i % 2 == 0 or i == len(forecast) - 1:  # Every other day plus last
-            time_series.append({
-                'date': point['date'],
-                'day': point['day'],
-                'infected': {
-                    'value': point['infected'],
-                    'lower': point.get('infected_lower', int(point['infected'] * 0.8)),
-                    'upper': point.get('infected_upper', int(point['infected'] * 1.2))
-                },
-                'exposed': {
-                    'value': point['exposed'],
-                    'lower': point.get('exposed_lower', int(point['exposed'] * 0.8)),
-                    'upper': point.get('exposed_upper', int(point['exposed'] * 1.2))
-                },
-                'recovered': {
-                    'value': point['recovered'],
-                    'lower': int(point['recovered'] * 0.9),
-                    'upper': int(point['recovered'] * 1.1)
-                },
-                'new_cases': {
-                    'value': point['new_cases'],
-                    'lower': point.get('new_cases_lower', int(point['new_cases'] * 0.7)),
-                    'upper': point.get('new_cases_upper', int(point['new_cases'] * 1.3))
-                }
+        if scenario == 'realtime_check':
+            try:
+                from app.tasks.notification_tasks import run_daily_prediction_checks
+                # Use background tasks or await directly for demo
+                await run_daily_prediction_checks()
+            except Exception as e:
+                print(f"ERROR TRIGGERING CHECK: {e}")
+        
+        # Get disease hospitalization rate
+        hosp_rate = DISEASE_PARAMS.get(primary_disease, DISEASE_PARAMS['Other'])['hospitalization_rate']
+        
+        # Risk assessment
+        risk = calculate_risk_assessment(r0, total_cases, affected_population, avg_severity)
+        
+        # Prepare time series with confidence intervals
+        time_series = []
+        for i, point in enumerate(forecast):
+            if i % 2 == 0 or i == len(forecast) - 1:  # Every other day plus last
+                time_series.append({
+                    'date': point['date'],
+                    'day': point['day'],
+                    'infected': {
+                        'value': point['infected'],
+                        'lower': point.get('infected_lower', int(point['infected'] * 0.8)),
+                        'upper': point.get('infected_upper', int(point['infected'] * 1.2))
+                    },
+                    'exposed': {
+                        'value': point['exposed'],
+                        'lower': point.get('exposed_lower', int(point['exposed'] * 0.8)),
+                        'upper': point.get('exposed_upper', int(point['exposed'] * 1.2))
+                    },
+                    'recovered': {
+                        'value': point['recovered'],
+                        'lower': int(point['recovered'] * 0.9),
+                        'upper': int(point['recovered'] * 1.1)
+                    },
+                    'new_cases': {
+                        'value': point['new_cases'],
+                        'lower': point.get('new_cases_lower', int(point['new_cases'] * 0.7)),
+                        'upper': point.get('new_cases_upper', int(point['new_cases'] * 1.3))
+                    }
+                })
+        
+        # Geographic predictions
+        geographic_predictions = []
+        growth_factor = max(1.0, r0 ** 0.15)
+        
+        for state_name, state_data in list(state_counts.items())[:5]:
+            current = state_data['cases']
+            geographic_predictions.append({
+                'location': state_name,
+                'disease': primary_disease,
+                'current_cases': current,
+                'predicted_cases_7d': int(current * (growth_factor ** 7)),
+                'predicted_cases_14d': int(current * (growth_factor ** 14)),
+                'predicted_cases_30d': int(current * (growth_factor ** 30))
             })
-    
-    # Geographic predictions
-    geographic_predictions = []
-    growth_factor = max(1.0, r0 ** 0.15)
-    
-    for state_name, state_data in list(state_counts.items())[:5]:
-        current = state_data['cases']
-        geographic_predictions.append({
-            'location': state_name,
-            'disease': primary_disease,
-            'current_cases': current,
-            'predicted_cases_7d': int(current * (growth_factor ** 7)),
-            'predicted_cases_14d': int(current * (growth_factor ** 14)),
-            'predicted_cases_30d': int(current * (growth_factor ** 30))
-        })
-    
-    # Hospital capacity
-    peak_hospitalized = int(peak_point['infected'] * hosp_rate)
-    current_hospitalized = int(total_cases * hosp_rate)
-    
-    # Recommendations based on analysis
-    recommendations = []
-    
-    if r0 > 1.5:
-        recommendations.append({
-            'priority': 'HIGH',
-            'action': 'Implement immediate containment measures',
-            'impact': f'Could reduce R₀ by 30-40%, preventing {int(peak_point["infected"] * 0.3):,} cases'
-        })
-    
-    if peak_hospitalized > affected_beds * 0.1:
-        recommendations.append({
-            'priority': 'HIGH',
-            'action': f'Prepare {peak_hospitalized - current_hospitalized:,} additional hospital beds',
-            'impact': 'Critical for preventing healthcare system overload'
-        })
-    
-    if r0 > 1.0:
+        
+        # Hospital capacity
+        peak_hospitalized = int(peak_point['infected'] * hosp_rate)
+        current_hospitalized = int(total_cases * hosp_rate)
+        
+        # Recommendations based on analysis
+        recommendations = []
+        
+        if r0 > 1.5:
+            recommendations.append({
+                'priority': 'HIGH',
+                'action': 'Implement immediate containment measures',
+                'impact': f'Could reduce R₀ by 30-40%, preventing {int(peak_point["infected"] * 0.3):,} cases'
+            })
+        
+        if peak_hospitalized > affected_beds * 0.1:
+            recommendations.append({
+                'priority': 'HIGH',
+                'action': f'Prepare {peak_hospitalized - current_hospitalized:,} additional hospital beds',
+                'impact': 'Critical for preventing healthcare system overload'
+            })
+        
+        if r0 > 1.0:
+            recommendations.append({
+                'priority': 'MEDIUM',
+                'action': 'Increase testing and contact tracing capacity',
+                'impact': 'Early detection can reduce transmission by 20%'
+            })
+        
         recommendations.append({
             'priority': 'MEDIUM',
-            'action': 'Increase testing and contact tracing capacity',
-            'impact': 'Early detection can reduce transmission by 20%'
+            'action': 'Launch public awareness campaign',
+            'impact': 'Behavioral changes can reduce transmission by 15-25%'
         })
-    
-    recommendations.append({
-        'priority': 'MEDIUM',
-        'action': 'Launch public awareness campaign',
-        'impact': 'Behavioral changes can reduce transmission by 15-25%'
-    })
-    
-    return {
-        'generated_at': datetime.now(timezone.utc).isoformat(),
-        'scenario': scenario,
-        'forecast_days': days,
-        'summary': {
-            'current_active_cases': total_cases,
-            'current_outbreaks': len(disease_counts),
-            'reproduction_number': r0,
-            'peak_date': (datetime.now(timezone.utc) + timedelta(days=peak_point['day'])).date().isoformat(),
-            'peak_cases': peak_point['infected'],
-            'total_predicted_cases': forecast[-1]['total_cases'],
-            'risk_assessment': risk
-        },
-        'time_series': time_series,
-        'geographic_predictions': geographic_predictions,
-        'hospital_capacity': {
-            'current_hospitalized': current_hospitalized,
-            'peak_hospitalized': peak_hospitalized,
-            'beds_needed': max(0, peak_hospitalized - int(affected_beds * 0.05)),
-            'available_beds': affected_beds,
-            'critical_date': (datetime.now(timezone.utc) + timedelta(days=peak_point['day'])).date().isoformat()
-        },
-        'recommendations': recommendations,
-        'model_info': {
-            'model_type': 'Enhanced SEIR',
-            'disease': primary_disease,
-            'affected_population': affected_population,
-            'data_source': 'Doctor submissions' if outbreak_data else 'Sample data',
-            'confidence': '85%' if outbreak_data else '70%',
-            'parameters': {
-                'transmission_rate': round(DISEASE_PARAMS.get(primary_disease, {}).get('beta', 0.4), 3),
-                'incubation_rate': round(DISEASE_PARAMS.get(primary_disease, {}).get('sigma', 0.2), 3),
-                'recovery_rate': round(DISEASE_PARAMS.get(primary_disease, {}).get('gamma', 0.1), 3),
-                'r0': r0
+        
+        return {
+            'generated_at': datetime.now(timezone.utc).isoformat(),
+            'scenario': scenario,
+            'forecast_days': days,
+            'summary': {
+                'current_active_cases': total_cases,
+                'current_outbreaks': len(disease_counts),
+                'reproduction_number': r0,
+                'peak_date': (datetime.now(timezone.utc) + timedelta(days=peak_point['day'])).date().isoformat(),
+                'peak_cases': peak_point['infected'],
+                'total_predicted_cases': forecast[-1]['total_cases'],
+                'risk_assessment': risk
+            },
+            'time_series': time_series,
+            'geographic_predictions': geographic_predictions,
+            'hospital_capacity': {
+                'current_hospitalized': current_hospitalized,
+                'peak_hospitalized': peak_hospitalized,
+                'beds_needed': max(0, peak_hospitalized - int(affected_beds * 0.05)),
+                'available_beds': affected_beds,
+                'critical_date': (datetime.now(timezone.utc) + timedelta(days=peak_point['day'])).date().isoformat()
+            },
+            'recommendations': recommendations,
+            'model_info': {
+                'model_type': 'Enhanced SEIR',
+                'disease': primary_disease,
+                'affected_population': affected_population,
+                'data_source': 'Doctor submissions' if outbreak_data else 'Sample data',
+                'confidence': '85%' if outbreak_data else '70%',
+                'parameters': {
+                    'transmission_rate': round(DISEASE_PARAMS.get(primary_disease, {}).get('beta', 0.4), 3),
+                    'incubation_rate': round(DISEASE_PARAMS.get(primary_disease, {}).get('sigma', 0.2), 3),
+                    'recovery_rate': round(DISEASE_PARAMS.get(primary_disease, {}).get('gamma', 0.1), 3),
+                    'r0': r0
+                }
             }
         }
-    }
+    except BaseException as e:
+        import traceback
+        with open("debug_api_fatal.log", "w") as f:
+            f.write(traceback.format_exc())
+            f.write(f"\nError: {e}")
+        return {"error": str(e)}
 
 
 @router.get("/scenarios")

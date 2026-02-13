@@ -10,6 +10,7 @@ from app.api.v1 import doctor_station, public_outbreaks, approval, pdf_reports, 
 from app.api.v1 import notifications  # Email notifications
 from app.api.v1 import websocket # WebSocket
 from app.api.v1 import hospitals  # Hospitals API
+from app.api.v1 import broadcasts  # Health Broadcasts
 
 # ...
 
@@ -49,6 +50,9 @@ api_router.include_router(public_outbreaks.router)
 
 # Hospitals API
 api_router.include_router(hospitals.router)
+
+# Health Broadcasts
+api_router.include_router(broadcasts.router)
 
 # Email Notifications
 # api_router.include_router(notifications.router) # Redundant

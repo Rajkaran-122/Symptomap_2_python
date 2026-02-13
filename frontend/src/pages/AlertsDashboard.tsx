@@ -1,17 +1,19 @@
-/*
- * Alert Management Dashboard
- */
-
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
-
-const API_BASE_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:8000/api/v1';
+import {
+    AlertCircle, ShieldAlert, Info, Bell,
+    MapPin, Eye, CheckCircle2,
+    X, Send, Activity, Radio
+} from 'lucide-react';
+import { API_BASE_URL } from '../config/api';
 
 interface Alert {
     id: string;
     alert_type: string;
     severity: string;
     title: string;
+    message?: string;
     zone_name: string;
     sent_at: string;
     recipients_count: number;
@@ -19,19 +21,36 @@ interface Alert {
     acknowledged_count: number;
 }
 
+interface AlertDetail {
+    id: string;
+    alert_type: string;
+    severity: string;
+    title: string;
+    message: string;
+    zone_name: string;
+    sent_at: string;
+    recipients: string[];
+    delivery_status: any;
+    acknowledged_by: any[];
+}
+
 export const AlertsDashboard: React.FC = () => {
     const [alerts, setAlerts] = useState<Alert[]>([]);
     const [loading, setLoading] = useState(true);
     const [showSendModal, setShowSendModal] = useState(false);
+    const [showViewModal, setShowViewModal] = useState(false);
+    const [selectedAlert, setSelectedAlert] = useState<AlertDetail | null>(null);
+    const [viewLoading, setViewLoading] = useState(false);
 
     useEffect(() => {
         loadAlerts();
     }, []);
 
     const loadAlerts = async () => {
+        setLoading(true);
         try {
             const response = await axios.get(`${API_BASE_URL}/alerts/`);
-            setAlerts(response.data);
+            setAlerts(Array.isArray(response.data) ? response.data : []);
         } catch (error) {
             console.error('Failed to load alerts:', error);
         } finally {
@@ -39,148 +58,321 @@ export const AlertsDashboard: React.FC = () => {
         }
     };
 
-    const acknowledgeAlert = async (alertId: string) => {
+    const viewAlert = async (alertId: string) => {
+        setViewLoading(true);
+        setShowViewModal(true);
         try {
-            await axios.post(`${API_BASE_URL}/alerts/${alertId}/acknowledge`);
-            loadAlerts();
+            const response = await axios.get(`${API_BASE_URL}/alerts/${alertId}`);
+            setSelectedAlert(response.data);
         } catch (error) {
-            console.error('Failed to acknowledge alert:', error);
+            console.error('Failed to load alert details:', error);
+            setSelectedAlert(null);
+        } finally {
+            setViewLoading(false);
         }
     };
 
-    const getSeverityColor = (severity: string) => {
-        const colors = {
-            critical: 'bg-red-100 text-red-800 border-red-300',
-            warning: 'bg-amber-100 text-amber-800 border-amber-300',
-            info: 'bg-blue-100 text-blue-800 border-blue-300'
+    const acknowledgeAlert = async (alertId: string) => {
+        try {
+            await axios.post(`${API_BASE_URL}/alerts/${alertId}/acknowledge-public`, {});
+            loadAlerts();
+            if (selectedAlert && selectedAlert.id === alertId) {
+                viewAlert(alertId);
+            }
+        } catch (error) {
+            console.error('Failed to acknowledge alert:', error);
+            alert('Failed to acknowledge alert. Please try again.');
+        }
+    };
+
+    const getSeverityStyles = (severity: string) => {
+        const styles: any = {
+            critical: 'bg-red-500/10 text-red-500 border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.2)]',
+            warning: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
+            info: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
         };
-        return colors[severity as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+        return styles[severity] || 'bg-slate-500/10 text-slate-400 border-slate-500/20';
+    };
+
+    const getSeverityIcon = (severity: string) => {
+        switch (severity) {
+            case 'critical': return <ShieldAlert className="w-4 h-4" />;
+            case 'warning': return <AlertCircle className="w-4 h-4" />;
+            default: return <Info className="w-4 h-4" />;
+        }
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 p-6">
-            <div className="max-w-7xl mx-auto">
-                {/* Header */}
-                <div className="flex justify-between items-center mb-6">
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-900">Alert Management</h1>
-                        <p className="text-gray-600">Send and manage outbreak alerts</p>
-                    </div>
-                    <button
-                        onClick={() => setShowSendModal(true)}
-                        className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-medium"
-                    >
-                        + Send New Alert
-                    </button>
-                </div>
+        <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-900">
+            {/* Professional Header - Enterprise Grade */}
+            <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm backdrop-blur-xl bg-white/80 supports-[backdrop-filter]:bg-white/80">
+                <div className="max-w-7xl mx-auto px-6 sm:px-8 py-4">
+                    <div className="flex flex-col lg:flex-row justify-between items-center gap-4">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-indigo-600 text-white p-2.5 rounded-xl shadow-lg shadow-indigo-600/20 animate-pulse">
+                                <Radio className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h1 className="text-xl font-bold text-slate-900 tracking-tight">Broadcast Command</h1>
+                                <p className="text-sm text-slate-500 font-medium">Regional Alerting System</p>
+                            </div>
+                        </div>
 
-                {/* Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <div className="bg-white p-4 rounded-lg shadow-sm">
-                        <div className="text-sm text-gray-600">Total Alerts</div>
-                        <div className="text-2xl font-bold text-gray-900">{alerts.length}</div>
-                    </div>
-                    <div className="bg-white p-4 rounded-lg shadow-sm">
-                        <div className="text-sm text-gray-600">Critical</div>
-                        <div className="text-2xl font-bold text-red-600">
-                            {alerts.filter(a => a.severity === 'critical').length}
-                        </div>
-                    </div>
-                    <div className="bg-white p-4 rounded-lg shadow-sm">
-                        <div className="text-sm text-gray-600">Sent Today</div>
-                        <div className="text-2xl font-bold text-gray-900">
-                            {alerts.filter(a => {
-                                const today = new Date().toDateString();
-                                return new Date(a.sent_at).toDateString() === today;
-                            }).length}
-                        </div>
-                    </div>
-                    <div className="bg-white p-4 rounded-lg shadow-sm">
-                        <div className="text-sm text-gray-600">Total Recipients</div>
-                        <div className="text-2xl font-bold text-gray-900">
-                            {alerts.reduce((sum, a) => sum + a.recipients_count, 0)}
-                        </div>
+                        <button
+                            onClick={() => setShowSendModal(true)}
+                            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg font-semibold transition-all shadow-md shadow-indigo-600/20 active:scale-95 border border-transparent"
+                        >
+                            <Send className="w-4 h-4" />
+                            <span>Dispatch Alert</span>
+                        </button>
                     </div>
                 </div>
+            </header>
 
-                {/* Alerts Table */}
-                <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-                    <table className="w-full">
-                        <thead className="bg-gray-50 border-b">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Severity</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Zone</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Recipients</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sent</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                            {loading ? (
-                                <tr>
-                                    <td colSpan={7} className="px-6 py-4 text-center text-gray-500">Loading...</td>
+            <main className="max-w-7xl mx-auto px-6 sm:px-8 py-8">
+                {/* Analytics Overview Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+                    {[
+                        { label: 'Total Broadcasts', value: alerts.length, icon: Radio, color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-100' },
+                        { label: 'Critical Alerts', value: alerts.filter(a => a.severity === 'critical').length, icon: ShieldAlert, color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-100' },
+                        { label: 'Active Warnings', value: alerts.filter(a => a.severity === 'warning').length, icon: AlertCircle, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100' },
+                        { label: 'Nodes Reached', value: alerts.reduce((sum, a) => sum + a.recipients_count, 0), icon: Bell, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
+                    ].map((stat, i) => (
+                        <div key={i} className="bg-white border border-slate-200 p-5 rounded-xl shadow-[0_2px_10px_-4px_rgba(6,81,237,0.1)] hover:shadow-lg transition-all duration-300 group">
+                            <div className="flex justify-between items-start mb-4">
+                                <div className={`p-2.5 rounded-lg ${stat.bg} ${stat.border} border`}>
+                                    <stat.icon className={`w-5 h-5 ${stat.color} ${stat.label === 'Total Broadcasts' ? 'animate-pulse' : ''}`} />
+                                </div>
+                                <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-100">
+                                    <Activity className="w-3 h-3 text-emerald-500" />
+                                    ACTIVE
+                                </span>
+                            </div>
+                            <div className="text-3xl font-bold text-slate-800 tracking-tight mb-1">{loading ? '...' : stat.value}</div>
+                            <div className="text-sm text-slate-500 font-medium">{stat.label}</div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Surveillance Table */}
+                <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                    <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
+                        <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Recent Transmissions</h2>
+                        <div className="flex items-center gap-2 text-xs font-medium text-slate-500 bg-white px-3 py-1 rounded-full border border-slate-200 shadow-sm">
+                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                            System Operational
+                        </div>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-slate-50/50 border-b border-slate-200">
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status & Severity</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Alert Details</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Target Zone</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Reach</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Timestamp</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Actions</th>
                                 </tr>
-                            ) : alerts.length === 0 ? (
-                                <tr>
-                                    <td colSpan={7} className="px-6 py-4 text-center text-gray-500">No alerts sent yet</td>
-                                </tr>
-                            ) : (
-                                alerts.map((alert) => (
-                                    <tr key={alert.id} className="hover:bg-gray-50">
-                                        <td className="px-6 py-4">
-                                            <span className={`px-2 py-1 text-xs rounded border ${getSeverityColor(alert.severity)}`}>
-                                                {alert.severity}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-gray-900">{alert.title}</td>
-                                        <td className="px-6 py-4 text-sm text-gray-600">{alert.zone_name}</td>
-                                        <td className="px-6 py-4 text-sm text-gray-900">{alert.recipients_count}</td>
-                                        <td className="px-6 py-4 text-sm text-gray-600">
-                                            {new Date(alert.sent_at).toLocaleString()}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className="text-green-600 text-sm">
-                                                ✓ {alert.delivery_status?.email || 'sent'}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <button
-                                                onClick={() => acknowledgeAlert(alert.id)}
-                                                className="text-blue-600 hover:text-blue-800 text-sm"
-                                            >
-                                                View
-                                            </button>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {loading ? (
+                                    <tr>
+                                        <td colSpan={6} className="px-6 py-16 text-center">
+                                            <div className="flex flex-col items-center">
+                                                <div className="w-10 h-10 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin mb-3"></div>
+                                                <p className="text-slate-500 text-sm font-medium">Syncing broadcast logs...</p>
+                                            </div>
                                         </td>
                                     </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+                                ) : alerts.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={6} className="px-6 py-16 text-center">
+                                            <div className="bg-slate-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                <Radio className="w-8 h-8 text-slate-400" />
+                                            </div>
+                                            <p className="text-slate-900 font-semibold mb-1">No active alerts</p>
+                                            <p className="text-slate-500 text-sm">System is monitoring normally</p>
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    alerts.map((a) => (
+                                        <tr key={a.id} className="group hover:bg-slate-50/80 transition-colors">
+                                            <td className="px-6 py-4">
+                                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wide border ${getSeverityStyles(a.severity)}`}>
+                                                    {getSeverityIcon(a.severity)}
+                                                    {a.severity}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="text-slate-900 font-semibold text-sm max-w-xs truncate">{a.title}</div>
+                                                <div className="text-slate-400 text-xs font-mono mt-0.5">REF: {a.id.substring(0, 8)}</div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-2 text-slate-700 text-sm font-medium">
+                                                    <div className="p-1 rounded bg-indigo-50 text-indigo-600">
+                                                        <MapPin className="w-3 h-3" />
+                                                    </div>
+                                                    {a.zone_name}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-medium border border-slate-200">
+                                                    <Radio className="w-3 h-3" />
+                                                    {a.recipients_count}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="text-slate-600 text-sm font-medium">
+                                                    {new Date(a.sent_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                                </div>
+                                                <div className="text-slate-400 text-xs">
+                                                    {new Date(a.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <button
+                                                    onClick={() => viewAlert(a.id)}
+                                                    className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                    title="Inspect Alert"
+                                                >
+                                                    <Eye className="w-4 h-4" />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div className="bg-slate-50 border-t border-slate-200 px-6 py-3 text-xs text-slate-500 text-right">
+                        Showing {alerts.length} transmissions
+                    </div>
                 </div>
+            </main>
 
-                {/* Send Alert Modal */}
-                {showSendModal && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                        <div className="bg-white rounded-lg p-6 max-w-md w-full">
-                            <h3 className="text-xl font-bold mb-4">Send New Alert</h3>
-                            <p className="text-sm text-gray-600 mb-4">
-                                Use the API to send alerts programmatically. See documentation for details.
-                            </p>
-                            <div className="bg-gray-100 p-3 rounded text-xs font-mono mb-4">
-                                POST /api/v1/alerts/send
+            {/* View Modal - Clean & Professional */}
+            {showViewModal && (
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100">
+                        {viewLoading ? (
+                            <div className="flex items-center justify-center py-20">
+                                <div className="w-10 h-10 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
                             </div>
+                        ) : selectedAlert ? (
+                            <>
+                                <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`p-1.5 rounded-lg border ${getSeverityStyles(selectedAlert.severity)}`}>
+                                            {getSeverityIcon(selectedAlert.severity)}
+                                        </div>
+                                        <h2 className="text-lg font-bold text-slate-900">Alert Details</h2>
+                                    </div>
+                                    <button onClick={() => setShowViewModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-100 rounded-full">
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+
+                                <div className="p-6 space-y-6">
+                                    <div>
+                                        <h3 className="text-xl font-bold text-slate-900 mb-2">{selectedAlert.title}</h3>
+                                        <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl text-slate-600 text-sm leading-relaxed">
+                                            {selectedAlert.message}
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="border border-slate-200 p-3 rounded-xl">
+                                            <div className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Impact Zone</div>
+                                            <div className="text-slate-900 font-semibold flex items-center gap-2">
+                                                <MapPin className="w-4 h-4 text-indigo-500" />
+                                                {selectedAlert.zone_name}
+                                            </div>
+                                        </div>
+                                        <div className="border border-slate-200 p-3 rounded-xl">
+                                            <div className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Classification</div>
+                                            <div className="text-slate-900 font-semibold capitalize flex items-center gap-2">
+                                                <Info className="w-4 h-4 text-blue-500" />
+                                                {selectedAlert.alert_type}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <div className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Target Nodes ({selectedAlert.recipients.length})</div>
+                                        <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto pr-2 custom-scrollbar">
+                                            {selectedAlert.recipients.map((email, idx) => (
+                                                <span key={idx} className="bg-white border border-slate-200 px-2.5 py-1 rounded-full text-xs font-medium text-slate-600 shadow-sm">
+                                                    {email}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-3 pt-2">
+                                        <button
+                                            onClick={() => acknowledgeAlert(selectedAlert.id)}
+                                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 py-2.5 rounded-lg text-white font-semibold shadow-sm transition-all flex items-center justify-center gap-2 active:scale-95"
+                                        >
+                                            <CheckCircle2 className="w-4 h-4" />
+                                            Acknowledge
+                                        </button>
+                                        <button
+                                            onClick={() => setShowViewModal(false)}
+                                            className="px-6 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 rounded-lg text-slate-700 font-semibold transition-all"
+                                        >
+                                            Close
+                                        </button>
+                                    </div>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="p-12 text-center">
+                                <AlertCircle className="w-12 h-12 text-rose-500 mx-auto mb-3 opacity-50" />
+                                <p className="text-slate-900 font-medium">Alert data unavailable</p>
+                                <button onClick={() => setShowViewModal(false)} className="mt-4 text-indigo-600 text-sm font-semibold hover:underline">Dismiss</button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Send Modal Mockup */}
+            {showSendModal && (
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100">
+                        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                            <h2 className="text-lg font-bold text-slate-900">Dispatch System</h2>
+                            <button onClick={() => setShowSendModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="p-8 text-center">
+                            <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Send className="w-8 h-8 text-indigo-600" />
+                            </div>
+                            <h3 className="text-slate-900 font-bold text-lg mb-2">Manual Dispatch Required</h3>
+                            <p className="text-slate-500 text-sm mb-6 leading-relaxed">
+                                Automated alerting is active. For manual broadcasts, please use the dedicated console.
+                            </p>
+                            <Link
+                                to="/admin/broadcasts"
+                                onClick={() => setShowSendModal(false)}
+                                className="block w-full bg-indigo-600 hover:bg-indigo-700 py-2.5 rounded-lg text-white font-semibold shadow-md shadow-indigo-600/20 transition-all active:scale-95 mb-3"
+                            >
+                                Go to Broadcast Console
+                            </Link>
                             <button
                                 onClick={() => setShowSendModal(false)}
-                                className="w-full bg-gray-600 text-white py-2 rounded hover:bg-gray-700"
+                                className="w-full py-2.5 text-slate-500 hover:text-slate-700 font-medium text-sm transition-colors"
                             >
-                                Close
+                                Cancel
                             </button>
                         </div>
                     </div>
-                )}
-            </div>
+                </div>
+            )}
         </div>
     );
 };

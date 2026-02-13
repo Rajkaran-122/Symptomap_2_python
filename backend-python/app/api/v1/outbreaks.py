@@ -223,7 +223,11 @@ async def _get_outbreaks(
     if verified is not None:
         filters.append(Outbreak.verified == verified)
     if days:
+        # Use naive datetime for SQLite comparison if needed
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        # For SQLite, sometimes naive comparison works better with func.now() defaults
+        if "sqlite" in str(db.bind.url):
+             cutoff = cutoff.replace(tzinfo=None)
         filters.append(Outbreak.date_reported >= cutoff)
     
     if filters:
@@ -377,6 +381,42 @@ async def verify_outbreak(
         "message": "Outbreak verified successfully",
         "outbreak_id": str(outbreak.id),
         "verified_by": current_user.full_name
+    }
+
+
+@router.post("/{outbreak_id}/verify-public")
+async def verify_outbreak_public(
+    outbreak_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Verify outbreak - public endpoint for dashboard (no auth required)"""
+    import uuid
+    
+    try:
+        bid = uuid.UUID(outbreak_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid outbreak ID format")
+    
+    result = await db.execute(
+        select(Outbreak).where(Outbreak.id == bid)
+    )
+    outbreak = result.scalar_one_or_none()
+    
+    if not outbreak:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Outbreak not found"
+        )
+    
+    outbreak.verified = True
+    outbreak.verification_date = datetime.now(timezone.utc)
+    
+    await db.commit()
+    
+    return {
+        "message": "Outbreak verified successfully",
+        "outbreak_id": str(outbreak.id),
+        "verified": True
     }
 
 

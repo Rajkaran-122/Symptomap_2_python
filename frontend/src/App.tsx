@@ -20,6 +20,11 @@ import DoctorStation from '@/pages/DoctorStation';
 import ApprovalRequestsPage from '@/pages/ApprovalRequestsPage';
 import LoginPage from '@/pages/LoginPage';
 import RegisterPage from '@/pages/RegisterPage';
+import DoctorRegisterPage from '@/pages/DoctorRegisterPage';
+import UserLoginPage from '@/pages/UserLoginPage';
+import UserDashboard from '@/pages/UserDashboard';
+import PublicMapPage from '@/pages/PublicMapPage';
+import AdminBroadcastPanel from '@/components/broadcasts/AdminBroadcastPanel';
 
 function App() {
   const checkAuth = useAuthStore(state => state.checkAuth);
@@ -31,35 +36,57 @@ function App() {
   return (
     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Routes>
-        {/* Public Routes */}
+        {/* ═══════════════════════════════════════════
+            PUBLIC ROUTES — No auth required
+        ═══════════════════════════════════════════ */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/register/doctor" element={<DoctorRegisterPage />} />
 
-        {/* Legacy redirect */}
-        <Route path="/doctor" element={<Navigate to="/login" replace />} />
+        {/* ═══════════════════════════════════════════
+            USER (PATIENT) ROUTES — role='user' only
+        ═══════════════════════════════════════════ */}
+        <Route path="/user/login" element={<UserLoginPage />} />
+        <Route path="/user/dashboard" element={<UserDashboard />} />
+        <Route path="/user/map" element={<PublicMapPage />} />
+        <Route path="/user/chatbot" element={<ChatbotPage />} />
 
-        {/* Doctor Routes */}
+        {/* ═══════════════════════════════════════════
+            DOCTOR ROUTES — role='doctor' or 'admin'
+        ═══════════════════════════════════════════ */}
         <Route path="/doctor/station" element={
           <ProtectedRoute roles={['doctor', 'admin']}>
             <DoctorStation />
           </ProtectedRoute>
         } />
 
-        {/* Admin Routes */}
+        {/* Legacy redirect */}
+        <Route path="/doctor" element={<Navigate to="/login" replace />} />
+
+        {/* ═══════════════════════════════════════════
+            ADMIN ROUTES — role='admin' only
+        ═══════════════════════════════════════════ */}
         <Route path="/admin/approvals" element={
           <ProtectedRoute roles={['admin']}>
             <ApprovalRequestsPage />
           </ProtectedRoute>
         } />
 
-        {/* Main App Routes (Authenticated) */}
+        <Route path="/admin/broadcasts" element={
+          <ProtectedRoute roles={['admin']}>
+            <AdminBroadcastPanel />
+          </ProtectedRoute>
+        } />
+
+        {/* ═══════════════════════════════════════════
+            MAIN APP ROUTES — Doctor / Admin Layout
+        ═══════════════════════════════════════════ */}
         <Route path="/*" element={
-          <ProtectedRoute>
+          <ProtectedRoute roles={['doctor', 'admin']}>
             <Layout>
               <Routes>
                 <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/chatbot" element={<ChatbotPage />} />
                 <Route path="/admin" element={
                   <ProtectedRoute roles={['admin']}>
                     <AdminDashboard />

@@ -10,7 +10,13 @@ class Settings(BaseSettings):
     """Application settings"""
     
     # Database (SQLite by default for easy deployment)
-    DATABASE_URL: str = "sqlite:///./symptomap.db"
+    @property
+    def DATABASE_URL(self) -> str:
+        return "sqlite+aiosqlite:///c:/Users/digital metro/Documents/sympto-pulse-map-main/backend-python/symptomap.db"
+
+    def __init__(self, **values):
+        super().__init__(**values)
+        print(f"DEBUG: Config resolved DATABASE_URL to: {self.DATABASE_URL}")
     PGSSLMODE: str = "prefer"
     
     # Redis (optional - app uses mock if not provided)

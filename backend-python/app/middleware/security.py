@@ -34,6 +34,15 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     )
     
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        # Skip for non-HTTP requests (like WebSockets)
+        if request.scope["type"] != "http":
+            return await call_next(request)
+            
+        # Skip for OPTIONS requests (CORS preflight)
+        # CORSMiddleware handles these, we shouldn't add security headers that might break it
+        if request.method == "OPTIONS":
+            return await call_next(request)
+            
         response = await call_next(request)
         
         # Add security headers
@@ -51,14 +60,14 @@ class RequestTimingMiddleware(BaseHTTPMiddleware):
     """Add request timing headers"""
     
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        # Skip for non-HTTP
+        if request.scope["type"] != "http":
+            return await call_next(request)
+            
         start_time = time.perf_counter()
-        
         response = await call_next(request)
-        
-        # Calculate processing time
         process_time = time.perf_counter() - start_time
         response.headers["X-Process-Time"] = f"{process_time:.4f}"
-        
         return response
 
 
@@ -79,6 +88,10 @@ class RequestValidationMiddleware(BaseHTTPMiddleware):
     ]
     
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        # Skip for non-HTTP and OPTIONS
+        if request.scope["type"] != "http" or request.method == "OPTIONS":
+            return await call_next(request)
+            
         # Check User-Agent for known attack tools
         user_agent = request.headers.get("User-Agent", "").lower()
         for blocked in self.BLOCKED_USER_AGENTS:
@@ -116,6 +129,10 @@ class IPBlocklistMiddleware(BaseHTTPMiddleware):
         cls._blocklist.discard(ip)
     
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        # Skip for non-HTTP
+        if request.scope["type"] != "http":
+            return await call_next(request)
+            
         # Get client IP
         forwarded = request.headers.get("X-Forwarded-For")
         if forwarded:

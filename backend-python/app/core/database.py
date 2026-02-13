@@ -11,6 +11,10 @@ database_url = settings.DATABASE_URL
 if database_url.startswith("sqlite:///"):
     # Convert sqlite:/// to sqlite+aiosqlite:/// for async support
     database_url = database_url.replace("sqlite:///", "sqlite+aiosqlite:///")
+elif database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql+asyncpg://")
+elif database_url.startswith("postgresql://"):
+    database_url = database_url.replace("postgresql://", "postgresql+asyncpg://")
 
 # Create async engine
 engine_args = {

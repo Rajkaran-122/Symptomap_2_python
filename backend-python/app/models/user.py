@@ -16,11 +16,15 @@ class User(Base):
     __tablename__ = "users"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    email = Column(String(255), unique=True, nullable=False, index=True)
-    password_hash = Column(String(255), nullable=False)
-    full_name = Column(String(255), nullable=False)
-    phone = Column(String(20))
-    role = Column(String(50), nullable=False)  # doctor, admin, public_health_official, patient
+    email = Column(String(255), unique=True, nullable=True, index=True)  # Nullable for OTP users
+    password_hash = Column(String(255), nullable=True)  # Nullable for OTP users
+    full_name = Column(String(255), nullable=True)  # Can be set later for OTP users
+    phone = Column(String(20), unique=True, index=True)  # Unique phone for OTP
+    role = Column(String(50), nullable=False)  # doctor, admin, patient, user
+    
+    # Phone verification for OTP users
+    phone_verified = Column(Boolean, default=False)
+    region = Column(String(100))  # User's region for targeted broadcasts
     
     # Doctor specific fields
     hospital_id = Column(UUID(as_uuid=True), ForeignKey("hospitals.id"))
@@ -52,4 +56,19 @@ class User(Base):
     last_login = Column(DateTime(timezone=True))
     
     is_active = Column(Boolean, default=True)
+    is_verified = Column(Boolean, default=False)  # OTP email/phone verification complete
+
+    def to_dict(self):
+        """Serialize user for API responses"""
+        return {
+            "id": str(self.id),
+            "email": self.email,
+            "phone": self.phone,
+            "full_name": self.full_name,
+            "role": self.role,
+            "is_active": self.is_active,
+            "is_verified": self.is_verified,
+            "region": self.region,
+            "created_at": self.created_at.isoformat() if self.created_at else None
+        }
 

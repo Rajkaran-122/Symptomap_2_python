@@ -220,6 +220,36 @@ async def create_admin_user(db):
     return admin
 
 
+async def create_doctor_user(db):
+    """Create a default doctor user for testing"""
+    from app.core.security import get_password_hash
+    from app.core.config import settings
+    
+    # Use the configured doctor password
+    password = settings.DOCTOR_PASSWORD
+    
+    # Check if exists
+    from sqlalchemy import select
+    result = await db.execute(select(User).where(User.email == "doctor@symptomap.com"))
+    if result.scalar_one_or_none():
+        return
+        
+    doctor = User(
+        email="doctor@symptomap.com",
+        full_name="Dr. Sarah Johnson",
+        password_hash=get_password_hash(password),
+        role="doctor",
+        verification_status="verified"
+    )
+    
+    db.add(doctor)
+    await db.commit()
+    await db.refresh(doctor)
+    
+    print(f"✅ Created doctor user (doctor@symptomap.com / {password})")
+    return doctor
+
+
 async def create_outbreaks(db, hospitals, admin_user):
     """Create realistic outbreak records"""
     outbreaks = []
@@ -350,6 +380,9 @@ async def seed_database():
         
         # Create admin user
         admin_user = await create_admin_user(db)
+        
+        # Create doctor user
+        await create_doctor_user(db)
         
         # Create outbreaks
         outbreaks = await create_outbreaks(db, hospitals, admin_user)

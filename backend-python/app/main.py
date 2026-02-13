@@ -16,6 +16,8 @@ import app.models # Register all models
 from sqlalchemy import text
 from app.core.seeder import seed_database
 from app.api.v1.websocket import router as websocket_router
+from app.api.v1.public import router as public_router
+from app.api.v1.public_outbreaks import router as public_outbreaks_router
 
 # Rate Limiting
 from slowapi import _rate_limit_exceeded_handler
@@ -36,7 +38,7 @@ async def lifespan(app: FastAPI):
     from app.models import (
         User, Hospital, Outbreak, Prediction, Alert,
         ChatbotConversation, AnonymousSymptomReport, DiseaseInfo,
-        DoctorOutbreak, DoctorAlert
+        DoctorOutbreak, DoctorAlert, Broadcast
     )
     
     # Create database tables (including any new tables that don't exist)
@@ -77,12 +79,19 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# GZip compression
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# Security Middleware (headers, request validation)
+setup_security_middleware(app)
+
 # Apply Global Rate Limiter
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 
 # CORS Middleware - Support cross-origin credentials and Vercel preview URLs
+# Added last to ensure it's the OUTERMOST middleware layer
 def get_allowed_origins():
     """Include static origins + dynamic Vercel preview URL pattern"""
     origins = list(settings.CORS_ORIGINS)
@@ -98,11 +107,49 @@ app.add_middleware(
     expose_headers=["X-MFA-Required", "Set-Cookie"],  # Expose auth-related headers
 )
 
-# GZip compression
-app.add_middleware(GZipMiddleware, minimum_size=1000)
+# Custom exception handlers with CORS headers
+from fastapi import HTTPException
+from fastapi.responses import JSONResponse
+from starlette.requests import Request as StarletteRequest
 
-# Security Middleware (headers, request validation)
-setup_security_middleware(app)
+def get_cors_headers(request: StarletteRequest):
+    """Generate CORS headers based on request origin"""
+    origin = request.headers.get("origin", "")
+    allowed_origins = get_allowed_origins()
+    
+    # Check if origin is allowed
+    if origin in allowed_origins or origin.endswith(".vercel.app"):
+        return {
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Headers": "*",
+        }
+    return {}
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: StarletteRequest, exc: HTTPException):
+    """Custom HTTP exception handler with CORS headers"""
+    headers = get_cors_headers(request)
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+        headers=headers
+    )
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: StarletteRequest, exc: Exception):
+    """Custom general exception handler with CORS headers"""
+    import traceback
+    print(f"Unhandled exception: {exc}")
+    print(traceback.format_exc())
+    
+    headers = get_cors_headers(request)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"},
+        headers=headers
+    )
 
 # Include API router
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
@@ -113,6 +160,9 @@ def test_reload():
 
 # Include WebSocket router
 app.include_router(websocket_router, prefix=settings.API_V1_PREFIX)
+# Include Public API router
+app.include_router(public_router, prefix=settings.API_V1_PREFIX)
+app.include_router(public_outbreaks_router, prefix=settings.API_V1_PREFIX)
 
 
 @app.get("/")

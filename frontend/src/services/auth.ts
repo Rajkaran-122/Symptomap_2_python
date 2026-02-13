@@ -17,7 +17,7 @@ export interface User {
     id: string;
     email: string;
     full_name: string;
-    role: 'doctor' | 'admin' | 'patient' | 'public';
+    role: 'doctor' | 'admin' | 'patient' | 'public' | 'user';
     mfa_enabled?: boolean;
 }
 
@@ -153,53 +153,51 @@ export const AuthService = {
     /**
      * Register a new user
      */
-    register: async (data: RegisterData): Promise<{ success: boolean; message: string }> => {
+    register: async (data: RegisterData): Promise<{ success: boolean; message: string; user_id?: string }> => {
         try {
             const response = await axios.post(`${API_URL}/auth/register`, data);
-            return { success: true, message: response.data.message };
+            return {
+                success: true,
+                message: response.data.message,
+                user_id: response.data.id
+            };
         } catch (error: any) {
             const message = error.response?.data?.detail || 'Registration failed';
             throw new Error(message);
         }
     },
 
-    /**
-     * Login with email and password
-     */
+    // verifyOtp removed for simple login
+
     login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
         try {
-            // OAuth2 form data format
-            const formData = new URLSearchParams();
-            formData.append('username', credentials.email);
-            formData.append('password', credentials.password);
-            if (credentials.mfa_code) {
-                formData.append('scope', credentials.mfa_code);
-            }
-
-            const response = await axios.post(`${API_URL}/auth/login`, formData, {
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                withCredentials: true,
+            // OAuth2PasswordRequestForm expects username/password as x-www-form-urlencoded 
+            // but the simplified backend login accepts JSON for LoginRequest
+            const response = await axios.post(`${API_URL}/auth/login`, {
+                email: credentials.email,
+                password: credentials.password
             });
 
             const authData: AuthResponse = response.data;
-
-            // Store tokens and user
-            localStorage.setItem(ACCESS_TOKEN_KEY, authData.access_token);
-            if (authData.refresh_token) {
-                localStorage.setItem(REFRESH_TOKEN_KEY, authData.refresh_token);
-            }
-            localStorage.setItem(USER_KEY, JSON.stringify(authData.user));
-
+            AuthService.setSession(authData);
             return authData;
         } catch (error: any) {
-            // Check if MFA is required
-            if (error.response?.headers?.['x-mfa-required'] === 'true') {
-                throw new Error('MFA_REQUIRED');
-            }
-
             const message = error.response?.data?.detail || 'Login failed';
             throw new Error(message);
         }
+    },
+
+    // verifyLoginOtp and resendOtp removed for simple login
+
+    /**
+     * Helper to set session
+     */
+    setSession: (authData: AuthResponse) => {
+        localStorage.setItem(ACCESS_TOKEN_KEY, authData.access_token);
+        if (authData.refresh_token) {
+            localStorage.setItem(REFRESH_TOKEN_KEY, authData.refresh_token);
+        }
+        localStorage.setItem(USER_KEY, JSON.stringify(authData.user));
     },
 
     /**
@@ -217,11 +215,7 @@ export const AuthService = {
             );
 
             const authData: AuthResponse = response.data;
-            localStorage.setItem(ACCESS_TOKEN_KEY, authData.access_token);
-            if (authData.refresh_token) {
-                localStorage.setItem(REFRESH_TOKEN_KEY, authData.refresh_token);
-            }
-            localStorage.setItem(USER_KEY, JSON.stringify(authData.user));
+            AuthService.setSession(authData);
 
             return true;
         } catch (error) {
@@ -308,31 +302,7 @@ export const AuthService = {
         });
     },
 
-    // ==========================================
-    // MFA Methods
-    // ==========================================
-
-    /**
-     * Setup MFA - returns QR code and backup codes
-     */
-    setupMFA: async (): Promise<MFASetupResponse> => {
-        const response = await authClient.post('/auth/mfa/setup');
-        return response.data;
-    },
-
-    /**
-     * Verify MFA setup with TOTP code
-     */
-    verifyMFASetup: async (code: string): Promise<void> => {
-        await authClient.post('/auth/mfa/verify', { code });
-    },
-
-    /**
-     * Disable MFA
-     */
-    disableMFA: async (code: string): Promise<void> => {
-        await authClient.post('/auth/mfa/disable', { code });
-    },
+    // MFA Methods removed
 };
 
 // Password validation utility (matching backend rules)

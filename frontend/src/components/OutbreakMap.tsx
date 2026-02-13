@@ -217,12 +217,8 @@ export const OutbreakMap: React.FC<OutbreakMapProps> = ({ onOutbreakClick = () =
       `;
 
       el.style.cursor = 'pointer';
-      el.style.transition = 'transform 0.2s ease';
+      el.style.cursor = 'pointer';
       el.title = `${city} Zone - ${totalCases} Total Cases`;
-
-      // Hover
-      el.addEventListener('mouseenter', () => el.style.transform = 'scale(1.2)');
-      el.addEventListener('mouseleave', () => el.style.transform = 'scale(1)');
 
       // Popup HTML with aggregated list
       let hospitalListHTML = hospitals.map((h: any) => `

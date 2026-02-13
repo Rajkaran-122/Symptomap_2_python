@@ -1,0 +1,10 @@
+PASS | Status check | 200 (expect 200) | {"service": "OTP Authentication", "status": "active", "storage": "database (production)", "sms_provider": "mock", "email_provider": "Resend API / SMTP", "otp_expiry_seconds": 300, "max_attempts": 5, "resend_cooldown_seconds": 60, "2fa_required_for": ["user"], "direct_login_for": ["admin", "doctor"]}
+PASS | Signup user | 201 (expect 201) | {"message": "Account created. Please verify with the OTP sent to your email/phone.", "user_id": "4cc9b0d1-c299-4e9b-bf73-d2402da38e3f", "otp_required": null, "expires_in": 300}
+PASS | Login user (unverified) | 403 (expect 403) | {"detail": "Account not verified. Please complete OTP verification."}
+PASS | Login wrong pass | 401 (expect 401) | {"detail": "Invalid credentials. 4 attempt(s) remaining."}
+FAIL | Forgot password | 429 (expect 200) | {"error": "Rate limit exceeded: 3 per 1 hour"}
+FAIL | Admin no key | 422 (expect 403) | {"detail": [{"type": "string_too_short", "loc": ["body", "full_name"], "msg": "String should have at least 2 characters", "input": "A", "ctx": {"min_length": 2}, "url": "https://errors.pydantic.dev/2.5/v/string_too_short"}]}
+FAIL | Admin wrong key | 422 (expect 403) | {"detail": [{"type": "string_too_short", "loc": ["body", "full_name"], "msg": "String should have at least 2 characters", "input": "A", "ctx": {"min_length": 2}, "url": "https://errors.pydantic.dev/2.5/v/string_too_short"}]}
+FAIL | Resend OTP | 429 (expect 200) | {"error": "Rate limit exceeded: 3 per 1 hour"}
+
+RESULTS: 4/8 passed
