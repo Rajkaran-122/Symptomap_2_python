@@ -6,20 +6,13 @@ interface AuthState {
     isAuthenticated: boolean;
     isLoading: boolean;
     error: string | null;
-    mfaRequired: boolean;
-    mfaEmail: string | null;
 
     // Actions
     login: (credentials: LoginCredentials) => Promise<void>;
     register: (data: RegisterData) => Promise<void>;
-    verifyLogin: (email: string, otp: string) => Promise<void>;
-    verifySignup: (email: string, otp: string) => Promise<void>;
-    resendOtp: (email: string, purpose: 'signup' | 'login' | 'password_reset') => Promise<void>;
-
     logout: () => Promise<void>;
     checkAuth: () => Promise<void>;
     clearError: () => void;
-    setMfaRequired: (required: boolean, email?: string) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -27,11 +20,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     isAuthenticated: AuthService.isAuthenticated(),
     isLoading: false,
     error: null,
-    mfaRequired: false,
-    mfaEmail: null,
 
     login: async (credentials) => {
-        set({ isLoading: true, error: null, mfaRequired: false, mfaEmail: null });
+        set({ isLoading: true, error: null });
         try {
             const response = await AuthService.login(credentials);
 
@@ -39,9 +30,7 @@ export const useAuthStore = create<AuthState>((set) => ({
             set({
                 user: response.user,
                 isAuthenticated: true,
-                isLoading: false,
-                mfaRequired: false,
-                mfaEmail: null
+                isLoading: false
             });
         } catch (error: any) {
             set({
@@ -67,54 +56,6 @@ export const useAuthStore = create<AuthState>((set) => ({
         }
     },
 
-    verifyLogin: async (email, otp) => {
-        set({ isLoading: true, error: null });
-        try {
-            const response = await AuthService.verifyLoginOtp(email, otp);
-            set({
-                user: response.user,
-                isAuthenticated: true,
-                isLoading: false,
-                mfaRequired: false,
-                mfaEmail: null
-            });
-        } catch (error: any) {
-            set({
-                error: error.message || 'Verification failed',
-                isLoading: false
-            });
-            throw error;
-        }
-    },
-
-    verifySignup: async (email, otp) => {
-        set({ isLoading: true, error: null });
-        try {
-            await AuthService.verifyOtp(email, otp, 'signup');
-            set({ isLoading: false });
-        } catch (error: any) {
-            set({
-                error: error.message || 'Verification failed',
-                isLoading: false
-            });
-            throw error;
-        }
-    },
-
-    resendOtp: async (email, purpose) => {
-        set({ isLoading: true, error: null });
-        try {
-            await AuthService.resendOtp(email, purpose);
-            set({ isLoading: false });
-        } catch (error: any) {
-            set({
-                error: error.message || 'Failed to resend OTP',
-                isLoading: false
-            });
-            throw error;
-        }
-    },
-
     logout: async () => {
         set({ isLoading: true });
         try {
@@ -124,9 +65,7 @@ export const useAuthStore = create<AuthState>((set) => ({
                 user: null,
                 isAuthenticated: false,
                 isLoading: false,
-                error: null,
-                mfaRequired: false,
-                mfaEmail: null
+                error: null
             });
         }
     },
@@ -151,7 +90,5 @@ export const useAuthStore = create<AuthState>((set) => ({
         }
     },
 
-    clearError: () => set({ error: null }),
-
-    setMfaRequired: (required, email) => set({ mfaRequired: required, mfaEmail: email || null })
+    clearError: () => set({ error: null })
 }));
