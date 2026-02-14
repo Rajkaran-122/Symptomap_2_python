@@ -33,3 +33,12 @@ If you cannot use the Shell (Free Tier restriction), use this special endpoint I
 4.  **Login with:**
     -   **Email:** `admin@symptomap.com`
     -   **Password:** `admin123`
+
+## Solution 4: Unlock Account (Fix 429 Error)
+If you get "Too many failed attempts", use this endpoint to unlock your account immediately.
+
+1.  **Open this URL in your browser:**
+    `https://symptomap-2-python-1.onrender.com/api/v1/admin-ops/unlock-account?email=user@symptomap.com`
+    *(Replace email if needed)*
+2.  You should see `{"status": "success", ...}`.
+3.  Try logging in again.

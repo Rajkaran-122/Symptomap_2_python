@@ -79,3 +79,21 @@ async def create_custom_user(user_data: UserCreate):
             "message": str(e), 
             "traceback": traceback.format_exc()
         }
+
+@router.post("/unlock-account")
+async def unlock_account(email: str):
+    """
+    Unlock a user account by clearing login attempts.
+    Useful for resolving 429 Too Many Requests errors.
+    """
+    try:
+        from app.core.security import LoginAttemptTracker
+        LoginAttemptTracker.clear(email)
+        return {"status": "success", "message": f"Account {email} unlocked successfully"}
+    except Exception as e:
+        return {
+            "status": "error", 
+            "message": str(e), 
+            "traceback": traceback.format_exc()
+        }
+
