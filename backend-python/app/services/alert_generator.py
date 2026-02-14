@@ -10,6 +10,8 @@ import json
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.models.outbreak import Outbreak, Hospital, Alert
+from app.models.broadcast import Broadcast
+import uuid
 
 
 # Alert thresholds
@@ -44,6 +46,9 @@ async def analyze_and_generate_alerts(db: AsyncSession) -> List[Dict]:
         .group_by(Hospital.state)
     )
     state_stats = result.all()
+    print(f"DEBUG: Found {len(state_stats)} states with outbreaks")
+    for s in state_stats:
+        print(f"DEBUG: State: {s.state}, Cases: {s.total_cases}")
     
     for state, total_cases, outbreak_count, max_severity in state_stats:
         if not state:
@@ -79,7 +84,7 @@ async def analyze_and_generate_alerts(db: AsyncSession) -> List[Dict]:
             if existing.scalar_one_or_none():
                 continue  # Skip duplicate alert
             
-            # Create alert matching existing model structure
+            # Create Alert
             alert = Alert(
                 title=f"{alert_type.replace('_', ' ').title()} - {state}",
                 message=message,
@@ -91,6 +96,22 @@ async def analyze_and_generate_alerts(db: AsyncSession) -> List[Dict]:
                 acknowledged_by=[]
             )
             db.add(alert)
+
+            # Create corresponding Broadcast for public feed
+            broadcast = Broadcast(
+                id=uuid.uuid4(),
+                title=f"Public Alert: {state}",
+                content=message,
+                severity=severity_level,
+                region=state,
+                channels=["in_app", "web"],
+                is_active=True,
+                is_automated=True,
+                created_at=now,
+                created_by=None # Systems default
+            )
+            db.add(broadcast)
+
             created_alerts.append({
                 "state": state,
                 "type": alert_type,
@@ -165,6 +186,21 @@ async def check_growth_rate_alerts(db: AsyncSession) -> List[Dict]:
                     acknowledged_by=[]
                 )
                 db.add(alert)
+
+                # Create corresponding Broadcast
+                broadcast = Broadcast(
+                    id=uuid.uuid4(),
+                    title=f"Health Update: {state}",
+                    content=f"Rising cases detected in {state}. Growth rate: {growth_rate*100:.1f}%. Please exercise caution.",
+                    severity="warning" if growth_rate >= 0.25 else "info",
+                    region=state,
+                    channels=["in_app"],
+                    is_active=True,
+                    is_automated=True,
+                    created_at=now
+                )
+                db.add(broadcast)
+
                 created_alerts.append({
                     "state": state,
                     "type": "RAPID_GROWTH",
@@ -177,13 +213,13 @@ async def check_growth_rate_alerts(db: AsyncSession) -> List[Dict]:
 
 async def run_auto_alert_generation(db: AsyncSession) -> Dict:
     """Main function to run all alert generation checks"""
-    print("🔔 Running auto-alert generation...")
+    print(">>> Running auto-alert generation...")
     
     outbreak_alerts = await analyze_and_generate_alerts(db)
     growth_alerts = await check_growth_rate_alerts(db)
     
     total = len(outbreak_alerts) + len(growth_alerts)
-    print(f"✅ Generated {total} new alerts")
+    print(f"[OK] Generated {total} new alerts")
     
     return {
         "outbreak_alerts": outbreak_alerts,

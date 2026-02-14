@@ -211,7 +211,7 @@ async def get_broadcast(
     )
 
 
-@router.post("/", response_model=BroadcastResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=BroadcastResponse, status_code=status.HTTP_201_CREATED)
 async def create_broadcast(
     broadcast_data: BroadcastCreate,
     db: AsyncSession = Depends(get_db),

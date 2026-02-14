@@ -7,6 +7,7 @@ import {
     Eye, LayoutDashboard, Radio, Bell
 } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
+import { SymptoMapAPI } from '../services/api';
 
 interface Outbreak {
     id: string;
@@ -28,6 +29,12 @@ export const AdminDashboard: React.FC = () => {
         severity: 'all',
         verified: 'all',
         disease: ''
+    });
+    const [stats, setStats] = useState({
+        total_reports: 0,
+        pending_review: 0,
+        high_priority: 0,
+        active_cases: 0
     });
 
     useEffect(() => {
@@ -59,6 +66,15 @@ export const AdminDashboard: React.FC = () => {
             if (filter.disease) filtered = filtered.filter((o: Outbreak) => o.disease_type.toLowerCase().includes(filter.disease.toLowerCase()));
 
             setOutbreaks(filtered);
+
+            // Fetch aggregate stats
+            try {
+                const statsData = await SymptoMapAPI.getOutbreakStats();
+                setStats(statsData);
+            } catch (e) {
+                console.error("Failed to load stats", e);
+            }
+
         } catch (error) {
             console.error('Failed to load outbreaks:', error);
         } finally {
@@ -161,10 +177,10 @@ export const AdminDashboard: React.FC = () => {
                 {/* Analytics Overview Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
                     {[
-                        { label: 'Total Reports', value: outbreaks.length, icon: Activity, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
-                        { label: 'Pending Review', value: outbreaks.filter(o => !o.verified).length, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100' },
-                        { label: 'High Priority', value: outbreaks.filter(o => o.severity === 'severe').length, icon: AlertTriangle, color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-100' },
-                        { label: 'Active Cases', value: outbreaks.reduce((sum, o) => sum + o.patient_count, 0), icon: Bell, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
+                        { label: 'Total Reports', value: stats.total_reports, icon: Activity, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
+                        { label: 'Pending Review', value: stats.pending_review, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100' },
+                        { label: 'High Priority', value: stats.high_priority, icon: AlertTriangle, color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-100' },
+                        { label: 'Active Cases', value: stats.active_cases, icon: Bell, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
                     ].map((stat, i) => (
                         <div key={i} className={`bg-white border border-slate-200 p-5 rounded-xl shadow-[0_2px_10px_-4px_rgba(6,81,237,0.1)] hover:shadow-lg transition-all duration-300 group`}>
                             <div className="flex justify-between items-start mb-4">
@@ -339,7 +355,7 @@ export const AdminDashboard: React.FC = () => {
                     </div>
                     {/* Pagination or Footer area could go here */}
                     <div className="bg-slate-50 border-t border-slate-200 px-6 py-3 text-xs text-slate-500 text-right">
-                        Showing {outbreaks.length} records
+                        Showing recent {outbreaks.length} records
                     </div>
                 </div>
             </main>

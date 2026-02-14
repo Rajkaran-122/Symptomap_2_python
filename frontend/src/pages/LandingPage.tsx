@@ -7,7 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TrendingUp, AlertTriangle, Activity, MapPin, BarChart3, FileText, Shield, Zap, Heart, Stethoscope } from 'lucide-react';
 
-export const LandingPage: React.FC = () => {
+const LandingPage: React.FC = () => {
     const navigate = useNavigate();
     const [stats, setStats] = useState({
         active_outbreaks: '0',
@@ -26,7 +26,7 @@ export const LandingPage: React.FC = () => {
                 setStats({
                     active_outbreaks: data.active_outbreaks || '0',
                     ai_predictions: data.ai_predictions || '0',
-                    alerts_sent: '5',
+                    alerts_sent: data.alerts_sent || '0',
                     coverage_area: data.coverage_area || '4 States'
                 });
             } catch (error) {
@@ -42,28 +42,28 @@ export const LandingPage: React.FC = () => {
             title: 'AI Predictions',
             description: 'Advanced SEIR model forecasting with multi-scenario analysis',
             color: 'from-blue-500 to-indigo-600',
-            route: '/predictions'
+            route: '/user/dashboard'
         },
         {
             icon: AlertTriangle,
             title: 'Alert Management',
             description: 'Real-time outbreak alerts with smart notifications',
             color: 'from-red-500 to-pink-600',
-            route: '/alerts'
+            route: '/user/dashboard'
         },
         {
             icon: BarChart3,
             title: 'Analytics Dashboard',
             description: 'Comprehensive data visualization and trend analysis',
             color: 'from-purple-500 to-indigo-600',
-            route: '/analytics'
+            route: '/user/dashboard'
         },
         {
             icon: FileText,
             title: 'Reports',
             description: 'Detailed outbreak reports with export capabilities',
             color: 'from-green-500 to-teal-600',
-            route: '/reports'
+            route: '/user/dashboard'
         }
     ];
 
@@ -94,14 +94,14 @@ export const LandingPage: React.FC = () => {
 
                         <div className="flex flex-wrap items-center justify-center gap-4 mb-8">
                             <button
-                                onClick={() => navigate('/dashboard')}
+                                onClick={() => navigate('/user/map')}
                                 className="bg-white text-primary-900 px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-100 transition-all shadow-xl flex items-center gap-2"
                             >
                                 <MapPin className="w-5 h-5" />
                                 View Live Map
                             </button>
                             <button
-                                onClick={() => navigate('/predictions')}
+                                onClick={() => navigate('/user/dashboard')}
                                 className="bg-primary-600 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-primary-700 transition-all border-2 border-white/20 flex items-center gap-2"
                             >
                                 <TrendingUp className="w-5 h-5" />
@@ -112,7 +112,7 @@ export const LandingPage: React.FC = () => {
                         {/* Login Options — Distinct Portals */}
                         <div className="flex flex-wrap items-center justify-center gap-4 mb-16">
                             <button
-                                onClick={() => navigate('/user/dashboard')}
+                                onClick={() => navigate('/user/login')}
                                 className="group bg-emerald-600/90 backdrop-blur-sm text-white px-8 py-4 rounded-xl font-semibold hover:bg-emerald-500 transition-all border border-emerald-400/30 flex items-center gap-3 shadow-lg shadow-emerald-900/30"
                             >
                                 <div className="w-10 h-10 rounded-lg bg-white/15 flex items-center justify-center group-hover:bg-white/25 transition-colors">
@@ -226,7 +226,7 @@ export const LandingPage: React.FC = () => {
                 <h2 className="text-4xl font-bold text-gray-900 mb-6">Ready to explore?</h2>
                 <p className="text-xl text-gray-600 mb-8">Access all features through the navigation menu</p>
                 <button
-                    onClick={() => navigate('/dashboard')}
+                    onClick={() => navigate('/user/dashboard')}
                     className="bg-primary-600 hover:bg-primary-700 text-white px-8 py-4 rounded-xl font-bold text-lg transition-all shadow-lg inline-flex items-center gap-2"
                 >
                     <MapPin className="w-5 h-5" />

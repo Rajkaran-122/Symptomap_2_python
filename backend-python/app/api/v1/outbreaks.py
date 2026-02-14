@@ -297,6 +297,40 @@ async def get_pending_outbreak_count(
     return {"count": count}
 
 
+@router.get("/stats")
+async def get_outbreak_stats(
+    db: AsyncSession = Depends(get_db)
+):
+    """Get aggregated outbreak statistics for Admin Dashboard"""
+    
+    # 1. Total Reports
+    total_query = select(func.count(Outbreak.id))
+    total_result = await db.execute(total_query)
+    total_reports = total_result.scalar() or 0
+    
+    # 2. Pending Review (Not Verified)
+    pending_query = select(func.count(Outbreak.id)).where(Outbreak.verified == False)
+    pending_result = await db.execute(pending_query)
+    pending_review = pending_result.scalar() or 0
+    
+    # 3. High Priority (Severe)
+    severe_query = select(func.count(Outbreak.id)).where(Outbreak.severity == 'severe')
+    severe_result = await db.execute(severe_query)
+    high_priority = severe_result.scalar() or 0
+    
+    # 4. Active Cases (Sum of patients)
+    cases_query = select(func.sum(Outbreak.patient_count))
+    cases_result = await db.execute(cases_query)
+    active_cases = cases_result.scalar() or 0
+    
+    return {
+        "total_reports": total_reports,
+        "pending_review": pending_review,
+        "high_priority": high_priority,
+        "active_cases": active_cases
+    }
+
+
 @router.get("/{outbreak_id}")
 async def get_outbreak(
     outbreak_id: str,

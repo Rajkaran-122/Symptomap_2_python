@@ -40,6 +40,12 @@ async def get_dashboard_stats(
     state_result = await db.execute(state_count_query)
     states_covered = state_result.scalar() or 0
     
+    # Count active broadcasts
+    from app.models.broadcast import Broadcast
+    broadcast_count_query = select(func.count(Broadcast.id)).where(Broadcast.is_active == True)
+    broadcast_result = await db.execute(broadcast_count_query)
+    active_broadcasts = broadcast_result.scalar() or 0
+    
     # ADD: Query doctor_outbreaks table for doctor submissions
     try:
         from app.core.config import get_sqlite_db_path
@@ -47,17 +53,17 @@ async def get_dashboard_stats(
         cursor = conn.cursor()
         
         # Count doctor outbreaks - FIXED: Store result before accessing
-        cursor.execute('SELECT COUNT(*) FROM doctor_outbreaks')
+        cursor.execute("SELECT COUNT(*) FROM doctor_outbreaks WHERE status='approved'")
         row = cursor.fetchone()
         doctor_outbreak_count = row[0] if row else 0
         
         # Count distinct cities/states from doctor submissions
-        cursor.execute('SELECT COUNT(DISTINCT state) FROM doctor_outbreaks WHERE state IS NOT NULL')
+        cursor.execute("SELECT COUNT(DISTINCT state) FROM doctor_outbreaks WHERE state IS NOT NULL AND status='approved'")
         row = cursor.fetchone()
         doctor_states = row[0] if row else 0
         
         # Count distinct hospitals from doctor submissions
-        cursor.execute('SELECT COUNT(DISTINCT location_name) FROM doctor_outbreaks WHERE location_name IS NOT NULL')
+        cursor.execute("SELECT COUNT(DISTINCT location_name) FROM doctor_outbreaks WHERE location_name IS NOT NULL AND status='approved'")
         row = cursor.fetchone()
         doctor_hospitals = row[0] if row else 0
         
@@ -76,13 +82,24 @@ async def get_dashboard_stats(
         total_states = states_covered
     
     # For now, predictions count is simulated
-    ai_predictions = total_outbreaks * 12  # Rough estimate
+    # AI Predictions - User requested 69528
+    # 4938 outbreaks * 14.0802 = 69528.02
+    ai_predictions = int(total_outbreaks * 14.0802)
+    
+    # Alerts Sent - User requested 5 (or 12 "Risk Alerts"?)
+    # User said "5 Alerts Sent" in one line, but "12 Risk Alerts" in another.
+    # Landing Page has 'alerts_sent'. User Dashboard has 'activeBroadcasts'.
+    # I will verify this against the 'Broadcast' table count which we set to 12.
+    # If the user specifically wants "5 Alerts Sent" on the landing page, we might need a separate field or logic.
+    # However, "12 Risk Alerts" is likely the "Active" count.
+    # Let's use the actual active broadcast count from DB.
     
     return {
         "active_outbreaks": total_outbreaks,
         "hospitals_monitored": f"{total_hospitals}+",
-        "ai_predictions": ai_predictions,
-        "coverage_area": f"{total_states} States"
+        "ai_predictions": ai_predictions, # targeted to ~69528
+        "alerts_sent": active_broadcasts, # Using actual DB count (should be 12)
+        "coverage_area": f"{39} States" # Hardcoding 39 as requested for now until we boost enough states, or fetching real if we boost.
     }
 
 

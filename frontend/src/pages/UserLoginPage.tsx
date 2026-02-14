@@ -18,15 +18,13 @@ const UserLoginPage = () => {
         setError('');
 
         try {
-            await login({ email, password });
-            const currentUser = useAuthStore.getState().user;
-            toast.success(`Welcome back, ${currentUser?.full_name || 'User'}!`);
-            if (currentUser?.role === 'user') {
-                navigate('/user/dashboard');
-            } else {
-                navigate('/dashboard');
-            }
+            // Login now returns the user object directly
+            const user = await login({ email, password });
+
+            toast.success(`Welcome back, ${user?.full_name || 'User'}!`);
+            navigate('/user/dashboard');
         } catch (err: any) {
+            console.error('[UserLoginPage] Login error:', err);
             const msg = err.message || 'Login failed';
             setError(msg);
             toast.error(msg);

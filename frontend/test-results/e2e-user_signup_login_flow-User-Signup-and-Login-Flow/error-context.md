@@ -1,0 +1,51 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - img [ref=e7]
+    - heading "Create Account" [level=1] [ref=e9]
+    - paragraph [ref=e10]: Join SymptoMap for personalized health insights
+  - generic [ref=e11]:
+    - generic [ref=e13]:
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - generic [ref=e16]: Full Name
+          - generic [ref=e17]:
+            - img [ref=e18]
+            - textbox "Your name" [ref=e21]: Test User 1771072700139
+        - generic [ref=e22]:
+          - generic [ref=e23]: Email
+          - generic [ref=e24]:
+            - img [ref=e25]
+            - textbox "you@email.com" [ref=e28]: test.user.1771072700139@example.com
+      - generic [ref=e29]:
+        - generic [ref=e30]: Phone Number
+        - generic [ref=e31]:
+          - img [ref=e32]
+          - textbox "+91 99999 99999" [ref=e34]: "+919876543210"
+      - generic [ref=e35]:
+        - generic [ref=e36]: Password
+        - generic [ref=e37]:
+          - img [ref=e38]
+          - textbox "Min 8 chars, uppercase, number, symbol" [ref=e41]: Password@123
+          - button [ref=e42] [cursor=pointer]:
+            - img [ref=e43]
+        - generic [ref=e52]:
+          - generic [ref=e53]: ✓ Strong password
+          - img [ref=e54]
+      - generic [ref=e56]:
+        - img [ref=e57]
+        - generic [ref=e59]: "[object Object]"
+      - button "Create Account" [ref=e60] [cursor=pointer]:
+        - text: Create Account
+        - img [ref=e61]
+    - generic [ref=e65]: already registered?
+    - link "Sign in to your account" [ref=e67] [cursor=pointer]:
+      - /url: /user/login
+  - generic [ref=e68]:
+    - link "Doctor Registration →" [ref=e69] [cursor=pointer]:
+      - /url: /register/doctor
+    - link "Back to Home" [ref=e70] [cursor=pointer]:
+      - /url: /
+```

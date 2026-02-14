@@ -18,7 +18,7 @@ elif database_url.startswith("postgresql://"):
 
 # Create async engine
 engine_args = {
-    "echo": settings.DEBUG,
+    "echo": False,
 }
 
 # SQLite specific config

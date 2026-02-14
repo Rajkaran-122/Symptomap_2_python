@@ -75,6 +75,23 @@ class PublicService {
             return [];
         }
     }
+    /**
+     * Fetch live surveillance grid stats
+     */
+    async getGridStats(): Promise<any> {
+        try {
+            const response = await axios.get(`${API_BASE_URL}/public/grid-stats`);
+            return response.data;
+        } catch (error) {
+            console.error('Failed to fetch grid stats:', error);
+            return {
+                visual_clusters: 0,
+                active_zones: 0,
+                risk_severe: 0,
+                risk_moderate: 0
+            };
+        }
+    }
 }
 
 export const publicService = new PublicService();

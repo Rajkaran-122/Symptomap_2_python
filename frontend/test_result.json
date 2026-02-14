@@ -1,0 +1,140 @@
+﻿{
+  "config": {
+    "rootDir": "C:/Users/digital metro/Documents/sympto-pulse-map-main/frontend",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/Users/digital metro/Documents/sympto-pulse-map-main/frontend/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "",
+        "name": "",
+        "testDir": "C:/Users/digital metro/Documents/sympto-pulse-map-main/frontend",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "runAgents": "none",
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.58.2",
+    "workers": 4,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "e2e\\landing_links.spec.ts",
+      "file": "e2e/landing_links.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Landing Page Link Verification",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 6627,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mpage\u001b[39m\u001b[2m).\u001b[22mtoHaveURL\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nExpected pattern: \u001b[32m/.*\\/login/\u001b[39m\nReceived string:  \u001b[31m\"http://localhost:3000/user/dashboard\"\u001b[39m\nTimeout: 5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveURL\" with timeout 5000ms\u001b[22m\n\u001b[2m    9 ├ù unexpected value \"http://localhost:3000/user/dashboard\"\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mpage\u001b[39m\u001b[2m).\u001b[22mtoHaveURL\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nExpected pattern: \u001b[32m/.*\\/login/\u001b[39m\nReceived string:  \u001b[31m\"http://localhost:3000/user/dashboard\"\u001b[39m\nTimeout: 5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveURL\" with timeout 5000ms\u001b[22m\n\u001b[2m    9 ├ù unexpected value \"http://localhost:3000/user/dashboard\"\u001b[22m\n\n    at C:\\Users\\digital metro\\Documents\\sympto-pulse-map-main\\frontend\\e2e\\landing_links.spec.ts:22:24",
+                    "location": {
+                      "file": "C:\\Users\\digital metro\\Documents\\sympto-pulse-map-main\\frontend\\e2e\\landing_links.spec.ts",
+                      "column": 24,
+                      "line": 22
+                    },
+                    "snippet": "\u001b[0m \u001b[90m 20 |\u001b[39m     \u001b[90m// Should redirect to /user/login or /login because /user/dashboard is protected\u001b[39m\n \u001b[90m 21 |\u001b[39m     \u001b[90m// verifying it TRIED to go to dashboard or login\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 22 |\u001b[39m     \u001b[36mawait\u001b[39m expect(page)\u001b[33m.\u001b[39mtoHaveURL(\u001b[35m/.*\\/login/\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                        \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 23 |\u001b[39m     console\u001b[33m.\u001b[39mlog(\u001b[32m'Verified Hero AI Predictions -> Redirects to Login (protected)'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 24 |\u001b[39m\n \u001b[90m 25 |\u001b[39m     \u001b[90m// 4. Check \"I'm a Patient\" -> /user/dashboard -> Login\u001b[39m\u001b[0m"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "C:\\Users\\digital metro\\Documents\\sympto-pulse-map-main\\frontend\\e2e\\landing_links.spec.ts",
+                        "column": 24,
+                        "line": 22
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mpage\u001b[39m\u001b[2m).\u001b[22mtoHaveURL\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nExpected pattern: \u001b[32m/.*\\/login/\u001b[39m\nReceived string:  \u001b[31m\"http://localhost:3000/user/dashboard\"\u001b[39m\nTimeout: 5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveURL\" with timeout 5000ms\u001b[22m\n\u001b[2m    9 ├ù unexpected value \"http://localhost:3000/user/dashboard\"\u001b[22m\n\n\n  20 |     // Should redirect to /user/login or /login because /user/dashboard is protected\n  21 |     // verifying it TRIED to go to dashboard or login\n> 22 |     await expect(page).toHaveURL(/.*\\/login/);\n     |                        ^\n  23 |     console.log('Verified Hero AI Predictions -> Redirects to Login (protected)');\n  24 |\n  25 |     // 4. Check \"I'm a Patient\" -> /user/dashboard -> Login\n    at C:\\Users\\digital metro\\Documents\\sympto-pulse-map-main\\frontend\\e2e\\landing_links.spec.ts:22:24"
+                    }
+                  ],
+                  "stdout": [
+                    {
+                      "text": "Verified View Live Map -> /user/map\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-02-13T18:51:49.753Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\digital metro\\Documents\\sympto-pulse-map-main\\frontend\\test-results\\e2e-landing_links-Landing-Page-Link-Verification\\error-context.md"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "C:\\Users\\digital metro\\Documents\\sympto-pulse-map-main\\frontend\\e2e\\landing_links.spec.ts",
+                    "column": 24,
+                    "line": 22
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "038be4dd193f071d0a1b-14f8300c208ee276d339",
+          "file": "e2e/landing_links.spec.ts",
+          "line": 4,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-02-13T18:51:48.296Z",
+    "duration": 8308.267,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 1,
+    "flaky": 0
+  }
+}

@@ -53,17 +53,19 @@ const UserDashboard: React.FC = () => {
 
     // User State
     const [user] = useState<User>(() => {
-        const storedUser = localStorage.getItem('user');
+        const storedUser = localStorage.getItem('symptomap_user');
         if (storedUser) return JSON.parse(storedUser);
-        return {
-            id: 'guest',
-            phone: '',
-            email: null,
-            role: 'user',
-            region: 'Universal',
-            full_name: 'Guest User'
-        };
+        return null; // No guest user, force login
     });
+
+    useEffect(() => {
+        if (!user) {
+            navigate('/user/login');
+        }
+    }, [user, navigate]);
+
+    // Prevent rendering if user is null (redirecting)
+    if (!user) return null;
 
     // Dashboard State
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -75,6 +77,7 @@ const UserDashboard: React.FC = () => {
         regionsAffected: 0,
         verifiedSources: 0
     });
+    const [gridStats, setGridStats] = useState({ visual_clusters: 0, active_zones: 0, risk_severe: 0, risk_moderate: 0 });
     const [hotspots, setHotspots] = useState<any[]>([]);
     const [recentOutbreaks, setRecentOutbreaks] = useState<Outbreak[]>([]);
     const [loading, setLoading] = useState(true);
@@ -98,6 +101,14 @@ const UserDashboard: React.FC = () => {
 
             setStats(statsData);
             setHotspots(hotspotsData);
+
+            // Grid Stats
+            try {
+                const gridData = await publicService.getGridStats();
+                setGridStats(gridData);
+            } catch (e) {
+                console.error("Grid stats error", e);
+            }
 
             if (outbreaksData && outbreaksData.outbreaks) {
                 setRecentOutbreaks(outbreaksData.outbreaks.slice(0, 5)); // Top 5 recent
@@ -426,17 +437,39 @@ const UserDashboard: React.FC = () => {
                     {/* RIGHT COLUMN: Sidebar Widgets */}
                     <div className="space-y-6">
 
-                        {/* Map Widget */}
+                        {/* Map Widget - Live Surveillance Grid */}
                         <div className="bg-white p-1 rounded-[2rem] border border-slate-100 shadow-sm">
-                            <div className="bg-slate-100 rounded-[1.7rem] h-64 relative overflow-hidden group">
-                                {/* Simulated Map visual */}
+                            <div className="bg-slate-100 rounded-[1.7rem] relative overflow-hidden group min-h-[16rem]">
+                                {/* Simulated Map visual backdrop */}
                                 <div className="absolute inset-0 bg-[url('https://api.mapbox.com/styles/v1/mapbox/light-v10/static/72.8777,19.0760,10,0/600x400?access_token=YOUR_TOKEN')] bg-cover bg-center grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700" />
-                                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/50 to-transparent flex items-end p-6">
+                                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent flex flex-col justify-end p-6">
+
+                                    <div className="mb-4">
+                                        <div className="flex items-center justify-between text-white/90 mb-2">
+                                            <span className="text-xs font-bold uppercase tracking-wider">Visual Clusters</span>
+                                            <span className="text-xl font-bold">{gridStats.visual_clusters}</span>
+                                        </div>
+                                        <div className="w-full bg-white/20 h-1 rounded-full overflow-hidden">
+                                            <div className="bg-indigo-500 h-full w-[80%] animate-pulse" />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4 mb-4">
+                                        <div>
+                                            <p className="text-xs text-slate-400 font-bold uppercase">Severe</p>
+                                            <p className="text-lg font-bold text-rose-400">{gridStats.risk_severe}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-slate-400 font-bold uppercase">Moderate</p>
+                                            <p className="text-lg font-bold text-amber-400">{gridStats.risk_moderate}</p>
+                                        </div>
+                                    </div>
+
                                     <div className="w-full">
                                         <div className="flex justify-between items-end">
                                             <div>
                                                 <p className="text-white font-bold text-lg">Live Grid</p>
-                                                <p className="text-slate-200 text-xs">Tracking active cases</p>
+                                                <p className="text-slate-300 text-[10px] leading-tight">Zones classified by patient density vectors.</p>
                                             </div>
                                             <Link to="/user/map" className="bg-white text-indigo-600 p-3 rounded-full hover:scale-110 transition-transform shadow-lg">
                                                 <ChevronRight className="w-5 h-5" />

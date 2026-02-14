@@ -23,6 +23,11 @@ export const SymptoMapAPI = {
     return response.data?.outbreaks || response.data || [];
   },
 
+  getOutbreakStats: async () => {
+    const response = await apiInstance.get('/outbreaks/stats');
+    return response.data;
+  },
+
   // Prediction endpoints
   getPredictions: async () => {
     const response = await apiInstance.get('/predictions/');
