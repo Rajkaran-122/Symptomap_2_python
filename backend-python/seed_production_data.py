@@ -206,9 +206,26 @@ async def seed_hospitals_and_outbreaks():
                 is_active=True,
                 is_verified=True
             )
-            db.add(patient)
             await db.commit()
             print("✅ Created default patient user (user@symptomap.com)")
+
+        # Check for specific requested user
+        result = await db.execute(select(User).where(User.email == "yadavrajkaran854@gmail.com").limit(1))
+        specific_user = result.scalar_one_or_none()
+        
+        if not specific_user:
+            specific_user = User(
+                email="yadavrajkaran854@gmail.com",
+                full_name="Rajkaran Yadav",
+                password_hash=get_password_hash("Rajkaran@2026"),
+                role="patient",
+                verification_status="verified",
+                is_active=True,
+                is_verified=True
+            )
+            db.add(specific_user)
+            await db.commit()
+            print("✅ Created specific user (yadavrajkaran854@gmail.com)")
         
         # Create hospitals - 1-2 per city
         hospitals = []
