@@ -23,4 +23,13 @@ If you want to create a specific user, I have included a script `create_prod_use
     ```bash
     python create_prod_user.py
     ```
-2.  Follow the prompts to enter email and password.
+## Solution 3: Use the API Endpoint (Easiest)
+If you cannot use the Shell (Free Tier restriction), use this special endpoint I created.
+
+1.  **Wait for Deployment** of the latest changes.
+2.  **Open this URL in your browser:**
+    `https://symptomap-2-python-1.onrender.com/api/v1/admin-ops/seed-production`
+3.  You should see a JSON response: `{"status": "success", ...}`.
+4.  **Login with:**
+    -   **Email:** `admin@symptomap.com`
+    -   **Password:** `admin123`

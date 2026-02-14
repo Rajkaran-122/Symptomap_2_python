@@ -54,6 +54,10 @@ api_router.include_router(hospitals.router)
 # Health Broadcasts
 api_router.include_router(broadcasts.router)
 
+# Admin Operations (Seeding/User Creation)
+from app.api.v1 import admin_ops
+api_router.include_router(admin_ops.router)
+
 # Email Notifications
 # api_router.include_router(notifications.router) # Redundant
 
