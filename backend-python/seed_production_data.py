@@ -190,6 +190,25 @@ async def seed_hospitals_and_outbreaks():
             await db.commit()
             await db.refresh(admin)
             print("✅ Created admin user")
+
+        # Check for existing patient user
+        result = await db.execute(select(User).where(User.email == "user@symptomap.com").limit(1))
+        patient = result.scalar_one_or_none()
+        
+        if not patient:
+            from app.core.security import get_password_hash
+            patient = User(
+                email="user@symptomap.com",
+                full_name="Demo User",
+                password_hash=get_password_hash("user123"),
+                role="patient",
+                verification_status="verified",
+                is_active=True,
+                is_verified=True
+            )
+            db.add(patient)
+            await db.commit()
+            print("✅ Created default patient user (user@symptomap.com)")
         
         # Create hospitals - 1-2 per city
         hospitals = []
