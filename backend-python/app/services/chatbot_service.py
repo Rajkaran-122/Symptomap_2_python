@@ -258,13 +258,27 @@ class ChatbotService:
                 {"type": "image_url", "image_url": {"url": image_url}}
             ]
         
-        # Call GPT-4
-        response = await self.openai_client.chat.completions.create(
-            model="gpt-4o-mini",  # or gpt-4-turbo-preview
-            messages=messages,
-            temperature=0.3,
-            max_tokens=800
-        )
+            try:
+                # Call GPT-4
+                response = await self.openai_client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=messages,
+                    temperature=0.3,
+                    max_tokens=800
+                )
+            except openai.RateLimitError:
+                return {
+                    "type": "text",
+                    "content": "I apologize, but I am currently receiving too many requests. Please try again in a moment.",
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                }
+            except openai.APIError as e:
+                print(f"OpenAI API Error: {e}")
+                return {
+                    "type": "text",
+                    "content": "I'm having trouble connecting to my medical database. Please try again later.",
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                }
         
         content = response.choices[0].message.content
         
@@ -346,17 +360,24 @@ Provide your assessment in JSON format with:
     "recommendation": {{"action": "...", "urgency": "...", "follow_up_days": ...}}
 }}"""
         
-        response = await self.openai_client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are a medical AI assistant. Provide structured assessments in JSON format."},
-                {"role": "user", "content": assessment_prompt}
-            ],
-            temperature=0.2,
-            response_format={"type": "json_object"}
-        )
-        
-        return json.loads(response.choices[0].message.content)
+        try:
+            response = await self.openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are a medical AI assistant. Provide structured assessments in JSON format."},
+                    {"role": "user", "content": assessment_prompt}
+                ],
+                temperature=0.2,
+                response_format={"type": "json_object"}
+            )
+            return json.loads(response.choices[0].message.content)
+        except Exception as e:
+            print(f"Assessment generation failed: {e}")
+            return {
+                "severity": "routine", # Default safety
+                "primary_diagnosis": {"condition": "Assessment failed", "confidence": 0.0},
+                "recommendation": {"action": "consult_doctor", "urgency": "routine"}
+            }
     
     
     async def _generate_soap_note(self, conversation: ChatbotConversation) -> Dict:
@@ -376,14 +397,22 @@ Format as JSON:
     "plan": "Recommendations and follow-up..."
 }}"""
         
-        response = await self.openai_client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": soap_prompt}],
-            temperature=0.2,
-            response_format={"type": "json_object"}
-        )
-        
-        return json.loads(response.choices[0].message.content)
+        try:
+            response = await self.openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": soap_prompt}],
+                temperature=0.2,
+                response_format={"type": "json_object"}
+            )
+            return json.loads(response.choices[0].message.content)
+        except Exception as e:
+            print(f"SOAP note generation failed: {e}")
+            return {
+                "subjective": "Error generating note.",
+                "objective": "N/A",
+                "assessment": "N/A",
+                "plan": "Consult doctor."
+            }
     
     
     async def _generate_recommendations(
@@ -416,14 +445,21 @@ Provide JSON with:
     "follow_up": {{"recommended_days": 3, "message": "..."}}
 }}"""
         
-        response = await self.openai_client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": rec_prompt}],
-            temperature=0.3,
-            response_format={"type": "json_object"}
-        )
-        
-        return json.loads(response.choices[0].message.content)
+        try:
+            response = await self.openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": rec_prompt}],
+                temperature=0.3,
+                response_format={"type": "json_object"}
+            )
+            return json.loads(response.choices[0].message.content)
+        except Exception as e:
+             print(f"Recommendation generation failed: {e}")
+             return {
+                 "home_care": ["Rest and hydrate"],
+                 "when_to_see_doctor": {"routine": ["If symptoms persist"]},
+                 "message": "Unable to generate specific recommendations. Please consult a doctor."
+             }
     
     
     async def _check_local_outbreaks(
