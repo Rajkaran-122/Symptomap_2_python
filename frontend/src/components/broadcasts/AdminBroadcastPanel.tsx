@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Radio, Clock, MapPin, Plus, X, Send } from 'lucide-react';
 import { authClient } from '../../services/auth';
+import axios from 'axios';
 
 interface Broadcast {
     id: string;
@@ -91,7 +92,20 @@ const AdminBroadcastPanel: React.FC = () => {
             alert('Broadcast sent successfully!');
         } catch (err) {
             console.error('Failed to create broadcast', err);
-            alert('Failed to send broadcast');
+            let message = 'Failed to send broadcast';
+            if (axios.isAxiosError(err)) {
+                const detail = err.response?.data?.detail;
+                if (typeof detail === 'string' && detail.trim()) {
+                    message = detail;
+                } else if (Array.isArray(detail) && detail.length > 0) {
+                    message = detail.map((d: any) => d?.msg || JSON.stringify(d)).join(', ');
+                } else if (err.response?.status === 403) {
+                    message = 'Admin access required. Please re-login with an admin account.';
+                } else if (err.response?.status === 401) {
+                    message = 'Session expired. Please login again.';
+                }
+            }
+            alert(message);
         }
     };
 

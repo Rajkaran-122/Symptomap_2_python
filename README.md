@@ -1,332 +1,201 @@
-# 🏥 SymptoMap - Real-Time Disease Surveillance Platform
+# SymptoMap
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
-[![Node](https://img.shields.io/badge/Node.js-18%2B-green.svg)](https://nodejs.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.104%2B-009688.svg)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/React-18%2B-61DAFB.svg)](https://reactjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5%2B-3178C6.svg)](https://www.typescriptlang.org/)
-[![Status](https://img.shields.io/badge/Status-Production%20Ready-success.svg)]()
+Real-time disease surveillance platform for outbreak reporting, approval workflows, public risk visibility, analytics, and health broadcast operations.
 
-> **An AI-powered epidemiological surveillance platform for real-time disease outbreak tracking, prediction, and public health response coordination.**
+## What This Repository Contains
 
----
+This repository is a monorepo with two active applications:
 
-## 🚀 Quick Start
+- `backend-python/`: FastAPI + SQLAlchemy async backend (`/api/v1` APIs, auth, doctor/admin flows, analytics, websocket updates)
+- `frontend/`: React + TypeScript + Vite web app (doctor/admin/patient/public UI)
+
+There are additional legacy files at repository root (`src/`, root `package.json`) kept for history/compatibility. For normal development, use `frontend/` and `backend-python/`.
+
+## Core Features
+
+- Doctor outbreak and alert submission workflows
+- Admin approval/rejection pipeline for submitted outbreaks
+- Public and authenticated outbreak map views
+- JWT auth with refresh flow and role-aware routes
+- OTP-assisted login flow for user accounts
+- Real-time updates via WebSocket
+- Analytics, prediction, reporting, and broadcast modules
+
+## Tech Stack
+
+- Frontend: React 18, TypeScript, Vite, Tailwind
+- Backend: FastAPI, SQLAlchemy 2, Pydantic Settings, Alembic
+- Data: SQLite (default local), PostgreSQL (production-ready), optional Redis
+- Maps/Charts: MapLibre GL, Recharts
+
+## Quick Start (Local Development)
 
 ### Prerequisites
 
-| Requirement | Version | Check Command |
-|-------------|---------|---------------|
-| Python | 3.10+ | `python --version` |
-| Node.js | 18+ | `node --version` |
-| npm | 9+ | `npm --version` |
-| Git | Latest | `git --version` |
+- Python 3.10+
+- Node.js 18+
+- npm 9+
 
-### Installation & Setup
+### 1. Backend setup
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/Rajkaran-122/Symptomap_2_python.git
-cd Symptomap_2_python
-
-# 2. Setup Backend (Terminal 1)
 cd backend-python
 python -m venv venv
+```
 
-# Windows:
+Windows:
+
+```bash
 venv\Scripts\activate
-# Mac/Linux:
+```
+
+macOS/Linux:
+
+```bash
 source venv/bin/activate
+```
 
+Install dependencies and run API:
+
+```bash
 pip install -r requirements.txt
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
 
-# 3. Setup Frontend (Terminal 2)
+### 2. Frontend setup
+
+In a second terminal:
+
+```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-### 🌐 Access the Application
+Frontend runs on `http://localhost:3000` by default (`frontend/vite.config.ts`).
 
-| Portal | URL | Credentials |
-|--------|-----|-------------|
-| 📊 **Dashboard** | http://localhost:3000/dashboard | Public |
-| 🏥 **Doctor Station** | http://localhost:3000/doctor | Password: `Doctor@SymptoMap2025` |
-| 👨‍💼 **Admin Panel** | http://localhost:3000/admin | Same as Doctor |
-| ✅ **Approval Requests** | http://localhost:3000/admin/approvals | Same as Doctor |
-| 📚 **API Docs** | http://localhost:8000/docs | Public |
+### 3. Open the app
 
----
+- Frontend: `http://localhost:3000`
+- API docs (Swagger): `http://localhost:8000/docs`
+- API docs (ReDoc): `http://localhost:8000/redoc`
+- Health check: `http://localhost:8000/health`
 
-## ✨ Features
+## One-Command Startup Scripts
 
-### 🗺️ Real-Time Outbreak Map
-- Interactive MapLibre GL map with outbreak markers
-- Aggregated zone visualization by city/region
-- Color-coded severity (Mild 🟢 | Moderate 🟡 | Severe 🔴)
-- Live location-based risk zones
+Repository root includes helper scripts:
 
-### 👨‍⚕️ Doctor Station
-- Secure authenticated portal for healthcare professionals
-- Submit outbreak reports with location, severity, case counts
-- Create health alerts with geo-targeting
-- View submission history and status
+- Windows: `start.bat`
+- macOS/Linux: `start.sh`
 
-### 👨‍💼 Admin Approval Workflow
-- Review pending doctor submissions
-- Approve or reject outbreak reports
-- Real-time dashboard updates after approval
-- Complete audit trail
+They start both backend and frontend, create missing folders, and bootstrap dependencies.
 
-### 📈 Analytics Dashboard
-- SEIR model disease progression charts
-- Week-over-week comparison trends
-- Risk zone assessment
-- System performance metrics
-- PDF report generation
+## Environment Configuration
 
-### 🔔 Real-Time Updates
-- WebSocket live notifications
-- Auto-refresh every 60 seconds
-- Toast notifications for new outbreaks/alerts
+### Backend
 
----
+Create `backend-python/.env` (or copy from `backend-python/.env.example`) with at least:
 
-## 📁 Project Structure
-
-```
-Symptomap_2_python/
-├── backend-python/              # FastAPI Backend
-│   ├── app/
-│   │   ├── api/v1/             # API Endpoints
-│   │   │   ├── doctor_station.py    # Doctor submission API
-│   │   │   ├── approval.py          # Admin approval API
-│   │   │   ├── public_outbreaks.py  # Public outbreak data
-│   │   │   └── ...
-│   │   ├── core/               # Database & Config
-│   │   ├── models/             # SQLAlchemy Models
-│   │   └── main.py             # App Entry Point
-│   └── requirements.txt
-│
-├── frontend/                    # React + TypeScript Frontend
-│   ├── src/
-│   │   ├── pages/              # Page Components
-│   │   │   ├── DashboardPage.tsx
-│   │   │   ├── DoctorStation.tsx
-│   │   │   ├── ApprovalRequestsPage.tsx
-│   │   │   └── ...
-│   │   ├── components/         # Reusable Components
-│   │   │   ├── OutbreakMap.tsx
-│   │   │   ├── FilterPanel.tsx
-│   │   │   └── ...
-│   │   ├── hooks/              # Custom React Hooks
-│   │   └── services/           # API Service Layer
-│   └── package.json
-│
-├── generate_pending.py          # Test data generator
-├── start.bat                    # Windows startup script
-├── start.sh                     # Linux/Mac startup script
-└── README.md
-```
-
----
-
-## 🔧 API Endpoints
-
-### Public Endpoints
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/outbreaks/all` | Get all approved outbreaks |
-| GET | `/api/v1/outbreaks/pending-count` | Get pending approval count |
-| GET | `/api/v1/stats/dashboard` | Dashboard statistics |
-
-### Authenticated Endpoints (Require JWT Token)
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v1/auth/login` | Doctor login |
-| POST | `/api/v1/doctor/outbreak` | Submit outbreak report |
-| POST | `/api/v1/doctor/alert` | Create health alert |
-| GET | `/api/v1/doctor/submissions` | Get doctor's submissions |
-| GET | `/api/v1/admin/pending` | Get pending approvals |
-| POST | `/api/v1/admin/approve/{id}` | Approve submission |
-| POST | `/api/v1/admin/reject/{id}` | Reject submission |
-
-📚 **Full API Documentation:** http://localhost:8000/docs
-
----
-
-## 🎯 Workflow
-
-### Doctor Submission Flow
-```
-Doctor Login → Submit Outbreak → Status: PENDING
-                                      ↓
-                              Admin Reviews
-                                      ↓
-                    ┌─────────────────┴─────────────────┐
-                    ↓                                   ↓
-             APPROVED                              REJECTED
-                    ↓                                   ↓
-         Appears on Dashboard              Not shown on Dashboard
-```
-
-### Testing the Workflow
-
-1. **Generate Test Data:**
-   ```bash
-   python generate_pending.py
-   ```
-
-2. **Login as Doctor:**
-   - Go to http://localhost:3000/doctor
-   - Password: `Doctor@SymptoMap2025`
-
-3. **Submit an Outbreak:**
-   - Navigate to Doctor Station
-   - Fill in disease, location, severity
-   - Submit
-
-4. **Approve as Admin:**
-   - Go to http://localhost:3000/admin/approvals
-   - Click "Approve" on pending request
-
-5. **Verify on Dashboard:**
-   - Go to http://localhost:3000/dashboard
-   - See approved outbreak on map
-
----
-
-## 🛠️ Development
-
-### Environment Variables
-
-Create `.env` file in `backend-python/`:
 ```env
-# JWT Configuration
-JWT_SECRET_KEY=your-secret-key-here
-JWT_ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_HOURS=24
-
-# Doctor Password
-DOCTOR_PASSWORD=Doctor@SymptoMap2025
-
-# Database
-DATABASE_URL=sqlite:///./symptomap.db
-
-# CORS Origins
+ENVIRONMENT=development
+DEBUG=True
+API_V1_PREFIX=/api/v1
+DATABASE_URL=sqlite+aiosqlite:///./symptomap.db
+JWT_SECRET_KEY=replace-with-secure-secret
+DOCTOR_PASSWORD=replace-doctor-password
 CORS_ORIGINS=http://localhost:3000,http://localhost:5173
 ```
 
-Create `.env` in `frontend/`:
+Optional integrations: `REDIS_URL`, `OPENAI_API_KEY`, `RESEND_API_KEY`, `SENDGRID_API_KEY`, `TWILIO_*`, `SENTRY_DSN`.
+
+### Frontend
+
+Create `frontend/.env`:
+
 ```env
 VITE_API_URL=http://localhost:8000/api/v1
 ```
 
-### Running Tests
+## Local Access and Seeded Accounts
+
+On startup, backend table creation and seeding run automatically if local data is empty.
+
+Common seeded users (development defaults):
+
+- Admin: `admin@symptomap.com` / `admin123`
+- Doctor: `doctor@symptomap.com` / value of `DOCTOR_PASSWORD`
+
+Doctor shared station login endpoint also exists: `POST /api/v1/doctor/login`.
+
+Change all default credentials before any shared/staging/production deployment.
+
+## API Surface (Highlights)
+
+Base prefix: `/api/v1`
+
+- Auth: `/auth/*`
+- Doctor station: `/doctor/*`
+- Admin approvals: `/admin/*`
+- Public outbreaks: `/public-outbreaks/*` and related public routes
+- Analytics, reports, predictions, alerts, broadcasts, monitoring
+
+Browse full schema at `http://localhost:8000/docs`.
+
+## Testing
+
+Backend:
 
 ```bash
-# Backend API Test
 cd backend-python
-python -m pytest tests/ -v
+pytest
+```
 
-# Frontend Type Check
+Frontend checks:
+
+```bash
 cd frontend
+npm run lint
+npm run type-check
 npm run build
 ```
 
----
+## Docker
 
-## 🐳 Docker Deployment
+A root `docker-compose.yml` is included for backend + frontend startup:
 
 ```bash
-# Build and run
 docker-compose up -d
-
-# View logs
 docker-compose logs -f
-
-# Stop
 docker-compose down
 ```
 
----
+## Repository Structure
 
-## 📊 Tech Stack
+```text
+.
+|- backend-python/         FastAPI backend
+|- frontend/               React/Vite frontend
+|- docs/                   Project docs and BRD material
+|- scripts/                Utility scripts (import/export/deploy/setup)
+|- data/                   Data templates/files
+|- docker-compose.yml      Local container orchestration
+|- start.bat / start.sh    Local quick-start scripts
+```
 
-| Layer | Technology |
-|-------|------------|
-| **Frontend** | React 18, TypeScript, Vite, TailwindCSS |
-| **Backend** | Python 3.10+, FastAPI, SQLAlchemy |
-| **Database** | SQLite (dev), PostgreSQL (prod) |
-| **Maps** | MapLibre GL JS, OpenStreetMap |
-| **Charts** | Recharts |
-| **Auth** | JWT (PyJWT) |
-| **Real-time** | WebSockets |
+## Security Notes
 
----
+- Rotate secrets before deployment (`JWT_SECRET_KEY`, doctor/admin credentials, API keys).
+- Review and sanitize any `.env` templates before committing.
+- Keep CORS origins scoped to known frontend domains in non-local environments.
 
-## 🔐 Security Features
+## Additional Documentation
 
-- ✅ JWT-based authentication (24hr expiry)
-- ✅ Password-protected doctor access
-- ✅ Admin approval workflow for data validation
-- ✅ SQL injection prevention (parameterized queries)
-- ✅ Input validation and sanitization
-- ✅ CORS configuration
-- ✅ HTTPS ready for production
+- `DEPLOYMENT.md`
+- `DEPLOYMENT_GUIDE.md`
+- `CONTRIBUTING.md`
+- `USER_MANUAL.md`
+- `CHANGELOG.md`
 
----
+## License
 
-## 📈 Roadmap
-
-### ✅ Version 1.0 (Current)
-- [x] Real-time outbreak map
-- [x] Doctor submission portal
-- [x] Admin approval workflow
-- [x] Dashboard analytics
-- [x] SEIR model projections
-- [x] PDF report generation
-
-### 🔜 Version 1.1 (Planned)
-- [ ] Multi-user authentication
-- [ ] Email/SMS notifications
-- [ ] Advanced analytics
-- [ ] Mobile app (PWA)
-- [ ] Multi-language support
-
----
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see [LICENSE](LICENSE) for details.
-
----
-
-## 👨‍💻 Author
-
-**Rajkaran**  
-GitHub: [@Rajkaran-122](https://github.com/Rajkaran-122)
-
----
-
-<div align="center">
-
-**Made with ❤️ for Public Health Surveillance**
-
-[⭐ Star this repo](https://github.com/Rajkaran-122/Symptomap_2_python) • [🐛 Report Bug](https://github.com/Rajkaran-122/Symptomap_2_python/issues) • [💡 Request Feature](https://github.com/Rajkaran-122/Symptomap_2_python/issues)
-
-**Last Updated:** January 2026 • **Version:** 1.0.0
-
-</div>
+MIT. See `LICENSE`.
