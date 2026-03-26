@@ -322,10 +322,83 @@ async def login(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account is disabled"
         )
+<<<<<<< HEAD
     
     # MFA check removed for simple login
     
     # Clear login attempts on success
+=======
+        
+        refresh_token = create_refresh_token(
+            user_id=str(user.id),
+            secret_key=settings.JWT_SECRET_KEY,
+            algorithm=settings.JWT_ALGORITHM,
+            expires_delta=timedelta(days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS)
+        )
+        
+        # Update cookie
+        is_production = settings.ENVIRONMENT == "production"
+        response.set_cookie(
+            key="refresh_token", value=refresh_token, httponly=True,
+            secure=True if is_production else False, samesite="none" if is_production else "lax",
+            max_age=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
+        )
+        
+        background_tasks.add_task(
+            log_audit_event,
+            event="LOGIN_SUCCESS", 
+            actor_id=str(user.id), 
+            actor_role=user.role, 
+            ip_address=client_ip, 
+            status="SUCCESS"
+        )
+        
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+            "expires_in": int(access_token_expires.total_seconds()),
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "full_name": user.full_name,
+                "role": user.role.lower()
+            }
+        }
+        
+    # STEP 1: Generate and Send OTP
+    # SKIP for Admin and Doctor roles
+    if user.role.lower() in ["admin", "doctor"]:
+         # Direct login for these roles - Fall through to token creation below
+         pass 
+    else:
+        try:
+            otp = OTPManager.generate_otp(user.email)
+            # Assuming send_verification_email works for login too, or make a new template
+            # Let's use verification template for now or make a generic one.
+            # But email_service has `send_verification_email`. I'll use that.
+            background_tasks.add_task(email_service.send_verification_email, user.email, user.full_name, otp)
+            
+            return {
+                "message": "OTP sent to email",
+                "require_otp": True,
+                "email": user.email
+            }
+        except Exception as e:
+            # Fallback log
+            print(f"Failed to send OTP: {e}")
+            
+            # Build fallback for local dev if email fails
+            if settings.DEBUG:
+                return {
+                    "message": f"DEV MODE: OTP is {otp}",
+                    "require_otp": True,
+                    "email": user.email
+                }
+            raise HTTPException(status_code=500, detail="Failed to send OTP")
+
+    # Create tokens (Direct flow for Admin/Doctor OR after OTP verification)
+>>>>>>> e5911ae (Fix indentation error in auth.py)
     LoginAttemptTracker.clear(email)
     
     # Update last login
