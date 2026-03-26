@@ -1,34 +1,27 @@
 """
-Email Service using Resend API (Free Tier: 3,000 emails/month)
+Email Service using Gmail SMTP
 Production-ready email service for SymptoMap
 """
 
-import os
-from typing import Optional, List, Dict, Any
-from datetime import datetime, timezone
+from app.core.config import settings
 
-# Try to import resend
-try:
-    import resend
-    RESEND_AVAILABLE = True
-except ImportError:
-    RESEND_AVAILABLE = False
-
+from typing import List, Optional, Dict, Any
 
 class EmailService:
-    """Production email service using Resend"""
-    
-    def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key or os.getenv("RESEND_API_KEY", "")
-        self.from_email = os.getenv("EMAIL_FROM", "noreply@symptomap.com")
-        self.from_name = os.getenv("EMAIL_FROM_NAME", "SymptoMap")
+    def __init__(self):
+        self.smtp_server = settings.SMTP_SERVER
+        self.smtp_port = settings.SMTP_PORT
+        self.username = settings.SMTP_USERNAME
+        self.password = settings.SMTP_PASSWORD
+        self.from_email = settings.EMAIL_FROM
         
-        if RESEND_AVAILABLE and self.api_key:
-            resend.api_key = self.api_key
+        # Check if SMTP is configured
+        if self.username and self.password:
             self.enabled = True
+            print(f"[OK] Email service enabled (SMTP: {self.username})")
         else:
             self.enabled = False
-            print("⚠️ Email service disabled: Resend not configured")
+            print("[WARN] Email service disabled: SMTP credentials missing")
     
     async def send_email(
         self,
@@ -37,34 +30,70 @@ class EmailService:
         html: str,
         text: Optional[str] = None,
         reply_to: Optional[str] = None,
-        tags: Optional[List[Dict[str, str]]] = None
+        tags: Optional[List[Dict[str, str]]] = None # Ignored for SMTP
     ) -> Dict[str, Any]:
-        """Send an email using Resend API"""
+        """Send an email using Gmail SMTP (Async)"""
         
         if not self.enabled:
-            print(f"📧 [MOCK] Email to {to}: {subject}")
+            print(f"[MOCK EMAIL] to {to}: {subject}")
             return {"id": "mock", "status": "mock_sent"}
         
         try:
-            params = {
-                "from": f"{self.from_name} <{self.from_email}>",
-                "to": [to] if isinstance(to, str) else to,
-                "subject": subject,
-                "html": html,
-            }
+            import aiosmtplib
+            import asyncio
+            from email.mime.text import MIMEText
+            from email.mime.multipart import MIMEMultipart
             
-            if text:
-                params["text"] = text
+            # Create message
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = subject
+            msg["From"] = f"{settings.EMAIL_FROM_NAME} <{self.username}>"
+            
+            # Handle list of recipients
+            if isinstance(to, list):
+                msg["To"] = ", ".join(to)
+                recipients = to
+            else:
+                msg["To"] = to
+                recipients = [to]
+            
             if reply_to:
-                params["reply_to"] = reply_to
-            if tags:
-                params["tags"] = tags
+                msg["Reply-To"] = reply_to
             
-            response = resend.Emails.send(params)
-            return {"id": response.get("id"), "status": "sent"}
+            # Attach parts
+            if text:
+                msg.attach(MIMEText(text, "plain"))
+            msg.attach(MIMEText(html, "html"))
             
+            # Send using Async SMTP with timeout
+            # Use a short timeout (5s) to avoid blocking for too long in production
+            try:
+                await asyncio.wait_for(
+                    aiosmtplib.send(
+                        msg,
+                        hostname=self.smtp_server,
+                        port=self.smtp_port,
+                        username=self.username,
+                        password=self.password,
+                        start_tls=True
+                    ),
+                    timeout=5.0
+                )
+                print(f"[OK] Email sent to {to}")
+                return {"id": "smtp_sent", "status": "sent"}
+                
+            except asyncio.TimeoutError:
+                print(f"[WARN] Email timeout to {to} - falling back to mock (OTP should be in logs)")
+                return {"id": "timeout_fallback", "status": "mock_sent", "error": "SMTP Timeout"}
+                
+            except Exception as e:
+                 print(f"[WARN] Email send failed: {str(e)} - falling back to mock")
+                 return {"id": "error_fallback", "status": "mock_sent", "error": str(e)}
+
         except Exception as e:
-            print(f"❌ Email error: {e}")
+            print(f"[ERROR] Critical Email error: {e}")
+            import traceback
+            traceback.print_exc()
             return {"id": None, "status": "failed", "error": str(e)}
     
     # ==========================================================================
@@ -161,6 +190,9 @@ class EmailService:
         </body>
         </html>
         """
+        
+        # EMERGENCY LOGGING for production debugging when SMTP fails
+        print(f"[OTP] EMERGENCY OTP for {to}: {otp}")
         
         return await self.send_email(
             to=to,

@@ -87,6 +87,36 @@ async def get_activity_feed():
                 "color": "blue",
                 "time": row['created_at']
             })
+
+        # Get recent automated/system alerts from main alerts table
+        cursor.execute('''
+            SELECT id, alert_type, severity, title, zone_name, sent_at
+            FROM alerts
+            ORDER BY sent_at DESC
+            LIMIT 5
+        ''')
+
+        for row in cursor.fetchall():
+            severity = (row['severity'] or '').lower()
+            color = 'blue'
+            if severity == 'critical':
+                color = 'red'
+            elif severity == 'warning':
+                color = 'yellow'
+
+            activities.append({
+                "id": f"auto_alert_{row['id']}",
+                "type": "alert",
+                "action": "Automated alert generated",
+                "alert_type": row['alert_type'],
+                "disease": row['title'],
+                "location": row['zone_name'] or 'Unknown Zone',
+                "severity": severity or 'info',
+                "status": "generated",
+                "icon": "bell",
+                "color": color,
+                "time": row['sent_at']
+            })
         
         conn.close()
         
@@ -112,11 +142,18 @@ async def get_trend_data():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Get all outbreaks with dates
+        # Combine ORM outbreaks + approved doctor outbreaks
         cursor.execute('''
             SELECT date(date_reported) as date, COUNT(*) as count, SUM(patient_count) as cases
-            FROM outbreaks
-            WHERE date_reported IS NOT NULL
+            FROM (
+                SELECT date_reported, patient_count
+                FROM outbreaks
+                WHERE date_reported IS NOT NULL
+                UNION ALL
+                SELECT date_reported, patient_count
+                FROM doctor_outbreaks
+                WHERE status = 'approved' AND date_reported IS NOT NULL
+            )
             GROUP BY date(date_reported)
             ORDER BY date DESC
             LIMIT 30
@@ -155,7 +192,14 @@ async def get_disease_distribution():
         
         cursor.execute('''
             SELECT disease_type, COUNT(*) as count, SUM(patient_count) as cases
-            FROM outbreaks
+            FROM (
+                SELECT disease_type, patient_count
+                FROM outbreaks
+                UNION ALL
+                SELECT disease_type, patient_count
+                FROM doctor_outbreaks
+                WHERE status = 'approved'
+            )
             GROUP BY disease_type
             ORDER BY count DESC
         ''')
@@ -189,7 +233,14 @@ async def get_severity_breakdown():
         
         cursor.execute('''
             SELECT severity, COUNT(*) as count, SUM(patient_count) as cases
-            FROM outbreaks
+            FROM (
+                SELECT severity, patient_count
+                FROM outbreaks
+                UNION ALL
+                SELECT severity, patient_count
+                FROM doctor_outbreaks
+                WHERE status = 'approved'
+            )
             GROUP BY severity
         ''')
         
@@ -227,9 +278,16 @@ async def get_regional_stats():
         
         cursor.execute('''
             SELECT state, COUNT(*) as outbreaks, SUM(patient_count) as cases,
-                   COUNT(CASE WHEN severity = 'severe' THEN 1 END) as severe_count
-            FROM outbreaks
-            JOIN hospitals ON outbreaks.hospital_id = hospitals.id
+                   SUM(CASE WHEN severity IN ('severe', 'critical') THEN 1 ELSE 0 END) as severe_count
+            FROM (
+                SELECT hospitals.state as state, outbreaks.patient_count as patient_count, outbreaks.severity as severity
+                FROM outbreaks
+                JOIN hospitals ON outbreaks.hospital_id = hospitals.id
+                UNION ALL
+                SELECT state, patient_count, severity
+                FROM doctor_outbreaks
+                WHERE status = 'approved'
+            )
             WHERE state IS NOT NULL
             GROUP BY state
             ORDER BY outbreaks DESC
@@ -273,7 +331,14 @@ async def get_week_comparison():
         # This week
         cursor.execute('''
             SELECT COUNT(*) as count, COALESCE(SUM(patient_count), 0) as cases
-            FROM outbreaks
+            FROM (
+                SELECT date_reported, patient_count
+                FROM outbreaks
+                UNION ALL
+                SELECT date_reported, patient_count
+                FROM doctor_outbreaks
+                WHERE status = 'approved'
+            )
             WHERE date_reported >= ?
         ''', (this_week_start,))
         this_week = cursor.fetchone()
@@ -281,7 +346,14 @@ async def get_week_comparison():
         # Last week
         cursor.execute('''
             SELECT COUNT(*) as count, COALESCE(SUM(patient_count), 0) as cases
-            FROM outbreaks
+            FROM (
+                SELECT date_reported, patient_count
+                FROM outbreaks
+                UNION ALL
+                SELECT date_reported, patient_count
+                FROM doctor_outbreaks
+                WHERE status = 'approved'
+            )
             WHERE date_reported >= ? AND date_reported < ?
         ''', (last_week_start, last_week_end))
         last_week = cursor.fetchone()

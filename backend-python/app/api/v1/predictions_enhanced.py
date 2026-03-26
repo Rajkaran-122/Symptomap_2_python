@@ -112,11 +112,14 @@ class EnhancedSEIRModel:
     
     def calculate_R0(self) -> float:
         """Calculate basic reproduction number"""
-        return round(self.beta / self.gamma, 2)
+        return float(round(self.beta / self.gamma, 2))
     
     def simulate(self, days: int) -> List[Dict]:
         """Run SEIR simulation with post-processing"""
-        S, E, I, R = float(self.S0), float(self.E0), float(self.I0), float(self.R0_value)
+        S: float = float(self.S0)
+        E: float = float(self.E0)
+        I: float = float(self.I0)
+        R: float = float(self.R0_value)
         results = []
         
         dt = 0.1  # Use smaller time step for accuracy
@@ -131,7 +134,7 @@ class EnhancedSEIRModel:
                 'exposed': int(E),
                 'infected': int(I),
                 'recovered': int(R),
-                'new_cases': int(max(0, self.sigma * E)),
+                'new_cases': int(max(0.0, self.sigma * E)),
                 'total_cases': int(I + R),
                 'active_cases': int(I)
             })
@@ -143,10 +146,10 @@ class EnhancedSEIRModel:
                 dI = self.sigma * E - self.gamma * I
                 dR = self.gamma * I
                 
-                S = max(0, S + dS * dt)
-                E = max(0, E + dE * dt)
-                I = max(0, I + dI * dt)
-                R = min(self.N, R + dR * dt)
+                S = max(0.0, S + dS * dt)
+                E = max(0.0, E + dE * dt)
+                I = max(0.0, I + dI * dt)
+                R = min(float(self.N), R + dR * dt)
         
         # Post-processing
         return self._postprocess(results)
@@ -187,14 +190,14 @@ def calculate_risk_assessment(r0: float, active_cases: int, population: int, sev
     
     return {
         'level': level,
-        'score': round(total_score, 1),
+        'score': float(f"{total_score:.1f}"),
         'color': color,
-        'r0': round(r0, 2),
-        'infection_rate': round(infection_rate, 1)
+        'r0': float(f"{r0:.2f}"),
+        'infection_rate': float(f"{infection_rate:.1f}")
     }
 
 
-def get_outbreak_data_from_sqlite() -> Dict:
+def get_outbreak_data_from_sqlite() -> Optional[Dict]:
     """Fetch outbreak data from SQLite doctor submissions"""
     try:
         conn = get_db_connection()
@@ -231,8 +234,8 @@ def get_outbreak_data_from_sqlite() -> Dict:
             disease = row['disease_type'] or 'Other'
             if disease not in disease_counts:
                 disease_counts[disease] = {'count': 0, 'cases': 0}
-            disease_counts[disease]['count'] += 1
-            disease_counts[disease]['cases'] += row['patient_count'] or 0
+            disease_counts[disease]['count'] = disease_counts[disease]['count'] + 1
+            disease_counts[disease]['cases'] = disease_counts[disease]['cases'] + (row['patient_count'] or 0)
         
         # State breakdown
         state_counts = {}
@@ -240,8 +243,8 @@ def get_outbreak_data_from_sqlite() -> Dict:
             state = row['state'] or 'Unknown'
             if state not in state_counts:
                 state_counts[state] = {'count': 0, 'cases': 0}
-            state_counts[state]['count'] += 1
-            state_counts[state]['cases'] += row['patient_count'] or 0
+            state_counts[state]['count'] = state_counts[state]['count'] + 1
+            state_counts[state]['cases'] = state_counts[state]['cases'] + (row['patient_count'] or 0)
         
         # Average severity
         severity_map = {'mild': 1, 'moderate': 2, 'severe': 3}
@@ -336,12 +339,12 @@ async def get_outbreak_forecast(
             state_counts = outbreak_data['state_counts']
             
             # Determine affected population from states
-            affected_population = 0
-            affected_beds = 0
+            affected_population: int = 0
+            affected_beds: int = 0
             for state_name in state_counts.keys():
                 if state_name in INDIA_STATES:
-                    affected_population += INDIA_STATES[state_name]['population']
-                    affected_beds += INDIA_STATES[state_name]['hospital_beds']
+                    affected_population = affected_population + int(INDIA_STATES[state_name]['population'])
+                    affected_beds = affected_beds + int(INDIA_STATES[state_name]['hospital_beds'])
             
             if affected_population == 0:
                 affected_population = 50000000  # Default 50M
@@ -434,9 +437,13 @@ async def get_outbreak_forecast(
         
         # Geographic predictions
         geographic_predictions = []
-        growth_factor = max(1.0, r0 ** 0.15)
+        growth_factor = float(max(1.0, float(r0) ** 0.15))
         
-        for state_name, state_data in list(state_counts.items())[:5]:
+        state_items: List[tuple] = []
+        for k, v in state_counts.items():
+            state_items.append((k, v))
+            
+        for state_name, state_data in state_items[:5]:
             current = state_data['cases']
             geographic_predictions.append({
                 'location': state_name,
@@ -448,17 +455,17 @@ async def get_outbreak_forecast(
             })
         
         # Hospital capacity
-        peak_hospitalized = int(peak_point['infected'] * hosp_rate)
-        current_hospitalized = int(total_cases * hosp_rate)
+        peak_hospitalized: int = int(float(peak_point['infected']) * float(hosp_rate))
+        current_hospitalized: int = int(float(total_cases) * float(hosp_rate))
         
         # Recommendations based on analysis
         recommendations = []
         
-        if r0 > 1.5:
+        if float(r0) > 1.5:
             recommendations.append({
                 'priority': 'HIGH',
                 'action': 'Implement immediate containment measures',
-                'impact': f'Could reduce R₀ by 30-40%, preventing {int(peak_point["infected"] * 0.3):,} cases'
+                'impact': f'Could reduce R₀ by 30-40%, preventing {int(float(peak_point["infected"]) * 0.3):,} cases'
             })
         
         if peak_hospitalized > affected_beds * 0.1:
@@ -468,7 +475,7 @@ async def get_outbreak_forecast(
                 'impact': 'Critical for preventing healthcare system overload'
             })
         
-        if r0 > 1.0:
+        if float(r0) > 1.0:
             recommendations.append({
                 'priority': 'MEDIUM',
                 'action': 'Increase testing and contact tracing capacity',
@@ -490,8 +497,8 @@ async def get_outbreak_forecast(
                 'current_outbreaks': len(disease_counts),
                 'reproduction_number': r0,
                 'peak_date': (datetime.now(timezone.utc) + timedelta(days=peak_point['day'])).date().isoformat(),
-                'peak_cases': peak_point['infected'],
-                'total_predicted_cases': forecast[-1]['total_cases'],
+                'peak_cases': int(peak_point['infected']),
+                'total_predicted_cases': int(forecast[-1]['total_cases']),
                 'risk_assessment': risk
             },
             'time_series': time_series,
@@ -511,10 +518,10 @@ async def get_outbreak_forecast(
                 'data_source': 'Doctor submissions' if outbreak_data else 'Sample data',
                 'confidence': '85%' if outbreak_data else '70%',
                 'parameters': {
-                    'transmission_rate': round(DISEASE_PARAMS.get(primary_disease, {}).get('beta', 0.4), 3),
-                    'incubation_rate': round(DISEASE_PARAMS.get(primary_disease, {}).get('sigma', 0.2), 3),
-                    'recovery_rate': round(DISEASE_PARAMS.get(primary_disease, {}).get('gamma', 0.1), 3),
-                    'r0': r0
+                    'transmission_rate': float(f"{float(DISEASE_PARAMS.get(primary_disease, {}).get('beta', 0.4)):.3f}"),
+                    'incubation_rate': float(f"{float(DISEASE_PARAMS.get(primary_disease, {}).get('sigma', 0.2)):.3f}"),
+                    'recovery_rate': float(f"{float(DISEASE_PARAMS.get(primary_disease, {}).get('gamma', 0.1)):.3f}"),
+                    'r0': float(r0)
                 }
             }
         }
@@ -563,7 +570,7 @@ async def compare_scenarios(days: int = Query(default=30, ge=7, le=90)):
             'lives_potentially_saved': int(peak_reduction * 0.015)  # Estimated fatality rate
         },
         'recommendation': 'With full intervention implementation, peak cases can be reduced by '
-                         f'{round((peak_reduction / max(worst.get("peak_cases", 1), 1)) * 100)}%'
+                         f'{int(float(peak_reduction) / float(max(worst.get("peak_cases", 1), 1)) * 100)}%'
     }
 
 
@@ -576,9 +583,9 @@ async def get_state_predictions():
     
     for state_name, state_info in INDIA_STATES.items():
         # Check if we have data for this state
-        state_cases = 0
+        state_cases: int = 0
         if outbreak_data and state_name in outbreak_data['state_counts']:
-            state_cases = outbreak_data['state_counts'][state_name]['cases']
+            state_cases = int(outbreak_data['state_counts'][state_name]['cases'])
         
         # Calculate risk for each state
         if state_cases > 0:
@@ -686,7 +693,7 @@ async def get_training_info():
 
 
 @router.get("/disease-parameters/{disease}")
-async def get_disease_parameters(disease: str, state: str = None):
+async def get_disease_parameters(disease: str, state: Optional[str] = None):
     """Get trained parameters for a specific disease and optional state"""
     
     state_to_use = state or "Maharashtra"

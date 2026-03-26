@@ -48,7 +48,7 @@ OUTBREAKS = [
 print("\n🔧 Adding Outbreak Data via POST API...\n")
 
 severity_icons = {"severe": "🔴", "moderate": "🟡", "mild": "🟢"}
-added = 0
+added: int = 0
 
 for outbreak in OUTBREAKS:
     try:
@@ -63,7 +63,7 @@ for outbreak in OUTBREAKS:
             "location": outbreak["location"],
             "date_started": date_started,
             "symptoms": ["Fever", "Fatigue", "Body Ache"],
-            "notes": f"{outbreak['severity'].upper()} outbreak"
+            "notes": f"{str(outbreak['severity']).upper()} outbreak"
         }
         
         response = requests.post(
@@ -73,16 +73,16 @@ for outbreak in OUTBREAKS:
         )
         
         if response.status_code in [200, 201]:
-            icon = severity_icons[outbreak["severity"]]
+            icon = severity_icons.get(str(outbreak["severity"]), "❓")
             print(f"{icon} SUCCESS | {outbreak['hospital_name']:35} | {outbreak['disease_type']:15} | {outbreak['patient_count']:3} patients")
-            added += 1
+            added = added + 1
         else:
             print(f"❌ FAILED  | {outbreak['hospital_name']:35} | Status: {response.status_code}")
             if response.status_code != 500:
                 print(f"   Error: {response.text[:150]}")
                 
     except Exception as e:
-        print(f"❌ ERROR   | {outbreak['hospital_name']:35} | {str(e)[:50]}")
+        print(f"❌ ERROR   | {outbreak['hospital_name']:35} | {str(e)}")
 
 print(f"\n✅ Successfully added {added}/{len(OUTBREAKS)} outbreaks")
 

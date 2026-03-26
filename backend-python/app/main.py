@@ -32,7 +32,7 @@ from app.middleware.security import setup_security_middleware
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
     # Startup
-    print("🚀 Starting SymptoMap Backend...")
+    print("[INFO] Starting SymptoMap Backend...")
     
     # Import all models to ensure they're registered with Base.metadata
     from app.models import (
@@ -43,7 +43,7 @@ async def lifespan(app: FastAPI):
     
     # Create database tables (including any new tables that don't exist)
     async with engine.begin() as conn:
-        print("📊 Creating/updating database tables...")
+        print("[INFO] Creating/updating database tables...")
         await conn.run_sync(Base.metadata.create_all)
         
         # Check if we need to seed
@@ -51,14 +51,14 @@ async def lifespan(app: FastAPI):
             result = await conn.execute(text("SELECT count(*) FROM hospitals"))
             count = result.scalar()
         except Exception as e:
-            print(f"⚠️ Error checking hospitals table: {e}")
+            print(f"[WARN] Error checking hospitals table: {e}")
             count = 0
         
     if count == 0:
-        print("🌱 Seeding empty database...")
+        print("[INFO] Seeding empty database...")
         await seed_database()
     else:
-        print(f"✅ Database has {count} hospitals - skipping seed")
+        print(f"[OK] Database has {count} hospitals - skipping seed")
     
     # Legacy SQLite initialization removed in favor of SQLAlchemy
      
@@ -68,7 +68,7 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown
-    print("👋 Shutting down SymptoMap Backend...")
+    print("[INFO] Shutting down SymptoMap Backend...")
     await redis_client.disconnect()
 
 
@@ -217,7 +217,7 @@ async def force_reseed():
             await db.execute(text("DELETE FROM hospitals"))
             await db.execute(text("DELETE FROM users WHERE email = 'admin@symptomap.com'"))
             await db.commit()
-            print("🗑️ Cleared existing ORM data")
+            print("[INFO] Cleared existing ORM data")
         
         # Clear SQLite doctor data
         try:
@@ -229,7 +229,7 @@ async def force_reseed():
             cursor.execute("DELETE FROM doctor_alerts")
             conn.commit()
             conn.close()
-            print("🗑️ Cleared doctor SQLite data")
+            print("[INFO] Cleared doctor SQLite data")
         except Exception as e:
             print(f"SQLite clear warning: {e}")
         

@@ -369,7 +369,7 @@ const UserDashboard: React.FC = () => {
                         { label: 'Verified Cases', value: stats.casesThisWeek, icon: Users, color: 'blue' },
                         { label: 'Active Zones', value: stats.activeOutbreaks, icon: Radio, color: 'indigo' },
                         { label: 'Risk Alerts', value: stats.activeBroadcasts, icon: AlertTriangle, color: 'amber' },
-                        { label: 'Trusted Hospitals', value: stats.verifiedSources || 12, icon: ShieldCheck, color: 'emerald' },
+                        { label: 'Trusted Hospitals', value: stats.verifiedSources ?? 0, icon: ShieldCheck, color: 'emerald' },
                     ].map((stat, i) => (
                         <div key={i} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:border-slate-300 transition-all group">
                             <div className="flex justify-between items-start mb-3">

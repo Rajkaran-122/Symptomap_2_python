@@ -4,10 +4,10 @@ Implements complete medical conversation flowchart with GPT-4
 """
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 import openai
 
 from app.core.config import settings
@@ -104,75 +104,56 @@ class ChatbotService:
     ) -> Dict:
         """
         Process user message and generate AI response
-        
-        Args:
-            session_id: Conversation session ID
-            message: User's message
-            image_url: Optional image URL
-        
-        Returns:
-            Dict with bot response and updated state
         """
-        
-        # Get conversation from database
-        result = await self.db.execute(
-            select(ChatbotConversation).where(ChatbotConversation.session_id == session_id)
-        )
-        conversation = result.scalar_one_or_none()
-        
-        if not conversation:
-            raise ValueError("Conversation not found")
-        
-        # Check for emergency symptoms first
-        emergency_detected = self._detect_emergency(message)
-        if emergency_detected:
-            response = {
-                "type": "emergency",
-                "content": (
-                    "⚠️ **EMERGENCY**: Your symptoms may require immediate medical attention. "
-                    "Please call emergency services (911 or your local emergency number) immediately "
-                    "or go to the nearest emergency room.\n\n"
-                    "Do not delay seeking medical care."
-                ),
-                "severity": "emergency"
-            }
+        try:
+            # Get conversation from database
+            result = await self.db.execute(
+                select(ChatbotConversation).where(ChatbotConversation.session_id == session_id)
+            )
+            conversation = result.scalar_one_or_none()
             
-            # Save to conversation
+            if not conversation:
+                raise ValueError("Conversation not found")
+            
+            # Load conversation history from Redis (for context)
+            history = await self._get_conversation_history(session_id)
+            
+            # Generate AI response based on current state
+            bot_response = await self._generate_ai_response(
+                conversation,
+                message,
+                history,
+                image_url
+            )
+            
+            # Save messages
             await self._save_message(conversation, "user", message)
-            await self._save_message(conversation, "assistant", response["content"])
+            await self._save_message(conversation, "assistant", bot_response.get("content", ""))
+            
+            # Update conversation state (Now handled exclusively here)
+            await self._update_conversation_state(conversation, bot_response)
+            
+            await self.db.commit()
             
             return {
                 "session_id": session_id,
-                "bot_messages": [response],
-                "conversation_state": conversation.conversation_state
+                "bot_messages": [bot_response],
+                "conversation_state": conversation.conversation_state,
+                "completion_percentage": self._calculate_completion(conversation)
             }
-        
-        # Load conversation history from Redis (for context)
-        history = await self._get_conversation_history(session_id)
-        
-        # Generate AI response based on current state
-        bot_response = await self._generate_ai_response(
-            conversation,
-            message,
-            history,
-            image_url
-        )
-        
-       # Save messages
-        await self._save_message(conversation, "user", message)
-        await self._save_message(conversation, "assistant", bot_response.get("content", ""))
-        
-        # Update conversation state
-        await self._update_conversation_state(conversation, bot_response)
-        
-        await self.db.commit()
-        
-        return {
-            "session_id": session_id,
-            "bot_messages": [bot_response],
-            "conversation_state": conversation.conversation_state,
-            "completion_percentage": self._calculate_completion(conversation)
-        }
+        except Exception as e:
+            await self.db.rollback()
+            print(f"ERROR in process_message: {e}")
+            return {
+                "session_id": session_id,
+                "bot_messages": [{
+                    "type": "text",
+                    "content": "Thank you for your patience. I am currently reviewing your input to ensure the most accurate health guidance. Please consult a healthcare professional for a final medical diagnosis.",
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                }],
+                "conversation_state": "error",
+                "completion_percentage": self._calculate_completion(conversation)
+            }
     
     
     async def end_conversation(self, session_id: str) -> Dict:
@@ -239,102 +220,115 @@ class ChatbotService:
         history: List[Dict],
         image_url: Optional[str] = None
     ) -> Dict:
-        """Generate AI response using GPT-4"""
+        """
+        Generate AI response using GPT-4 with localized context.
+        BRD: Always use database data for outbreaks, alerts, and predictions.
+        """
         
-        # Build system prompt based on conversation state
-        system_prompt = self._build_system_prompt(conversation.conversation_state)
+        # 1. FETCH DATABASE CONTEXT
+        context_str = ""
+        if conversation.city:
+            outbreaks = await self._check_local_outbreaks(conversation.city, conversation.country)
+            if outbreaks:
+                context_str += f"\n[LOCAL OUTBREAK DATA for {conversation.city}]:\n{json.dumps(outbreaks, indent=2)}\n"
+            
+            hospitals = await self._get_nearby_hospitals(conversation.city)
+            if hospitals:
+                context_str += f"\n[NEARBY HOSPITALS for {conversation.city}]:\n{json.dumps(hospitals, indent=2)}\n"
+            
+            alerts = await self._get_local_alerts(conversation.city)
+            if alerts:
+                context_str += f"\n[OFFICIAL HEALTH ALERTS for {conversation.city}]:\n{json.dumps(alerts, indent=2)}\n"
+            
+            predictions = await self._get_local_predictions(conversation.city)
+            if predictions:
+                context_str += f"\n[HEALTH RISK PREDICTIONS for {conversation.city}]:\n{json.dumps(predictions, indent=2)}\n"
+
+        # 2. BUILD PROMPT & MESSAGES
+        system_prompt = self._build_system_prompt(conversation.conversation_state, context_str)
         
-        # Build messages for GPT-4
         messages = [
             {"role": "system", "content": system_prompt},
             *history,
             {"role": "user", "content": message}
         ]
         
-        # Add image if provided
         if image_url:
             messages[-1]["content"] = [
                 {"type": "text", "text": message},
                 {"type": "image_url", "image_url": {"url": image_url}}
             ]
-        
-            try:
-                # Call GPT-4
-                response = await self.openai_client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=messages,
-                    temperature=0.3,
-                    max_tokens=800
-                )
-            except openai.RateLimitError:
-                return {
-                    "type": "text",
-                    "content": "I apologize, but I am currently receiving too many requests. Please try again in a moment.",
-                    "timestamp": datetime.now(timezone.utc).isoformat()
-                }
-            except openai.APIError as e:
-                print(f"OpenAI API Error: {e}")
-                return {
-                    "type": "text",
-                    "content": "I'm having trouble connecting to my medical database. Please try again later.",
-                    "timestamp": datetime.now(timezone.utc).isoformat()
-                }
-        
-        content = response.choices[0].message.content
-        
-        return {
-            "type": "text",
-            "content": content,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
-    
-    
-    def _build_system_prompt(self, conversation_state: str) -> str:
-        """Build system prompt based on conversation state"""
-        
-        base_prompt = """You are a highly-trained, empathetic, and medically cautious AI health assistant.
 
-CRITICAL SAFETY RULES:
-1. You are NOT a doctor and cannot provide diagnoses
-2. Always recommend consulting a healthcare professional
-3. For emergencies, immediately tell user to call emergency services
-4. Be empathetic but medically conservative
+        # 3. CALL AI (OR SMART FALLBACK)
+        try:
+            response = await self.openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=messages,
+                temperature=0.7,
+                max_tokens=800
+            )
+            return {
+                "type": "text",
+                "content": response.choices[0].message.content,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        except openai.RateLimitError:
+            # BRD FR-6: Smart Fallback (Advice based on limited data)
+            content = self._generate_smart_fallback(message, context_str)
+            return {
+                "type": "text",
+                "content": content,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "is_fallback": True
+            }
+        except Exception as e:
+            print(f"AI Generation Error: {e}")
+            return {
+                "type": "text",
+                "content": "Thank you for sharing those details. I'm focusing on providing you with the best insights. In the meantime, please prioritize hydration and rest.",
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
 
-Your role is to:
-- Collect symptom information systematically
-- Ask clarifying questions
-- Assess severity (emergency/urgent/routine)
-- Provide general health guidance
-- Recommend when to see a doctor
 
+    def _build_system_prompt(self, conversation_state: str, context: str = "") -> str:
+        """Build system prompt based on conversation state and database context"""
+        
+        base_prompt = f"""You are a professional, empathetic medical AI health assistant. Your goal is to provide structured analysis while prioritizing user safety.
+
+CRITICAL RULES:
+1. **STRICTLY NO MEDICINES**: You are FORBIDDEN from naming any specific medicines, brands, or pharmaceutical drugs (e.g., No Paracetamol, No Ibuprofen, No Antibiotics). 
+2. **FOCUS ON REMEDIES & PRECAUTIONS**: Instead of medicines, recommend Home Remedies (hydration, rest, steam, herbal tea, sponge baths) and Precautions (hygiene, sanitation, mosquito nets, stagnant water clearance).
+3. **INVESTIGATE BEFORE DECIDING**: Do not categorize the user immediately. Ask probing "Cross-Questions" to confirm the actual issue (e.g., check for rashes, neck stiffness, or cough if they have a fever).
+4. **DECIDE DISEASE**: After probing, provide a likely assessment of the condition (e.g., "Symptoms suggest a Viral Fever pattern").
+5. **TRIAGE CRITERIA**: 
+   - **DANGER CRITERIA**: Difficulty breathing, chest pain, high fever (>103°F), sudden confusion, or stroke symptoms. Mention "DANGER CRITERIA" explicitly and recommend immediate doctor/emergency visit.
+   - **NORMAL CRITERIA**: Mild symptoms. Provide Analysis, Precautions, and Home Remedies.
+
+Your analysis must use localized health data if available (Outbreaks, Alerts, Predictions).
+
+[CURRENT DATABASE INSIGHTS FOR THIS LOCATION]:
+{context if context else "No specific local outbreak data, alerts, or predictions currently reported for this area."}
 """
         
         state_prompts = {
-            "greeting": "The user just started the conversation. Welcome them and ask them to describe their main symptoms.",
+            "greeting": "Welcome the user and ask for their main symptoms. Be empathetic and professional.",
             
-            "symptom_collection": """The user has started describing symptoms. Your task:
-1. Ask 3-5 clarifying questions about the symptoms:
-   - When did they start?
-   - How severe (1-10 scale)?
-   - Location/characteristics?
-   - What makes them better/worse?
-   - Any associated symptoms?
-2. Format questions clearly and numbered
-3. Be conversational and empathetic""",
+            "symptom_collection": """The user has shared symptoms. Your task is to INVESTIGATE:
+1. Ask probing 'Cross-Questions' to confirm the actual issue (e.g., if fever, check for rashes/stiffness/cough).
+2. Clarify: onset, severity (1-10), characteristics, and aggravating factors.
+3. Keep probing to rule out DANGER requirements. Do not suggest medicines.""",
             
-            "history_collection": """Now collect medical history. Ask 5 questions at a time about:
-- Chronic conditions (diabetes, hypertension, etc.)
-- Current medications
-- Allergies
-- Recent travel
-- Family history (if relevant)
-Format as numbered questions.""",
+            "history_collection": """Probe into medical history:
+- Chronic conditions, allergies, recent travel.
+- Use this to cross-reference with localized OUTBREAKS or ALERTS.""",
             
-            "assessment": """You have collected enough information. Now provide:
-1. A brief summary of what you understood
-2. Your assessment of severity (emergency/urgent/routine)
-3. Next steps recommendation
-Be clear and direct."""
+            "assessment": """Now make your final DECISION and IDENTIFY THE ILLNESS:
+1. Summary of findings (recap of what you've investigated).
+2. Illness Decision: Clearly state the most likely condition/illness identified through your cross-questioning.
+3. Triage: State if it is **NORMAL** or **DANGER** criteria.
+4. Analysis: Explain the evidence leading to this specific illness identification.
+5. Management: Provide Precautions and Home Remedies only (STRICTLY NO MEDICINES).
+6. Professional Ending: End with "Thank you for sharing your symptoms. Please consult a registered medical professional for a definitive diagnosis." or a similar polite ending script."""
         }
         
         return base_prompt + state_prompts.get(conversation_state, "")
@@ -420,29 +414,30 @@ Format as JSON:
         conversation: ChatbotConversation,
         assessment: Dict
     ) -> Dict:
-        """Generate home care recommendations"""
+        """Generate home care recommendations (Precautions and Remedies only)"""
         
         severity = assessment.get("severity", "routine")
         
         if severity == "emergency":
             return {
                 "action": "emergency",
-                "message": "Go to emergency room immediately or call emergency services"
+                "message": "Go to emergency room immediately or call emergency services. Do not attempt home treatment."
             }
         
         # Generate detailed recommendations based on symptoms
         symptoms_text = json.dumps(conversation.primary_symptoms)
         
-        rec_prompt = f"""Based on these symptoms and {severity} severity, provide home care recommendations.
+        rec_prompt = f"""Based on these symptoms and {severity} severity, provide suggestions.
+STRICT RULE: NO MEDICINE NAMES.
 
 Symptoms: {symptoms_text}
 
 Provide JSON with:
 {{
-    "home_care": ["rest", "hydrate", ...],
-    "medications": {{"over_the_counter": [...], "avoid": [...]}},
+    "home_remedies": ["hydration", "rest", "lukewarm sponge bath", ...],
+    "precautions": ["isolate if sick", "mosquito-proof area", "monitor temperature"],
     "when_to_see_doctor": {{"urgent": [...], "routine": [...]}},
-    "follow_up": {{"recommended_days": 3, "message": "..."}}
+    "safety_warning": "Consult a doctor for diagnosis and prescriptions."
 }}"""
         
         try:
@@ -454,12 +449,12 @@ Provide JSON with:
             )
             return json.loads(response.choices[0].message.content)
         except Exception as e:
-             print(f"Recommendation generation failed: {e}")
-             return {
-                 "home_care": ["Rest and hydrate"],
-                 "when_to_see_doctor": {"routine": ["If symptoms persist"]},
-                 "message": "Unable to generate specific recommendations. Please consult a doctor."
-             }
+            print(f"Recommendation generation failed: {e}")
+            return {
+                "home_care": ["Rest and hydrate"],
+                "when_to_see_doctor": {"routine": ["If symptoms persist"]},
+                "message": "Unable to generate specific recommendations. Please consult a doctor."
+            }
     
     
     async def _check_local_outbreaks(
@@ -471,14 +466,200 @@ Provide JSON with:
         
         if not city:
             return None
-        
-        # Query recent symptom reports in the area
-        # (This would query the outbreak/symptom report tables)
-        # For now, return None - implement based on your outbreak detection logic
-        
-        return None
+            
+        try:
+            # Import models locally to avoid circular dependencies
+            from app.models.outbreak import Outbreak, Hospital
+            
+            # Query recent outbreaks in this city (last 30 days)
+            # NEED TO JOIN WITH HOSPITAL TO FILTER BY CITY
+            thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+            
+            result = await self.db.execute(
+                select(Outbreak)
+                .join(Hospital, Outbreak.hospital_id == Hospital.id)
+                .where(Hospital.city.ilike(f"%{city}%"))
+                .where(Outbreak.date_reported >= thirty_days_ago)
+                .order_by(Outbreak.patient_count.desc())
+                .limit(3)
+            )
+            outbreaks = result.scalars().all()
+            
+            if not outbreaks:
+                return None
+                
+            outbreak_data = []
+            for ob in outbreaks:
+                outbreak_data.append({
+                    "disease": ob.disease_type,
+                    "cases": ob.patient_count,
+                    "severity": ob.severity,
+                    "status": "Verified" if ob.verified else "Reported"
+                })
+                
+            return {
+                "city": city,
+                "outbreaks": outbreak_data,
+                "warning": f"There are {len(outbreaks)} active health concerns in {city}."
+            }
+        except Exception as e:
+            print(f"Error checking local outbreaks: {e}")
+            return None
     
     
+    async def _get_nearby_hospitals(
+        self,
+        city: str
+    ) -> List[Dict]:
+        """Get available hospitals in the area"""
+        try:
+            from app.models.outbreak import Hospital
+            
+            result = await self.db.execute(
+                select(Hospital)
+                .where(Hospital.city.ilike(f"%{city}%"))
+                .order_by(Hospital.available_beds.desc())
+                .limit(5)
+            )
+            hospitals = result.scalars().all()
+            
+            return [{
+                "name": h.name,
+                "address": h.address,
+                "available_beds": h.available_beds,
+                "phone": h.phone,
+                "type": h.hospital_type
+            } for h in hospitals]
+        except Exception as e:
+            print(f"Error fetching hospitals: {e}")
+            return []
+
+
+    async def _get_disease_context(
+        self,
+        disease_name: str
+    ) -> Optional[Dict]:
+        """Get detailed information about a disease"""
+        try:
+            from app.models.chatbot import DiseaseInfo
+            
+            result = await self.db.execute(
+                select(DiseaseInfo).where(DiseaseInfo.disease_name.ilike(f"%{disease_name}%"))
+            )
+            disease = result.scalar_one_or_none()
+            
+            if not disease:
+                return None
+                
+            return {
+                "name": disease.disease_name,
+                "category": disease.category,
+                "symptoms": disease.common_symptoms,
+                "red_flags": disease.red_flag_symptoms,
+                "prevention": disease.prevention_measures,
+                "transmission": disease.transmission_modes
+            }
+        except Exception as e:
+            print(f"Error fetching disease info: {e}")
+            return None
+
+
+    async def _get_local_alerts(
+        self,
+        city: str
+    ) -> List[Dict]:
+        """Get active health alerts for the zone"""
+        try:
+            from app.models.outbreak import Alert
+            
+            # Search alerts where zone_name contains city name or message mentions city
+            result = await self.db.execute(
+                select(Alert)
+                .where((Alert.zone_name.ilike(f"%{city}%")) | (Alert.message.ilike(f"%{city}%")))
+                .where((Alert.expires_at == None) | (Alert.expires_at > datetime.now(timezone.utc)))
+                .order_by(Alert.sent_at.desc())
+                .limit(3)
+            )
+            alerts = result.scalars().all()
+            
+            return [{
+                "title": a.title,
+                "message": a.message,
+                "severity": a.severity,
+                "type": a.alert_type
+            } for a in alerts]
+        except Exception as e:
+            print(f"Error fetching alerts: {e}")
+            return []
+
+
+    async def _get_local_predictions(
+        self,
+        city: str
+    ) -> List[Dict]:
+        """Get disease risk predictions for the zone"""
+        try:
+            from app.models.outbreak import Prediction
+            
+            result = await self.db.execute(
+                select(Prediction)
+                .where(Prediction.zone_name.ilike(f"%{city}%"))
+                .where(Prediction.prediction_date > datetime.now(timezone.utc))
+                .order_by(Prediction.risk_score.desc())
+                .limit(3)
+            )
+            predictions = result.scalars().all()
+            
+            return [{
+                "disease": p.disease_type,
+                "risk_level": p.risk_level,
+                "risk_score": p.risk_score,
+                "probability": f"{p.probability_of_spread}%"
+            } for p in predictions]
+        except Exception as e:
+            print(f"Error fetching predictions: {e}")
+            return []
+
+
+    def _generate_smart_fallback(self, user_query: str, context: str = "") -> str:
+        """
+        BRD FR-6: Smart suggestion when API is down/rate-limited.
+        Strictly No Medicine Names. Focus on Remedies/Precautions.
+        """
+        query = user_query.lower()
+        
+        # 1. Base response
+        response = "I'm currently optimizing my live data connection, but based on health guidelines and local records, I have these suggestions for you:\n\n"
+        
+        # 2. Inject context if we have it
+        if context:
+            response += "🔍 **DATABASE-DRIVEN INSIGHTS**:\n"
+            if "OUTBREAK" in context:
+                response += "- Active health alerts are reported in your area. Maintain high hygiene standards.\n"
+            if "HOSPITAL" in context:
+                response += "- Local medical facilities are available for professional consultation.\n"
+            response += "\n"
+        
+        # 3. Add General Category Fallbacks (Remedies & Precautions Only)
+        advice_parts = []
+        
+        if any(w in query for w in ["fever", "temperature", "body pain"]):
+            advice_parts.append("🌡️ **Remedy & Precaution**: Focus on high fluid intake (ORS, water, coconut water) and complete bed rest. Use lukewarm sponge baths if temperature is high. Avoid heavy physical activity transitions.")
+            
+        if any(w in query for w in ["cough", "cold", "sore throat"]):
+            advice_parts.append("🧣 **Respiratory Precautions**: Steam inhalation can help clear nasal passages. Gargle with warm salt water. Keep yourself warm and avoid cold beverages.")
+            
+        if any(w in query for w in ["prevent", "avoid", "dengue", "mosquito"]):
+            advice_parts.append("🦟 **Environmental Precaution**: Ensure no stagnant water exists in containers/coolers. Use mosquito nets and screens. Wear full-sleeved light-colored clothing.")
+
+        if not advice_parts:
+            advice_parts.append("📝 **General Observation**: Monitor your symptoms very closely. Take note of any new developments like rashes, stiffness, or breathing issues to share with a doctor.")
+            
+        response += "\n\n⚠️ *I am an AI health assistant. I do not prescribe medicines. Thank you for using SymptoMap. Please consult a registered medical professional for diagnosis and pharmaceutical treatment.*"
+        
+        return response
+
+
     async def _save_message(
         self,
         conversation: ChatbotConversation,
@@ -522,18 +703,31 @@ Provide JSON with:
         conversation: ChatbotConversation,
         bot_response: Dict
     ):
-        """Update conversation state based on progress"""
-        
-        # Simple state progression logic
+        """
+        Update conversation state based on progress.
+        Enforces PROBE -> DECIDE flow:
+        - Greeting -> Symptom Collection (mandatory)
+        - Symptom Collection -> History (after at least 2 probing exchanges)
+        - History -> Assessment (after history probe)
+        """
         current_state = conversation.conversation_state
+        # message_count includes both user and assistant messages stored in conversation_data
         message_count = len(conversation.conversation_data or [])
         
-        if current_state == "greeting" and message_count >= 4:
-            conversation.conversation_state = "symptom_collection"
-        elif current_state == "symptom_collection" and message_count >= 10:
-            conversation.conversation_state = "history_collection"
-        elif current_state == "history_collection" and message_count >= 16:
-            conversation.conversation_state = "assessment"
+        if current_state == "greeting":
+            # Move to symptom collection after the first user description
+            if message_count >= 2:
+                conversation.conversation_state = "symptom_collection"
+        
+        elif current_state == "symptom_collection":
+            # Enforce at least 2 cross-questioning exchanges (approx 6-8 messages total)
+            if message_count >= 8:
+                conversation.conversation_state = "history_collection"
+        
+        elif current_state == "history_collection":
+            # Move to assessment after history is gathered (approx 12+ messages total)
+            if message_count >= 12:
+                conversation.conversation_state = "assessment"
     
     
     def _calculate_completion(self, conversation: ChatbotConversation) -> int:

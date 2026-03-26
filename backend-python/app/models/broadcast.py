@@ -65,5 +65,5 @@ class Broadcast(Base):
             "metadata": self.additional_data
         }
 
-print("✅ Loaded Broadcast model (renamed schema)")
+print("[OK] Loaded Broadcast model (renamed schema)")
 

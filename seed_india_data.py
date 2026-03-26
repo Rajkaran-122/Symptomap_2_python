@@ -210,6 +210,7 @@ def seed_comprehensive_data():
             severity = random.choices(SEVERITIES, weights=[0.5, 0.35, 0.15])[0]
             patient_count = random.randint(5, 150) if severity == "severe" else random.randint(1, 50)
             
+            # Slight coordinate variation for different hospital locations
             lat = float(city_data["lat"]) + random.uniform(-0.05, 0.05)
             lng = float(city_data["lng"]) + random.uniform(-0.05, 0.05)
             

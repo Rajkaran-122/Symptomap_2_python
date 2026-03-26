@@ -172,9 +172,9 @@ def calculate_trained_parameters(disease: str, state: str) -> dict:
         }
     
     # Calculate empirical parameters from historical data
-    avg_cases = sum(d["cases"] for d in relevant_data) / len(relevant_data)
-    avg_deaths = sum(d["deaths"] for d in relevant_data) / len(relevant_data)
-    avg_duration = sum(d["duration"] for d in relevant_data) / len(relevant_data)
+    avg_cases = float(sum(int(d["cases"]) for d in relevant_data) / len(relevant_data))
+    avg_deaths = float(sum(int(d["deaths"]) for d in relevant_data) / len(relevant_data))
+    avg_duration = float(sum(int(d["duration"]) for d in relevant_data) / len(relevant_data))
     
     # Empirical parameter estimation
     # Recovery rate approximated as 1/duration (adjusted)
@@ -206,10 +206,10 @@ def calculate_trained_parameters(disease: str, state: str) -> dict:
     gamma_final = gamma_adjusted * (0.8 + hc_index * 0.04)  # Better healthcare = faster recovery
     
     return {
-        "beta": round(min(0.8, max(0.2, beta)), 4),
-        "sigma": round(sigma, 4),
-        "gamma": round(min(0.3, max(0.05, gamma_final)), 4),
-        "cfr": round(cfr, 4),
+        "beta": float(f"{min(0.8, max(0.2, float(beta))):.4f}"),
+        "sigma": float(f"{float(sigma):.4f}"),
+        "gamma": float(f"{min(0.3, max(0.05, float(gamma_final))):.4f}"),
+        "cfr": float(f"{float(cfr):.4f}"),
         "avg_outbreak_size": int(avg_cases),
         "avg_duration": int(avg_duration),
         "data_points": len(relevant_data),
@@ -220,7 +220,9 @@ def calculate_trained_parameters(disease: str, state: str) -> dict:
 def get_seasonal_multiplier(disease: str, month: int) -> float:
     """Get seasonal transmission multiplier for a disease"""
     if disease in SEASONAL_PATTERNS:
-        return SEASONAL_PATTERNS[disease]["transmission_multiplier"].get(month, 1.0)
+        multipliers = SEASONAL_PATTERNS[disease].get("transmission_multiplier", {})
+        if isinstance(multipliers, dict):
+            return multipliers.get(month, 1.0)
     return 1.0
 
 

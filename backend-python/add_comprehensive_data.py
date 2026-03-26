@@ -139,15 +139,15 @@ failed = 0
 results_by_zone = {"🔴 RED": 0, "🟡 YELLOW": 0, "🟢 GREEN": 0}
 
 for outbreak in OUTBREAKS:
-    zone_type = outbreak.pop("zone")  # Remove zone from payload
+    zone_type = str(outbreak.pop("zone"))  # Remove zone from payload
     
     try:
         response = requests.post(API_URL, json=outbreak, timeout=10)
         
         if response.status_code in [200, 201]:
             print(f"{zone_type:10} | {outbreak['hospital_name']:35} | {outbreak['disease_type']:20} | {outbreak['patient_count']:3} patients | {outbreak['severity']:8}")
-            added += 1
-            results_by_zone[zone_type] += 1
+            added = added + 1
+            results_by_zone[zone_type] = results_by_zone.get(zone_type, 0) + 1
         else:
             print(f"❌ FAILED  | {outbreak['hospital_name']:35} | Status: {response.status_code}")
             if response.status_code == 401:
@@ -161,7 +161,7 @@ for outbreak in OUTBREAKS:
         print("   → Make sure backend is running")
         break
     except Exception as e:
-        print(f"❌ ERROR   | {outbreak['hospital_name']:35} | {str(e)[:50]}")
+        print(f"❌ ERROR   | {outbreak['hospital_name']:35} | {str(e)}")
         failed += 1
 
 print("\n" + "="*80)

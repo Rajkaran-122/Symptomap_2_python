@@ -8,9 +8,10 @@ from typing import List, Dict, Optional
 import json
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, case
 from app.models.outbreak import Outbreak, Hospital, Alert
 from app.models.broadcast import Broadcast
+from app.models.doctor import DoctorOutbreak
 import uuid
 
 
@@ -22,6 +23,108 @@ THRESHOLDS = {
 }
 
 
+SEVERITY_RANK = {
+    "critical": 4,
+    "severe": 3,
+    "moderate": 2,
+    "mild": 1,
+}
+RANK_TO_SEVERITY = {rank: severity for severity, rank in SEVERITY_RANK.items()}
+
+
+def _pick_max_severity(a: Optional[str], b: Optional[str]) -> Optional[str]:
+    if not a:
+        return b
+    if not b:
+        return a
+    return a if SEVERITY_RANK.get(a, 0) >= SEVERITY_RANK.get(b, 0) else b
+
+
+async def _get_combined_state_stats(
+    db: AsyncSession,
+    start_ts: datetime,
+    end_ts: Optional[datetime] = None,
+) -> Dict[str, Dict[str, Optional[float]]]:
+    """Aggregate outbreak stats by state from ORM outbreaks + approved doctor submissions."""
+    combined: Dict[str, Dict[str, Optional[float]]] = {}
+    severity_rank_orm = case(
+        (func.lower(Outbreak.severity) == "critical", SEVERITY_RANK["critical"]),
+        (func.lower(Outbreak.severity) == "severe", SEVERITY_RANK["severe"]),
+        (func.lower(Outbreak.severity) == "moderate", SEVERITY_RANK["moderate"]),
+        (func.lower(Outbreak.severity) == "mild", SEVERITY_RANK["mild"]),
+        else_=0,
+    )
+    severity_rank_doc = case(
+        (func.lower(DoctorOutbreak.severity) == "critical", SEVERITY_RANK["critical"]),
+        (func.lower(DoctorOutbreak.severity) == "severe", SEVERITY_RANK["severe"]),
+        (func.lower(DoctorOutbreak.severity) == "moderate", SEVERITY_RANK["moderate"]),
+        (func.lower(DoctorOutbreak.severity) == "mild", SEVERITY_RANK["mild"]),
+        else_=0,
+    )
+
+    # ORM outbreaks joined through hospitals
+    orm_query = (
+        select(
+            Hospital.state,
+            func.sum(Outbreak.patient_count).label("total_cases"),
+            func.count(Outbreak.id).label("outbreak_count"),
+            func.max(severity_rank_orm).label("max_severity_rank"),
+        )
+        .join(Hospital, Outbreak.hospital_id == Hospital.id)
+        .where(Outbreak.date_reported >= start_ts)
+    )
+    if end_ts is not None:
+        orm_query = orm_query.where(Outbreak.date_reported < end_ts)
+    orm_query = orm_query.group_by(Hospital.state)
+
+    orm_result = await db.execute(orm_query)
+    for state, total_cases, outbreak_count, max_severity_rank in orm_result.all():
+        if not state:
+            continue
+        combined[state] = {
+            "total_cases": int(total_cases or 0),
+            "outbreak_count": int(outbreak_count or 0),
+            "max_severity": RANK_TO_SEVERITY.get(int(max_severity_rank or 0)),
+        }
+
+    # Approved doctor submissions
+    doc_query = (
+        select(
+            DoctorOutbreak.state,
+            func.sum(DoctorOutbreak.patient_count).label("total_cases"),
+            func.count(DoctorOutbreak.id).label("outbreak_count"),
+            func.max(severity_rank_doc).label("max_severity_rank"),
+        )
+        .where(
+            DoctorOutbreak.status == "approved",
+            DoctorOutbreak.date_reported >= start_ts,
+        )
+    )
+    if end_ts is not None:
+        doc_query = doc_query.where(DoctorOutbreak.date_reported < end_ts)
+    doc_query = doc_query.group_by(DoctorOutbreak.state)
+
+    doc_result = await db.execute(doc_query)
+    for state, total_cases, outbreak_count, max_severity_rank in doc_result.all():
+        if not state:
+            continue
+        if state not in combined:
+            combined[state] = {
+                "total_cases": 0,
+                "outbreak_count": 0,
+                "max_severity": None,
+            }
+
+        combined[state]["total_cases"] = int(combined[state]["total_cases"] or 0) + int(total_cases or 0)
+        combined[state]["outbreak_count"] = int(combined[state]["outbreak_count"] or 0) + int(outbreak_count or 0)
+        combined[state]["max_severity"] = _pick_max_severity(
+            combined[state].get("max_severity"),
+            RANK_TO_SEVERITY.get(int(max_severity_rank or 0)),
+        )
+
+    return combined
+
+
 async def analyze_and_generate_alerts(db: AsyncSession) -> List[Dict]:
     """
     Analyze current outbreak data and predictions to auto-generate alerts
@@ -30,27 +133,17 @@ async def analyze_and_generate_alerts(db: AsyncSession) -> List[Dict]:
     created_alerts = []
     now = datetime.now(timezone.utc)
     
-    # Get recent outbreaks grouped by state
+    # Get recent outbreaks grouped by state (ORM + approved doctor submissions)
     seven_days_ago = now - timedelta(days=7)
-    
-    # Aggregate by state
-    result = await db.execute(
-        select(
-            Hospital.state,
-            func.sum(Outbreak.patient_count).label("total_cases"),
-            func.count(Outbreak.id).label("outbreak_count"),
-            func.max(Outbreak.severity).label("max_severity")
-        )
-        .join(Hospital, Outbreak.hospital_id == Hospital.id)
-        .where(Outbreak.date_reported >= seven_days_ago)
-        .group_by(Hospital.state)
-    )
-    state_stats = result.all()
+    state_stats = await _get_combined_state_stats(db, seven_days_ago)
     print(f"DEBUG: Found {len(state_stats)} states with outbreaks")
-    for s in state_stats:
-        print(f"DEBUG: State: {s.state}, Cases: {s.total_cases}")
-    
-    for state, total_cases, outbreak_count, max_severity in state_stats:
+    for st, vals in state_stats.items():
+        print(f"DEBUG: State: {st}, Cases: {vals.get('total_cases')}")
+
+    for state, vals in state_stats.items():
+        total_cases = int(vals.get("total_cases") or 0)
+        outbreak_count = int(vals.get("outbreak_count") or 0)
+        max_severity = vals.get("max_severity")
         if not state:
             continue
             
@@ -132,32 +225,11 @@ async def check_growth_rate_alerts(db: AsyncSession) -> List[Dict]:
     this_week_start = now - timedelta(days=7)
     last_week_start = now - timedelta(days=14)
     
-    # This week
-    result = await db.execute(
-        select(
-            Hospital.state,
-            func.sum(Outbreak.patient_count).label("cases")
-        )
-        .join(Hospital, Outbreak.hospital_id == Hospital.id)
-        .where(Outbreak.date_reported >= this_week_start)
-        .group_by(Hospital.state)
-    )
-    this_week = {row[0]: row[1] for row in result.all() if row[0]}
-    
-    # Last week
-    result = await db.execute(
-        select(
-            Hospital.state,
-            func.sum(Outbreak.patient_count).label("cases")
-        )
-        .join(Hospital, Outbreak.hospital_id == Hospital.id)
-        .where(
-            Outbreak.date_reported >= last_week_start,
-            Outbreak.date_reported < this_week_start
-        )
-        .group_by(Hospital.state)
-    )
-    last_week = {row[0]: row[1] for row in result.all() if row[0]}
+    this_week_stats = await _get_combined_state_stats(db, this_week_start)
+    last_week_stats = await _get_combined_state_stats(db, last_week_start, this_week_start)
+
+    this_week = {state: int(vals.get("total_cases") or 0) for state, vals in this_week_stats.items()}
+    last_week = {state: int(vals.get("total_cases") or 0) for state, vals in last_week_stats.items()}
     
     for state, this_cases in this_week.items():
         last_cases = last_week.get(state, 0)
@@ -177,7 +249,7 @@ async def check_growth_rate_alerts(db: AsyncSession) -> List[Dict]:
                 
                 alert = Alert(
                     title=f"Rapid Growth Alert - {state}",
-                    message=f"Outbreak cases in {state} grew by {growth_rate*100:.1f}% ({last_cases} → {this_cases})",
+                    message=f"Outbreak cases in {state} grew by {growth_rate*100:.1f}% ({last_cases} -> {this_cases})",
                     alert_type="RAPID_GROWTH",
                     severity="warning" if growth_rate >= 0.25 else "info",
                     zone_name=state,

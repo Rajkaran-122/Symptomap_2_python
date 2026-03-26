@@ -6,7 +6,7 @@ Provides metrics, cross-validation, and model comparison for SEIR predictions
 import math
 from typing import List, Dict, Tuple
 from datetime import datetime, timezone, timedelta
-from app.api.v1.training_data import HISTORICAL_OUTBREAKS, calculate_trained_parameters
+from app.api.v1.training_data import HISTORICAL_OUTBREAKS, calculate_trained_parameters  # type: ignore
 
 
 def calculate_rmse(actual: List[float], predicted: List[float]) -> float:
@@ -60,11 +60,11 @@ def run_seir_simulation(population: int, initial_infected: int,
                         beta: float, sigma: float, gamma: float, 
                         days: int) -> List[Dict]:
     """Standalone SEIR simulation for validation"""
-    N = population
-    I = float(initial_infected)
-    E = I * 2.0
-    R = I * 0.3
-    S = N - I - E - R
+    N: float = float(population)
+    I: float = float(initial_infected)
+    E: float = float(I * 2.0)
+    R: float = float(I * 0.3)
+    S: float = float(N - I - E - R)
     
     results = []
     dt = 0.1
@@ -73,20 +73,20 @@ def run_seir_simulation(population: int, initial_infected: int,
     for day in range(days + 1):
         results.append({
             'day': day,
-            'infected': int(I),
-            'total_cases': int(I + R)
+            'infected': int(float(I)),  # type: ignore
+            'total_cases': int(float(I) + float(R))  # type: ignore
         })
         
         for _ in range(steps_per_day):
-            dS = -beta * S * I / N
-            dE = beta * S * I / N - sigma * E
-            dI = sigma * E - gamma * I
-            dR = gamma * I
+            dS = -beta * S * I / N  # type: ignore
+            dE = beta * S * I / N - sigma * E  # type: ignore
+            dI = sigma * E - gamma * I  # type: ignore
+            dR = gamma * I  # type: ignore
             
-            S = max(0, S + dS * dt)
-            E = max(0, E + dE * dt)
-            I = max(0, I + dI * dt)
-            R = min(N, R + dR * dt)
+            S = max(0.0, float(S) + float(dS) * dt)  # type: ignore
+            E = max(0.0, float(E) + float(dE) * dt)  # type: ignore
+            I = max(0.0, float(I) + float(dI) * dt)  # type: ignore
+            R = min(float(N), float(R) + float(dR) * dt)  # type: ignore
     
     return results
 
@@ -106,7 +106,7 @@ def cross_validate_model(disease: str, k_folds: int = 5) -> Dict:
     
     # Shuffle and split data
     import random
-    shuffled = disease_data.copy()
+    shuffled: List[Dict] = disease_data.copy()
     random.seed(42)  # Reproducible
     random.shuffle(shuffled)
     
@@ -118,8 +118,8 @@ def cross_validate_model(disease: str, k_folds: int = 5) -> Dict:
         test_start = fold * fold_size
         test_end = test_start + fold_size
         
-        test_data = shuffled[test_start:test_end]
-        train_data = shuffled[:test_start] + shuffled[test_end:]
+        test_data: List[Dict] = shuffled[test_start:test_end]  # type: ignore
+        train_data: List[Dict] = shuffled[:test_start] + shuffled[test_end:]  # type: ignore
         
         if not test_data or not train_data:
             continue
@@ -159,18 +159,18 @@ def cross_validate_model(disease: str, k_folds: int = 5) -> Dict:
             'fold': fold + 1,
             'train_size': len(train_data),
             'test_size': len(test_data),
-            'rmse': round(rmse, 2),
-            'mae': round(mae, 2),
-            'mape': round(mape, 2),
-            'r_squared': round(r2, 4)
+            'rmse': float(f"{rmse:.2f}"),
+            'mae': float(f"{mae:.2f}"),
+            'mape': float(f"{mape:.2f}"),
+            'r_squared': float(f"{r2:.4f}")
         })
     
     # Average across folds
     if fold_results:
-        avg_rmse = sum(f['rmse'] for f in fold_results) / len(fold_results)
-        avg_mae = sum(f['mae'] for f in fold_results) / len(fold_results)
-        avg_mape = sum(f['mape'] for f in fold_results) / len(fold_results)
-        avg_r2 = sum(f['r_squared'] for f in fold_results) / len(fold_results)
+        avg_rmse = float(sum(f['rmse'] for f in fold_results)) / len(fold_results)
+        avg_mae = float(sum(f['mae'] for f in fold_results)) / len(fold_results)
+        avg_mape = float(sum(f['mape'] for f in fold_results)) / len(fold_results)
+        avg_r2 = float(sum(f['r_squared'] for f in fold_results)) / len(fold_results)
     else:
         avg_rmse = avg_mae = avg_mape = avg_r2 = 0
     
@@ -180,10 +180,10 @@ def cross_validate_model(disease: str, k_folds: int = 5) -> Dict:
         'data_points': len(disease_data),
         'fold_results': fold_results,
         'average_metrics': {
-            'rmse': round(avg_rmse, 2),
-            'mae': round(avg_mae, 2),
-            'mape': round(avg_mape, 2),
-            'r_squared': round(avg_r2, 4)
+            'rmse': float(f"{avg_rmse:.2f}"),
+            'mae': float(f"{avg_mae:.2f}"),
+            'mape': float(f"{avg_mape:.2f}"),
+            'r_squared': float(f"{avg_r2:.4f}")
         },
         'model_quality': 'Good' if avg_mape < 30 else 'Fair' if avg_mape < 50 else 'Needs Improvement'
     }
@@ -215,21 +215,22 @@ def compare_models(disease: str, state: str = "Maharashtra") -> Dict:
     for name, config in models.items():
         forecast = run_seir_simulation(
             population, initial_infected,
-            config['beta'], config['sigma'], config['gamma'],
+            float(config['beta']), float(config['sigma']), float(config['gamma']),
             days
         )
         
         peak_point = max(forecast, key=lambda x: x['infected'])
         final_cases = forecast[-1]['total_cases']
-        r0 = round(config['beta'] / config['gamma'], 2)
+        r0_val = float(config['beta']) / float(config['gamma'])
+        r0 = float(f"{r0_val:.2f}")
         
         comparisons.append({
             'model': name,
             'description': config['desc'],
             'parameters': {
-                'beta': round(config['beta'], 4),
-                'sigma': round(config['sigma'], 4),
-                'gamma': round(config['gamma'], 4)
+                'beta': float(f"{float(config['beta']):.4f}"),
+                'sigma': float(f"{float(config['sigma']):.4f}"),
+                'gamma': float(f"{float(config['gamma']):.4f}")
             },
             'r0': r0,
             'peak_day': peak_point['day'],
@@ -238,11 +239,13 @@ def compare_models(disease: str, state: str = "Maharashtra") -> Dict:
         })
     
     # Calculate relative differences
-    trained_peak = next(c for c in comparisons if c['model'] == 'trained')['peak_cases']
+    trained_model = next(c for c in comparisons if c['model'] == 'trained')
+    trained_peak: float = float(str(trained_model['peak_cases']))
     
     for c in comparisons:
         if trained_peak > 0:
-            c['diff_from_trained'] = round((c['peak_cases'] - trained_peak) / trained_peak * 100, 1)
+            diff = (float(str(c['peak_cases'])) - trained_peak) / trained_peak * 100.0
+            c['diff_from_trained'] = float(f"{diff:.1f}")
         else:
             c['diff_from_trained'] = 0
     
@@ -287,7 +290,7 @@ def get_validation_report() -> Dict:
         'generated_at': datetime.now(timezone.utc).isoformat(),
         'total_diseases': len(diseases),
         'total_data_points': len(HISTORICAL_OUTBREAKS),
-        'overall_accuracy': round(100 - overall_mape, 1),
+        'overall_accuracy': float(f"{100.0 - float(overall_mape):.1f}"),
         'validation_by_disease': validation_results,
         'best_performing': validation_results[0]['disease'] if validation_results else None,
         'model_status': 'Production Ready' if overall_mape < 30 else 'Beta'

@@ -198,90 +198,172 @@ async def _get_outbreaks(
     limit: int = 100,
     offset: int = 0
 ):
-    """Internal helper to get outbreaks with filters"""
+    """Internal helper to get outbreaks with filters.
+
+    Returns a combined list of:
+    - ORM outbreaks
+    - approved doctor submissions
+    """
     from sqlalchemy.orm import defer
     from datetime import timedelta, timezone
-    
-    # Build query - defer loading the location Geography field to avoid deserialization errors
-    query = select(Outbreak, Hospital).join(
+    from app.models.doctor import DoctorOutbreak
+
+    # Over-fetch from each source and paginate after merge so both sources appear.
+    fetch_size = max(limit + offset, 1000)
+
+    # --------------------------
+    # 1) ORM outbreaks + hospital
+    # --------------------------
+    orm_query = select(Outbreak, Hospital).join(
         Hospital, Outbreak.hospital_id == Hospital.id
     ).options(
-        defer(Outbreak.location),  # Don't load location field
-        defer(Hospital.location)   # Don't load location field
+        defer(Outbreak.location),
+        defer(Hospital.location),
     )
-    
-    # Apply filters
-    filters = []
+
+    orm_filters = []
     if disease_type:
-        filters.append(Outbreak.disease_type == disease_type)
+        orm_filters.append(Outbreak.disease_type == disease_type)
     if start_date:
-        filters.append(Outbreak.date_reported >= start_date)
+        orm_filters.append(Outbreak.date_reported >= start_date)
     if end_date:
-        filters.append(Outbreak.date_reported <= end_date)
+        orm_filters.append(Outbreak.date_reported <= end_date)
     if severity:
-        filters.append(Outbreak.severity == severity)
+        orm_filters.append(Outbreak.severity == severity)
     if verified is not None:
-        filters.append(Outbreak.verified == verified)
+        orm_filters.append(Outbreak.verified == verified)
     if days:
-        # Use naive datetime for SQLite comparison if needed
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-        # For SQLite, sometimes naive comparison works better with func.now() defaults
         if "sqlite" in str(db.bind.url):
-             cutoff = cutoff.replace(tzinfo=None)
-        filters.append(Outbreak.date_reported >= cutoff)
-    
-    if filters:
-        query = query.where(and_(*filters))
-    
-    query = query.order_by(Outbreak.date_reported.desc())
-    query = query.limit(limit).offset(offset)
-    
-    result = await db.execute(query)
-    rows = result.all()
-    
-    outbreaks = []
-    for outbreak, hospital in rows:
-        # Use latitude/longitude from database instead of location Geography
-        outbreak_dict = {
-            "id": str(outbreak.id),
-            "hospital": {
-                "id": str(hospital.id),
-                "name": hospital.name,
+            cutoff = cutoff.replace(tzinfo=None)
+        orm_filters.append(Outbreak.date_reported >= cutoff)
+
+    if orm_filters:
+        orm_query = orm_query.where(and_(*orm_filters))
+
+    orm_query = orm_query.order_by(Outbreak.date_reported.desc()).limit(fetch_size)
+    orm_result = await db.execute(orm_query)
+    orm_rows = orm_result.all()
+
+    combined = []
+
+    for outbreak, hospital in orm_rows:
+        combined.append(
+            {
+                "id": str(outbreak.id),
+                "hospital": {
+                    "id": str(hospital.id),
+                    "name": hospital.name,
+                    "location": {
+                        "lat": hospital.latitude if hospital.latitude else 0,
+                        "lng": hospital.longitude if hospital.longitude else 0,
+                        "latitude": hospital.latitude if hospital.latitude else 0,
+                        "longitude": hospital.longitude if hospital.longitude else 0,
+                        "city": hospital.city,
+                        "state": hospital.state,
+                    },
+                },
+                "city": hospital.city,
+                "state": hospital.state,
+                "disease": outbreak.disease_type,
+                "disease_type": outbreak.disease_type,
+                "cases": outbreak.patient_count,
+                "patient_count": outbreak.patient_count,
+                "date_started": outbreak.date_started.isoformat() if outbreak.date_started else None,
+                "reported_date": outbreak.date_reported.isoformat() if outbreak.date_reported else None,
+                "date_reported": outbreak.date_reported.isoformat() if outbreak.date_reported else None,
+                "severity": outbreak.severity,
+                "age_distribution": outbreak.age_distribution,
+                "gender_distribution": outbreak.gender_distribution,
+                "symptoms": outbreak.symptoms,
+                "notes": outbreak.notes,
+                "verified": outbreak.verified,
                 "location": {
-                    "lat": hospital.latitude if hospital.latitude else 0,
-                    "lng": hospital.longitude if hospital.longitude else 0,
-                    "latitude": hospital.latitude if hospital.latitude else 0,
-                    "longitude": hospital.longitude if hospital.longitude else 0,
-                    "city": hospital.city,
-                    "state": hospital.state
-                }
-            },
-            "city": hospital.city,  # Direct access for map
-            "state": hospital.state,  # Direct access for map
-            "disease": outbreak.disease_type,  # Alias for AdminDashboard
-            "disease_type": outbreak.disease_type,
-            "cases": outbreak.patient_count,  # Alias for AdminDashboard
-            "patient_count": outbreak.patient_count,
-            "date_started": outbreak.date_started.isoformat(),
-            "reported_date": outbreak.date_reported.isoformat() if outbreak.date_reported else None,  # Alias
-            "date_reported": outbreak.date_reported.isoformat() if outbreak.date_reported else None,
-            "severity": outbreak.severity,
-            "age_distribution": outbreak.age_distribution,
-            "gender_distribution": outbreak.gender_distribution,
-            "symptoms": outbreak.symptoms,
-            "notes": outbreak.notes,
-            "verified": outbreak.verified,
-            "location": {
-                "name": hospital.name,
-                "latitude": hospital.latitude,
-                "longitude": hospital.longitude
-            },
-            "created_at": outbreak.created_at.isoformat() if outbreak.created_at else None,
-            "updated_at": outbreak.updated_at.isoformat() if outbreak.updated_at else None
-        }
-        outbreaks.append(outbreak_dict)
-    
-    return outbreaks
+                    "name": hospital.name,
+                    "latitude": hospital.latitude,
+                    "longitude": hospital.longitude,
+                },
+                "created_at": outbreak.created_at.isoformat() if outbreak.created_at else None,
+                "updated_at": outbreak.updated_at.isoformat() if outbreak.updated_at else None,
+            }
+        )
+
+    # --------------------------
+    # 2) Approved doctor outbreaks
+    # --------------------------
+    doc_query = select(DoctorOutbreak).where(DoctorOutbreak.status == "approved")
+
+    doc_filters = []
+    if disease_type:
+        doc_filters.append(DoctorOutbreak.disease_type == disease_type)
+    if start_date:
+        doc_filters.append(DoctorOutbreak.date_reported >= start_date)
+    if end_date:
+        doc_filters.append(DoctorOutbreak.date_reported <= end_date)
+    if severity:
+        doc_filters.append(DoctorOutbreak.severity == severity)
+    if days:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        if "sqlite" in str(db.bind.url):
+            cutoff = cutoff.replace(tzinfo=None)
+        doc_filters.append(DoctorOutbreak.date_reported >= cutoff)
+
+    if doc_filters:
+        doc_query = doc_query.where(and_(*doc_filters))
+
+    doc_query = doc_query.order_by(DoctorOutbreak.date_reported.desc()).limit(fetch_size)
+    doc_result = await db.execute(doc_query)
+    doc_rows = doc_result.scalars().all()
+
+    for item in doc_rows:
+        date_reported = item.date_reported.isoformat() if item.date_reported else None
+        created_at = item.created_at.isoformat() if item.created_at else date_reported
+        location_name = item.location_name or "Doctor Submission"
+        city = item.city or "Unknown"
+        state = item.state or "Unknown"
+
+        combined.append(
+            {
+                "id": f"doc_{item.id}",
+                "hospital": {
+                    "id": f"doc_{item.id}",
+                    "name": location_name,
+                    "location": {
+                        "lat": item.latitude if item.latitude else 0,
+                        "lng": item.longitude if item.longitude else 0,
+                        "latitude": item.latitude if item.latitude else 0,
+                        "longitude": item.longitude if item.longitude else 0,
+                        "city": city,
+                        "state": state,
+                    },
+                },
+                "city": city,
+                "state": state,
+                "disease": item.disease_type,
+                "disease_type": item.disease_type,
+                "cases": item.patient_count,
+                "patient_count": item.patient_count,
+                "date_started": date_reported,
+                "reported_date": date_reported,
+                "date_reported": date_reported,
+                "severity": item.severity,
+                "age_distribution": None,
+                "gender_distribution": None,
+                "symptoms": None,
+                "notes": item.description,
+                "verified": True,
+                "location": {
+                    "name": location_name,
+                    "latitude": item.latitude,
+                    "longitude": item.longitude,
+                },
+                "created_at": created_at,
+                "updated_at": created_at,
+            }
+        )
+
+    combined.sort(key=lambda x: x.get("date_reported") or "", reverse=True)
+    return combined[offset : offset + limit]
 
 
 @router.get("/pending-count")

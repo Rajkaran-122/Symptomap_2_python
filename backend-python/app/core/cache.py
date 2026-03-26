@@ -54,7 +54,7 @@ def cache_response(ttl_seconds: int = 300):
                     ex=ttl_seconds
                 )
             except Exception as e:
-                print(f"⚠️ Cache Write Error: {e}")
+                print(f"[WARN] Cache Write Error: {e}")
                 
             return response_data
             
