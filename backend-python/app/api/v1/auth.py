@@ -8,19 +8,19 @@ Features:
 - Audit logging
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response  # type: ignore
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm  # type: ignore
+from sqlalchemy.ext.asyncio import AsyncSession  # type: ignore
+from sqlalchemy import select  # type: ignore
+from pydantic import BaseModel, EmailStr, Field, field_validator  # type: ignore
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List
 import uuid
-from jose import jwt
+from jose import jwt  # type: ignore
 
-from app.core.database import get_db
-from app.core.config import settings
-from app.core.security import (
+from app.core.database import get_db  # type: ignore
+from app.core.config import settings  # type: ignore
+from app.core.security import (  # type: ignore
     get_password_hash, 
     verify_password,
     validate_password_strength,
@@ -30,9 +30,9 @@ from app.core.security import (
     blacklist_token,
     LoginAttemptTracker
 )
-from app.models.user import User
-from app.core.limiter import limiter
-from app.core.audit import log_audit_event
+from app.models.user import User  # type: ignore
+from app.core.limiter import limiter  # type: ignore
+from app.core.audit import log_audit_event  # type: ignore
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
