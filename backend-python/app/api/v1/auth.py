@@ -16,6 +16,7 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List
 import uuid
+from jose import jwt
 
 from app.core.database import get_db
 from app.core.config import settings
@@ -525,7 +526,6 @@ async def logout(
              payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM], options={"verify_exp": False})
              jti = payload.get("jti")
              if jti:
-                 from app.core.security import blacklist_token
                  blacklist_token(jti, datetime.now(timezone.utc) + timedelta(minutes=15))
         except Exception as e:
             print(f"Logout warning: Could not blacklist token: {e}")
