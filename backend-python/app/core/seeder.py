@@ -254,8 +254,8 @@ async def create_outbreaks(db, hospitals, admin_user):
     """Create realistic outbreak records"""
     outbreaks = []
     
-    # Create 15-25 outbreak records
-    num_outbreaks = random.randint(18, 25)
+    # Create 300-500 outbreak records to saturate the map
+    num_outbreaks = random.randint(350, 500)
     
     for i in range(num_outbreaks):
         hospital = random.choice(hospitals)
@@ -327,7 +327,7 @@ async def create_doctor_data(db):
         {"city": "Patna", "state": "Bihar", "lat": 25.5941, "lng": 85.1376, "h": "AIIMS Patna"},
     ]
     
-    for i in range(15):
+    for i in range(150):
         loc = random.choice(pending_locs)
         disease = random.choice(DISEASES)
         doc_outbreak = DoctorOutbreak(
@@ -348,12 +348,12 @@ async def create_doctor_data(db):
         
     # 2. Approved Outbreaks (for public view)
     print("   Creating approved doctor outbreaks...")
-    for i in range(10):
+    for i in range(100):
         disease = random.choice(DISEASES)
         doc_outbreak = DoctorOutbreak(
              disease_type=disease,
              patient_count=random.randint(20, 100),
-             severity='severe',
+             severity='severe' if random.random() > 0.5 else 'moderate',
              latitude=20.5937 + random.uniform(-5, 5),
              longitude=78.9629 + random.uniform(-5, 5),
              location_name="City General Hospital",
