@@ -51,21 +51,28 @@ interface Outbreak {
 const UserDashboard: React.FC = () => {
     const navigate = useNavigate();
 
-    // User State
+    // User State - Improved to allow Guest mode
     const [user] = useState<User>(() => {
         const storedUser = localStorage.getItem('symptomap_user');
         if (storedUser) return JSON.parse(storedUser);
-        return null; // No guest user, force login
+        
+        // Return a default Guest user instead of null
+        return {
+            id: 'guest',
+            phone: '',
+            email: 'guest@symptomap.org',
+            role: 'user',
+            region: 'Universal',
+            full_name: 'Guest User'
+        };
     });
 
-    useEffect(() => {
-        if (!user) {
-            navigate('/user/login');
-        }
-    }, [user, navigate]);
-
-    // Prevent rendering if user is null (redirecting)
-    if (!user) return null;
+    // Removed the mandatory redirect to login - Anyone can view the dashboard now
+    // useEffect(() => {
+    //     if (!user) {
+    //         navigate('/user/login');
+    //     }
+    // }, [user, navigate]);
 
     // Dashboard State
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -259,9 +266,15 @@ const UserDashboard: React.FC = () => {
                                         <p className="text-sm font-bold text-slate-800 truncate">{user.full_name}</p>
                                         <p className="text-xs text-slate-400 truncate">{user.email}</p>
                                     </div>
-                                    <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-sm text-rose-600 hover:bg-rose-50 flex items-center gap-2">
-                                        <LogOut className="w-4 h-4" /> Sign Out
-                                    </button>
+                                    {user.id === 'guest' ? (
+                                        <Link to="/user/login" className="w-full text-left px-4 py-2 text-sm text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 transition-colors">
+                                            <LogOut className="w-4 h-4 rotate-180" /> Sign In
+                                        </Link>
+                                    ) : (
+                                        <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-sm text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition-colors">
+                                            <LogOut className="w-4 h-4" /> Sign Out
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </div>

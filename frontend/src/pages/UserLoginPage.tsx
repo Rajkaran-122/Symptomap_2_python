@@ -137,6 +137,15 @@ const UserLoginPage = () => {
                     >
                         Create a new account
                     </Link>
+
+                    <div className="mt-4">
+                        <Link
+                            to="/user/dashboard"
+                            className="block w-full text-center py-2 text-slate-500 hover:text-emerald-400 transition-colors text-xs font-semibold uppercase tracking-widest"
+                        >
+                            Continue as Guest
+                        </Link>
+                    </div>
                 </div>
 
                 {/* Footer links */}

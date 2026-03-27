@@ -112,7 +112,7 @@ const LandingPage: React.FC = () => {
                         {/* Login Options — Distinct Portals */}
                         <div className="flex flex-wrap items-center justify-center gap-4 mb-16">
                             <button
-                                onClick={() => navigate('/user/login')}
+                                onClick={() => navigate('/user/dashboard')}
                                 className="group bg-emerald-600/90 backdrop-blur-sm text-white px-8 py-4 rounded-xl font-semibold hover:bg-emerald-500 transition-all border border-emerald-400/30 flex items-center gap-3 shadow-lg shadow-emerald-900/30"
                             >
                                 <div className="w-10 h-10 rounded-lg bg-white/15 flex items-center justify-center group-hover:bg-white/25 transition-colors">
