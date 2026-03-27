@@ -7,10 +7,10 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 import random
 
-from app.core.database import AsyncSessionLocal, Base, engine
-from app.models.outbreak import Hospital, Outbreak
-from app.models.user import User
-from app.models.doctor import DoctorOutbreak, DoctorAlert
+from app.core.database import AsyncSessionLocal, Base, engine  # type: ignore
+from app.models.outbreak import Hospital, Outbreak  # type: ignore
+from app.models.user import User  # type: ignore
+from app.models.doctor import DoctorOutbreak, DoctorAlert  # type: ignore
 
 
 # Comprehensive list of major Indian cities with coordinates (All States)
@@ -170,8 +170,8 @@ async def create_hospitals(db):
             lat_offset = random.uniform(-0.05, 0.05)
             lng_offset = random.uniform(-0.05, 0.05)
             
-            lat = city['lat'] + lat_offset
-            lng = city['lng'] + lng_offset
+            lat = float(city['lat']) + lat_offset  # type: ignore
+            lng = float(city['lng']) + lng_offset  # type: ignore
             
             hospital = Hospital(
                 name=hospital_name,
@@ -202,7 +202,7 @@ async def create_hospitals(db):
 
 async def create_admin_user(db):
     """Create an admin user for testing"""
-    from app.core.security import get_password_hash
+    from app.core.security import get_password_hash  # type: ignore
     
     admin = User(
         email="admin@symptomap.com",
@@ -222,14 +222,14 @@ async def create_admin_user(db):
 
 async def create_doctor_user(db):
     """Create a default doctor user for testing"""
-    from app.core.security import get_password_hash
-    from app.core.config import settings
+    from app.core.security import get_password_hash  # type: ignore
+    from app.core.config import settings  # type: ignore
     
     # Use the configured doctor password
     password = settings.DOCTOR_PASSWORD
     
     # Check if exists
-    from sqlalchemy import select
+    from sqlalchemy import select  # type: ignore
     result = await db.execute(select(User).where(User.email == "doctor@symptomap.com"))
     if result.scalar_one_or_none():
         return
@@ -334,8 +334,8 @@ async def create_doctor_data(db):
              disease_type=disease,
              patient_count=random.randint(5, 50),
              severity='moderate' if random.random() > 0.7 else 'mild',
-             latitude=loc['lat'] + random.uniform(-0.05, 0.05),
-             longitude=loc['lng'] + random.uniform(-0.05, 0.05),
+             latitude=float(loc['lat']) + random.uniform(-0.05, 0.05),  # type: ignore
+             longitude=float(loc['lng']) + random.uniform(-0.05, 0.05),  # type: ignore
              location_name=loc['h'],
              city=loc['city'],
              state=loc['state'],
@@ -392,8 +392,8 @@ async def seed_database():
     
     print("\n✨ Database seeding completed successfully!\n")
     print(f"Summary:")
-    print(f"  - {len(hospitals)} hospitals across {len(CITIES_DATA)} cities")
-    print(f"  - {len(outbreaks)} outbreak records")
+    print(f"  - {len(hospitals)} hospitals across {len(CITIES_DATA)} cities")  # type: ignore
+    print(f"  - {len(outbreaks)} outbreak records")  # type: ignore
     print(f"  - 1 admin user account")
     print(f"\nYou can now:")
     print(f"  1. Login as admin@symptomap.com / admin123")

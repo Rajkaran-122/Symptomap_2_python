@@ -221,7 +221,7 @@ const UserDashboard: React.FC = () => {
 
                         <nav className="hidden md:flex items-center gap-1">
                             <Link to="/user/map" className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded-full transition-all">Live Map</Link>
-                            <Link to="/user/chatbot" className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded-full transition-all">Dr. AI</Link>
+                            <a href="https://healthzy.app/" target="_blank" rel="noopener noreferrer" className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded-full transition-all">Dr. AI</a>
                         </nav>
                     </div>
 
@@ -312,13 +312,13 @@ const UserDashboard: React.FC = () => {
                                 </p>
 
                                 <div className="flex flex-wrap gap-4">
-                                    <Link
-                                        to="/user/chatbot"
+                                    <a
+                                        href="https://healthzy.app/" target="_blank" rel="noopener noreferrer"
                                         className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-200 transition-all flex items-center gap-2.5 active:scale-95"
                                     >
                                         <MessageSquare className="w-5 h-5" />
                                         Consult Dr. AI
-                                    </Link>
+                                    </a>
                                     <Link
                                         to="/user/map"
                                         className="px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:border-indigo-200 hover:text-indigo-600 hover:shadow-md transition-all flex items-center gap-2.5 active:scale-95"
@@ -522,9 +522,9 @@ const UserDashboard: React.FC = () => {
                                 <p className="text-indigo-100 text-xs mb-6 leading-relaxed">
                                     Our AI Doctor is trained on millions of case files to provide instant guidance.
                                 </p>
-                                <Link to="/user/chatbot" className="block w-full py-3 bg-white text-indigo-600 rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg hover:bg-indigo-50 transition-colors">
+                                <a href="https://healthzy.app/" target="_blank" rel="noopener noreferrer" className="block w-full py-3 bg-white text-indigo-600 rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg hover:bg-indigo-50 transition-colors text-center">
                                     Start Chat
-                                </Link>
+                                </a>
                             </div>
                         </div>
                     </div>
