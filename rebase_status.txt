@@ -1,0 +1,45 @@
+﻿interactive rebase in progress; onto fa5fd3f
+Last commands done (4 commands done):
+   pick 73b6e23 # Fix admin broadcast send failure and improve broadcast error feedback
+   pick f6669d0 # Deployment pass: Fixed Pyre2 type checking, verified E2E flows, and seeded outbreaks
+  (see more in file .git/rebase-merge/done)
+No commands remaining.
+You are currently rebasing branch 'main' on 'fa5fd3f'.
+  (fix conflicts and then run "git rebase --continue")
+  (use "git rebase --skip" to skip this patch)
+  (use "git rebase --abort" to check out the original branch)
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   .env
+	modified:   backend-python/add_comprehensive_data.py
+	modified:   backend-python/add_data_now.py
+	modified:   backend-python/app/api/v1/analytics.py
+	modified:   backend-python/app/api/v1/model_validation.py
+	modified:   backend-python/app/api/v1/outbreaks.py
+	modified:   backend-python/app/api/v1/predictions_enhanced.py
+	modified:   backend-python/app/api/v1/public.py
+	modified:   backend-python/app/api/v1/training_data.py
+	modified:   backend-python/app/core/cache.py
+	modified:   backend-python/app/core/redis.py
+	modified:   backend-python/app/main.py
+	modified:   backend-python/app/models/broadcast.py
+	modified:   backend-python/app/services/alert_generator.py
+	modified:   backend-python/app/services/chatbot_service.py
+	new file:   backend-python/seed_outbreaks_2000_500.py
+	new file:   backend-python/symptomap.db.bak.20260216_123957
+	modified:   frontend/src/pages/UserDashboard.tsx
+	new file:   pyrightconfig.json
+
+Unmerged paths:
+  (use "git restore --staged <file>..." to unstage)
+  (use "git add <file>..." to mark resolution)
+	both modified:   backend-python/app/services/email_service.py
+	both modified:   seed_india_data.py
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	rebase_status.txt
+	status.txt
+	status2.txt
+

@@ -359,3 +359,62 @@ async def get_active_alerts(
         }
         for row in rows
     ]
+
+
+@router.get("/public")
+async def get_public_alerts(
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get all active admin alerts for the public user dashboard.
+    No authentication required.
+    Alerts remain until an admin explicitly deactivates them.
+    """
+    from sqlalchemy import text
+
+    sql = """
+        SELECT id, alert_type, severity, title, message, zone_name, sent_at
+        FROM alerts
+        WHERE (is_active IS NULL OR is_active = 1)
+        ORDER BY sent_at DESC
+        LIMIT 20
+    """
+
+    result = await db.execute(text(sql))
+    rows = result.fetchall()
+
+    return [
+        {
+            "id": str(row[0]),
+            "alert_type": row[1],
+            "severity": row[2],
+            "title": row[3],
+            "message": row[4],
+            "zone_name": row[5],
+            "sent_at": row[6],
+        }
+        for row in rows
+    ]
+
+
+@router.post("/{alert_id}/deactivate")
+async def deactivate_alert(
+    alert_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin-only: permanently hide an alert from the public dashboard."""
+    from sqlalchemy import text
+
+    if current_user.role not in ["admin", "public_health_official"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can deactivate alerts",
+        )
+
+    # Try ORM update first; fall back to raw SQL if is_active column exists
+    update_sql = "UPDATE alerts SET is_active = 0 WHERE id = :alert_id"
+    await db.execute(text(update_sql), {"alert_id": alert_id})
+    await db.commit()
+
+    return {"message": "Alert deactivated", "alert_id": alert_id}

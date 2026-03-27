@@ -28,11 +28,192 @@ from app.core.limiter import limiter
 # Security Middleware
 from app.middleware.security import setup_security_middleware
 
+
+async def _seed_permanent_data():
+    """
+    Seed permanent broadcasts and admin alerts if the tables are empty.
+    Runs on every startup — safe to call multiple times (idempotent).
+    """
+    from sqlalchemy import text
+    from app.core.database import AsyncSessionLocal
+    import uuid, json
+    from datetime import datetime, timezone
+
+    async with AsyncSessionLocal() as db:
+        # --- Broadcasts ---
+        try:
+            bc_count = await db.execute(text("SELECT count(*) FROM broadcasts WHERE is_active = 1"))
+            if (bc_count.scalar() or 0) == 0:
+                BROADCASTS = [
+                    {
+                        "id": str(uuid.uuid4()),
+                        "title": "Dengue Advisory — Stay Alert This Monsoon",
+                        "content": (
+                            "Health authorities have issued a dengue advisory for several districts. "
+                            "Use mosquito repellent, wear full-sleeved clothing, and eliminate stagnant water near your home. "
+                            "Report symptoms (high fever, joint pain, rash) immediately to your nearest health centre."
+                        ),
+                        "severity": "warning",
+                        "region": None,
+                        "channels": json.dumps(["in_app"]),
+                        "is_active": 1,
+                        "is_automated": 0,
+                        "created_at": datetime.now(timezone.utc).isoformat(),
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                    },
+                    {
+                        "id": str(uuid.uuid4()),
+                        "title": "COVID-19 Booster Drive — Free Vaccination Camps",
+                        "content": (
+                            "Free COVID-19 booster vaccination camps are being conducted at all government hospitals "
+                            "and primary health centres across the country this week. Carry your Aadhaar card. "
+                            "Walk-ins welcome, no prior appointment needed."
+                        ),
+                        "severity": "info",
+                        "region": None,
+                        "channels": json.dumps(["in_app"]),
+                        "is_active": 1,
+                        "is_automated": 0,
+                        "created_at": datetime.now(timezone.utc).isoformat(),
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                    },
+                    {
+                        "id": str(uuid.uuid4()),
+                        "title": "CRITICAL: Cholera Cluster Detected in Eastern Zone",
+                        "content": (
+                            "A cluster of cholera cases has been confirmed in the eastern zones. "
+                            "Avoid unboiled water and raw street food. Oral rehydration salts are "
+                            "available free at all PHCs. Seek medical attention immediately if you "
+                            "experience severe diarrhoea or vomiting."
+                        ),
+                        "severity": "critical",
+                        "region": None,
+                        "channels": json.dumps(["in_app"]),
+                        "is_active": 1,
+                        "is_automated": 0,
+                        "created_at": datetime.now(timezone.utc).isoformat(),
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                    },
+                ]
+                for bc in BROADCASTS:
+                    await db.execute(text("""
+                        INSERT OR IGNORE INTO broadcasts
+                          (id, title, content, severity, region, channels, is_active, is_automated, created_at, updated_at)
+                        VALUES
+                          (:id, :title, :content, :severity, :region, :channels, :is_active, :is_automated, :created_at, :updated_at)
+                    """), bc)
+                await db.commit()
+                print("[INFO] Seeded 3 permanent broadcasts")
+        except Exception as e:
+            print(f"[WARN] Could not seed broadcasts: {e}")
+
+        # --- Admin Alerts ---
+        try:
+            alert_count = await db.execute(text("SELECT count(*) FROM alerts"))
+            if (alert_count.scalar() or 0) == 0:
+                ALERTS = [
+                    {
+                        "id": str(uuid.uuid4()),
+                        "alert_type": "email",
+                        "severity": "critical",
+                        "title": "CRITICAL: Dengue Surge — Mumbai Region",
+                        "message": (
+                            "A rapid surge of Dengue cases has been reported across Mumbai and surrounding districts. "
+                            "Hospitals are advised to increase bed capacity. Citizens should avoid stagnant water and use mosquito nets."
+                        ),
+                        "zone_name": "Mumbai",
+                        "recipients": json.dumps({"emails": ["admin@symptomap.com"]}),
+                        "delivery_status": json.dumps({"email": "sent"}),
+                        "acknowledged_by": json.dumps([]),
+                        "sent_at": datetime.now(timezone.utc).isoformat(),
+                        "is_active": 1,
+                    },
+                    {
+                        "id": str(uuid.uuid4()),
+                        "alert_type": "sms",
+                        "severity": "warning",
+                        "title": "Warning: Malaria Cases Rising — Delhi NCR",
+                        "message": (
+                            "Health teams are reporting rising Malaria cases in Delhi NCR due to seasonal conditions. "
+                            "Preventive fumigation drives are underway. Citizens should use protective clothing."
+                        ),
+                        "zone_name": "Delhi",
+                        "recipients": json.dumps({"emails": ["admin@symptomap.com"]}),
+                        "delivery_status": json.dumps({"email": "sent"}),
+                        "acknowledged_by": json.dumps([]),
+                        "sent_at": datetime.now(timezone.utc).isoformat(),
+                        "is_active": 1,
+                    },
+                    {
+                        "id": str(uuid.uuid4()),
+                        "alert_type": "push",
+                        "severity": "info",
+                        "title": "Info: Routine Cholera Surveillance Update — All Zones",
+                        "message": (
+                            "Routine surveillance has detected minor Cholera clusters in select districts. "
+                            "Water samples are being tested. No major outbreak risk at this time."
+                        ),
+                        "zone_name": "National",
+                        "recipients": json.dumps({"emails": ["admin@symptomap.com"]}),
+                        "delivery_status": json.dumps({"email": "sent"}),
+                        "acknowledged_by": json.dumps([]),
+                        "sent_at": datetime.now(timezone.utc).isoformat(),
+                        "is_active": 1,
+                    },
+                    {
+                        "id": str(uuid.uuid4()),
+                        "alert_type": "email",
+                        "severity": "critical",
+                        "title": "CRITICAL: Viral Fever Outbreak — Rajasthan",
+                        "message": (
+                            "Over 300 hospitalisations for severe viral fever have been reported across Rajasthan in the last 48 hours. "
+                            "Mobile medical units have been deployed. Residents are advised to seek immediate care for persistent fever above 102°F."
+                        ),
+                        "zone_name": "Rajasthan",
+                        "recipients": json.dumps({"emails": ["admin@symptomap.com"]}),
+                        "delivery_status": json.dumps({"email": "sent"}),
+                        "acknowledged_by": json.dumps([]),
+                        "sent_at": datetime.now(timezone.utc).isoformat(),
+                        "is_active": 1,
+                    },
+                    {
+                        "id": str(uuid.uuid4()),
+                        "alert_type": "email",
+                        "severity": "warning",
+                        "title": "Warning: Typhoid Cluster — Lucknow Water Supply",
+                        "message": (
+                            "A typhoid cluster linked to contaminated water supply has been identified in parts of Lucknow. "
+                            "Citizens in the affected wards should boil drinking water. Health officers are on-site."
+                        ),
+                        "zone_name": "Lucknow",
+                        "recipients": json.dumps({"emails": ["admin@symptomap.com"]}),
+                        "delivery_status": json.dumps({"email": "sent"}),
+                        "acknowledged_by": json.dumps([]),
+                        "sent_at": datetime.now(timezone.utc).isoformat(),
+                        "is_active": 1,
+                    },
+                ]
+                for al in ALERTS:
+                    await db.execute(text("""
+                        INSERT OR IGNORE INTO alerts
+                          (id, alert_type, severity, title, message, zone_name,
+                           recipients, delivery_status, acknowledged_by, sent_at, is_active)
+                        VALUES
+                          (:id, :alert_type, :severity, :title, :message, :zone_name,
+                           :recipients, :delivery_status, :acknowledged_by, :sent_at, :is_active)
+                    """), al)
+                await db.commit()
+                print("[INFO] Seeded 5 permanent admin alerts")
+        except Exception as e:
+            print(f"[WARN] Could not seed alerts: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
     # Startup
     print("[INFO] Starting SymptoMap Backend...")
+
     
     # Import all models to ensure they're registered with Base.metadata
     from app.models import (
@@ -59,6 +240,10 @@ async def lifespan(app: FastAPI):
         await seed_database()
     else:
         print(f"[OK] Database has {count} hospitals - skipping seed")
+    
+    # Auto-seed permanent broadcasts and alerts if needed
+    await _seed_permanent_data()
+
     
     # Legacy SQLite initialization removed in favor of SQLAlchemy
      

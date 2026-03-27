@@ -3,14 +3,14 @@
  * High-fidelity health surveillance portal for general public
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
     Activity, Bell, MapPin, AlertTriangle,
     ShieldCheck, LogOut, RefreshCw, Radio,
     Stethoscope, Users, Zap,
     ChevronRight, Search, Thermometer,
-    MessageSquare
+    MessageSquare, LocateOff
 } from 'lucide-react';
 import BroadcastFeed from '../components/broadcasts/BroadcastFeed';
 import { API_BASE_URL } from '../config/api';
@@ -46,6 +46,15 @@ interface Outbreak {
     reported_at: string;
     city?: string;
     date_reported?: string;
+}
+
+interface AdminAlert {
+    id: string;
+    severity: 'info' | 'warning' | 'critical';
+    title: string;
+    message: string;
+    zone_name: string;
+    sent_at: string;
 }
 
 const UserDashboard: React.FC = () => {
@@ -91,11 +100,32 @@ const UserDashboard: React.FC = () => {
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [currentTime, setCurrentTime] = useState(new Date());
 
+    // Admin Alerts
+    const [adminAlerts, setAdminAlerts] = useState<AdminAlert[]>([]);
+    const [alertsBannerCollapsed, setAlertsBannerCollapsed] = useState(false);
+
+    // Weather
+    const [weatherLoading, setWeatherLoading] = useState(true);
+    const [locationDenied, setLocationDenied] = useState(false);
+
     useEffect(() => {
         loadDashboardData();
+        loadAdminAlerts();
         const timer = setInterval(() => setCurrentTime(new Date()), 60000);
         return () => clearInterval(timer);
     }, []);
+
+    const loadAdminAlerts = async () => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/alerts/public`);
+            if (res.ok) {
+                const data = await res.json();
+                setAdminAlerts(Array.isArray(data) ? data : []);
+            }
+        } catch (e) {
+            console.error('Failed to load admin alerts', e);
+        }
+    };
 
     const loadDashboardData = async () => {
         setLoading(true);
@@ -129,62 +159,66 @@ const UserDashboard: React.FC = () => {
 
     // Weather & Location Logic
     const [weather, setWeather] = useState({
-        temp: 28,
-        city: 'Mumbai, India',
-        aqi: 42,
+        temp: 0,
+        city: '',
+        aqi: 0,
         aqiLabel: 'Good'
     });
 
-    useEffect(() => {
-        fetchWeather();
-    }, []);
-
-    const fetchWeather = async () => {
-        if (!navigator.geolocation) return;
-
-        navigator.geolocation.getCurrentPosition(async (position) => {
-            const { latitude, longitude } = position.coords;
-            try {
-                // 1. Get Weather
-                const weatherRes = await fetch(
-                    `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m`
-                );
-                const weatherData = await weatherRes.json();
-
-                // 2. Get AQI
-                const aqiRes = await fetch(
-                    `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${latitude}&longitude=${longitude}&current=european_aqi`
-                );
-                const aqiData = await aqiRes.json();
-
-                // 3. Get Location Name (Reverse Geocode)
-                const locRes = await fetch(
-                    `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
-                );
-                const locData = await locRes.json();
-
-                // Update State
-                setWeather({
-                    temp: Math.round(weatherData.current.temperature_2m),
-                    city: `${locData.city || locData.locality}, ${locData.countryCode}`,
-                    aqi: aqiData.current.european_aqi,
-                    aqiLabel: getAqiLabel(aqiData.current.european_aqi)
-                });
-            } catch (e) {
-                console.error("Weather fetch failed", e);
-            }
-        }, (err) => {
-            console.warn("Location denied, using default", err);
-        });
-    };
-
-    const getAqiLabel = (aqi: number) => {
+    const getAqiLabel = useCallback((aqi: number) => {
         if (aqi < 20) return 'Excellent';
         if (aqi < 40) return 'Good';
         if (aqi < 60) return 'Moderate';
         if (aqi < 80) return 'Poor';
         return 'Critical';
-    };
+    }, []);
+
+    const fetchWeather = useCallback(async () => {
+        if (!navigator.geolocation) {
+            setWeatherLoading(false);
+            setLocationDenied(true);
+            return;
+        }
+        setWeatherLoading(true);
+        setLocationDenied(false);
+
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const { latitude, longitude } = position.coords;
+                try {
+                    const [weatherRes, aqiRes, locRes] = await Promise.all([
+                        fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m`),
+                        fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${latitude}&longitude=${longitude}&current=european_aqi`),
+                        fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`)
+                    ]);
+                    const [weatherData, aqiData, locData] = await Promise.all([
+                        weatherRes.json(), aqiRes.json(), locRes.json()
+                    ]);
+                    const aqiVal = aqiData?.current?.european_aqi ?? 0;
+                    setWeather({
+                        temp: Math.round(weatherData?.current?.temperature_2m ?? 0),
+                        city: `${locData.city || locData.locality || 'Your City'}, ${locData.countryCode || ''}`,
+                        aqi: aqiVal,
+                        aqiLabel: getAqiLabel(aqiVal)
+                    });
+                } catch (e) {
+                    console.error('Weather fetch failed', e);
+                } finally {
+                    setWeatherLoading(false);
+                }
+            },
+            (err) => {
+                console.warn('Location denied', err);
+                setLocationDenied(true);
+                setWeatherLoading(false);
+            },
+            { timeout: 10000 }
+        );
+    }, [getAqiLabel]);
+
+    useEffect(() => {
+        fetchWeather();
+    }, [fetchWeather]);
 
     const handleLogout = () => {
         localStorage.clear();
@@ -202,6 +236,14 @@ const UserDashboard: React.FC = () => {
     const formatDate = (dateStr: string) => {
         if (!dateStr) return 'Recently';
         return new Date(dateStr).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    };
+
+    const getAlertStyle = (severity: string) => {
+        switch (severity) {
+            case 'critical': return { bar: 'bg-rose-600', banner: 'bg-rose-50 border-rose-200', icon: 'text-rose-600', badge: 'bg-rose-100 text-rose-700', label: 'CRITICAL' };
+            case 'warning':  return { bar: 'bg-amber-500', banner: 'bg-amber-50 border-amber-200', icon: 'text-amber-600', badge: 'bg-amber-100 text-amber-700', label: 'WARNING' };
+            default:         return { bar: 'bg-blue-500', banner: 'bg-blue-50 border-blue-200', icon: 'text-blue-600', badge: 'bg-blue-100 text-blue-700', label: 'INFO' };
+        }
     };
 
     return (
@@ -287,6 +329,47 @@ const UserDashboard: React.FC = () => {
             ═══════════════════════════════════════════ */}
             <main className="max-w-7xl mx-auto px-6 py-8">
 
+                {/* ADMIN ALERTS BANNER */}
+                {adminAlerts.length > 0 && (
+                    <section className="mb-6">
+                        <div className="flex items-center justify-between mb-3">
+                            <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                                <AlertTriangle className="w-4 h-4 text-rose-500" />
+                                Health Alerts from Authorities
+                            </h2>
+                            <button
+                                onClick={() => setAlertsBannerCollapsed(p => !p)}
+                                className="text-xs text-slate-400 hover:text-slate-600 font-bold uppercase tracking-wider transition-colors"
+                            >
+                                {alertsBannerCollapsed ? 'Show Alerts' : 'Collapse'}
+                            </button>
+                        </div>
+                        {!alertsBannerCollapsed && (
+                            <div className="space-y-2">
+                                {adminAlerts.map(alert => {
+                                    const s = getAlertStyle(alert.severity);
+                                    return (
+                                        <div key={alert.id} className={`${s.banner} border rounded-2xl overflow-hidden flex`}>
+                                            <div className={`w-1.5 shrink-0 ${s.bar}`} />
+                                            <div className="flex items-start gap-3 p-4 flex-1 min-w-0">
+                                                <AlertTriangle className={`w-5 h-5 mt-0.5 shrink-0 ${s.icon}`} />
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                                                        <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${s.badge}`}>{s.label}</span>
+                                                        {alert.zone_name && <span className="text-xs text-slate-500 font-medium">{alert.zone_name}</span>}
+                                                    </div>
+                                                    <p className={`font-bold text-sm ${s.icon} mb-0.5`}>{alert.title}</p>
+                                                    <p className="text-sm text-slate-600 leading-relaxed">{alert.message}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </section>
+                )}
+
                 {/* HERO SECTION */}
                 <section className="mb-10">
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -342,19 +425,44 @@ const UserDashboard: React.FC = () => {
                                     </div>
                                     <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Local Vitals</span>
                                 </div>
-                                <div>
-                                    <div className="text-4xl font-bold mb-1">{weather.temp}°C</div>
-                                    <div className="text-indigo-200 font-medium text-sm">{weather.city}</div>
-                                </div>
+
+                                {weatherLoading ? (
+                                    <div className="animate-pulse">
+                                        <div className="h-10 bg-white/10 rounded-xl w-24 mb-2" />
+                                        <div className="h-4 bg-white/10 rounded-full w-36" />
+                                    </div>
+                                ) : locationDenied ? (
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <LocateOff className="w-5 h-5 text-slate-400" />
+                                            <span className="text-slate-400 text-sm">Location access denied</span>
+                                        </div>
+                                        <button
+                                            onClick={fetchWeather}
+                                            className="text-xs font-bold text-indigo-300 hover:text-indigo-200 underline underline-offset-2 transition-colors"
+                                        >
+                                            Enable Location
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <div className="text-4xl font-bold mb-1">{weather.temp}°C</div>
+                                        <div className="text-indigo-200 font-medium text-sm">{weather.city}</div>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="relative z-10 mt-6 pt-6 border-t border-white/10">
                                 <div className="flex justify-between items-end">
                                     <div>
                                         <p className="text-xs text-slate-400 uppercase tracking-wider font-bold mb-1">Air Quality</p>
-                                        <p className={`text-lg font-bold ${weather.aqi < 40 ? 'text-emerald-400' : weather.aqi < 60 ? 'text-amber-400' : 'text-rose-400'}`}>
-                                            {weather.aqiLabel} ({weather.aqi})
-                                        </p>
+                                        {!weatherLoading && !locationDenied ? (
+                                            <p className={`text-lg font-bold ${weather.aqi < 40 ? 'text-emerald-400' : weather.aqi < 60 ? 'text-amber-400' : 'text-rose-400'}`}>
+                                                {weather.aqiLabel} ({weather.aqi})
+                                            </p>
+                                        ) : (
+                                            <p className="text-slate-500 text-sm">—</p>
+                                        )}
                                     </div>
                                     <Activity className="w-12 h-6 text-slate-500" />
                                 </div>

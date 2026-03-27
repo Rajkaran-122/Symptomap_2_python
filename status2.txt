@@ -1,0 +1,23 @@
+﻿interactive rebase in progress; onto fa5fd3f
+Last commands done (3 commands done):
+   pick e5911ae # Fix indentation error in auth.py
+   pick 73b6e23 # Fix admin broadcast send failure and improve broadcast error feedback
+  (see more in file .git/rebase-merge/done)
+Next command to do (1 remaining command):
+   pick f6669d0 # Deployment pass: Fixed Pyre2 type checking, verified E2E flows, and seeded outbreaks
+  (use "git rebase --edit-todo" to view and edit)
+You are currently editing a commit while rebasing branch 'main' on 'fa5fd3f'.
+  (use "git commit --amend" to amend the current commit)
+  (use "git rebase --continue" once you are satisfied with your changes)
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   frontend/src/pages/UserDashboard.tsx
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	status.txt
+	status2.txt
+
+no changes added to commit (use "git add" and/or "git commit -a")
